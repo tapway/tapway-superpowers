@@ -22,11 +22,6 @@
     "./skills/security-audit",
     "./skills/pre-review-cleanup"
   ],
-  "agents": [
-    "./agents/code-reviewer.md",
-    "./agents/test-writer.md",
-    "./agents/security-auditor.md",
-    "./agents/devops-sre.md"
-  ],
-  "hooks": []
+  "hooks": [],
+  "agents": []
 }

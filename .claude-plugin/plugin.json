@@ -8,7 +8,25 @@
   },
   "license": "MIT",
   "keywords": ["skills", "agents", "hooks", "tdd", "code-review", "full-stack", "nextjs", "fastapi"],
-  "skills": [],
-  "agents": [],
+  "skills": [
+    "./skills/brainstorming",
+    "./skills/writing-plans",
+    "./skills/tdd",
+    "./skills/verification",
+    "./skills/refactor",
+    "./skills/code-review",
+    "./skills/systematic-debugging",
+    "./skills/subagent-driven-development",
+    "./skills/git-worktrees",
+    "./skills/repo-docs",
+    "./skills/security-audit",
+    "./skills/pre-review-cleanup"
+  ],
+  "agents": [
+    "./agents/code-reviewer",
+    "./agents/test-writer",
+    "./agents/security-auditor",
+    "./agents/devops-sre"
+  ],
   "hooks": []
 }

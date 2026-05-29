@@ -17,6 +17,7 @@
     "./skills/code-review",
     "./skills/systematic-debugging",
     "./skills/subagent-driven-development",
+    "./skills/tdd-subagent",
     "./skills/git-worktrees",
     "./skills/repo-docs",
     "./skills/security-audit",

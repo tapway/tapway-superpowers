@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Claude Code plugin that adds 12 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development with Next.js 14 + Python FastAPI. Built for the Tapway team's "vibe coding" workflow — the AI enforces best practices so you don't have to think about them.
+A Claude Code plugin that adds 11 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development with Next.js 14 + Python FastAPI. Built for the Tapway team's "vibe coding" workflow — the AI enforces best practices so you don't have to think about them.
 
 ## Quick Install
 
@@ -24,7 +24,7 @@ claude plugin install claude-code-setup@claude-plugins-official
 
 ## What You Get
 
-### 12 Skills
+### 11 Skills
 
 AI behaviors that activate automatically when you use relevant keywords in conversation. Also invokable explicitly with `/skill-name`.
 
@@ -32,12 +32,11 @@ AI behaviors that activate automatically when you use relevant keywords in conve
 |---|---|---|
 | `brainstorming` | Explore approaches, surface trade-offs, name confusion before coding | "Let's think about...", "What are the options..." |
 | `writing-plans` | Create detailed implementation plans with file maps and task breakdowns | "Write a plan...", "Break this down..." |
-| `tdd` | Enforce test-driven development: red → green → refactor | "Write a test first...", any new feature or bug fix |
+| `tdd` | TDD-first subagent execution: Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR). Default skill for all implementation work. | "Start implementing...", "implement", any new feature or bug fix |
 | `verification` | Confirm a task is done — runs tests, lint, type-checks, spec coverage | "Is this done?", "Verify...", "Final check..." |
 | `refactor` | Improve code without changing behavior — surgical, tested, minimal | "Refactor...", "Simplify...", "Remove duplication..." |
 | `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |
 | `systematic-debugging` | Reproduce → Isolate → Hypothesize → Test → Fix → Post-mortem | "Why is X failing?", "Debug...", "Works locally but not in prod..." |
-| `subagent-driven-development` | Execute multi-task plans with isolated subagents per task | "Delegate to subagents...", "Run this plan with subagents..." |
 | `git-worktrees` | Manage parallel git worktrees for concurrent feature work | "Worktree...", "Parallel branches..." |
 | `repo-docs` | Generate standardized architecture, schema, and deployment docs | "Document this repo...", "Write architecture docs..." |
 | `security-audit` | OWASP Top 10 audit for auth, payments, user data, file uploads | "Security review...", "Audit auth...", "Is this safe?" |

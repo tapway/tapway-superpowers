@@ -27,7 +27,7 @@ Every plan starts with:
 ## Plan: [Feature Name]
 **Goal:** [One sentence]
 **Tech stack:** Next.js 14 + TypeScript / Python FastAPI
-**Related skills needed:** tdd, subagent-driven-development
+**Related skills needed:** tdd
 **Estimated tasks:** N
 
 ### Assumptions
@@ -86,7 +86,7 @@ Save to `docs/plans/[feature-name].md` before starting implementation.
 
 ### 6. Execution Options
 After saving, ask:
-> "Should I execute this plan inline (batch with checkpoints) or using subagent-driven-development (fresh agent per task)?"
+> "Ready to implement? Say 'start implementing' or run /tdd."
 
 ---
 

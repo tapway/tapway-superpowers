@@ -58,7 +58,7 @@ main repo dir/        ← main branch, production
 ---
 
 ## With Subagents
-Worktrees are ideal when dispatching parallel subagents (see `subagent-driven-development` skill):
+Worktrees are ideal when dispatching parallel subagents (see `tdd` skill):
 - Dispatch Agent A to worktree-1 (feature X)
 - Dispatch Agent B to worktree-2 (feature Y)
 - Both work simultaneously without conflicting

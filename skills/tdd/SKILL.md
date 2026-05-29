@@ -49,7 +49,7 @@ Provide exactly this context — no more:
 You are the Test Writer for Task N of [Feature] — RED phase only.
 
 TASK: [exact task description from plan]
-TEST FILE: [path where the test should be written, e.g. backend/tests/unit/test_X.py]
+TEST FILE: [path where the test should be written, e.g. backend/tests/unit/test_X.py or frontend/src/__tests__/X.test.ts]
 DESIRED BEHAVIOR: [one sentence — what should the function do?]
 
 Write ONE test using this naming convention:
@@ -57,9 +57,9 @@ Write ONE test using this naming convention:
 
 Run the test. Paste the EXACT output (stdout + stderr).
 
-SUCCESS CRITERIA: The test FAILS with an assertion error, ImportError, or
-AttributeError — NOT a syntax error. A syntax error means the test itself is
-broken, not the production code.
+SUCCESS CRITERIA: The test FAILS with an assertion error, ImportError, AttributeError,
+or TypeScript compilation/type error (e.g., missing function or type) — NOT a syntax
+error. A syntax error means the test itself is broken, not the production code.
 
 STOP HERE. Do not write any production code. Do not create source files.
 SURGICAL CHANGES: Touch only the test file listed above.
@@ -105,7 +105,7 @@ REFACTOR phase — only if the green code is unclear:
 SURGICAL CHANGES: Touch only the production files listed above.
 CONVENTIONS: [paste relevant items from CLAUDE.md]
 
-Commit with: git commit -m "feat: [behavior added]"
+Commit with: git commit -m "feat/fix/refactor: [behavior added/fixed/refactored]"
 Report: exact test output showing pass, list of files changed, commit hash.
 ```
 
@@ -180,6 +180,6 @@ Task 2: "add_discount() rejects negative percentage"
 
 ## Exceptions (require explicit approval)
 
-- Auto-generated files (migrations, OpenAPI-derived types) — skip Test Writer, go straight to Implementer
+- Auto-generated files (migrations, OpenAPI-derived types) — skip TDD subagents, edit directly or dispatch a standard subagent without TDD constraints
 - Pure configuration changes — no test needed, skip both subagents and edit directly
 - Spike / throwaway branches — TDD optional, but state this explicitly before starting

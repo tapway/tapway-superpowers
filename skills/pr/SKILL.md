@@ -70,7 +70,38 @@ All tests must be green before pushing. If a test fails that was passing before 
 
 ---
 
-### Step 4: Push the Branch
+### Step 4: Update Docs
+
+Check which files changed in this branch:
+```bash
+git diff --name-only origin/main
+```
+
+**If `docs/ARCHITECTURE.md` does not exist** — run `/repo-docs` first to generate all documentation from scratch, then continue. This only happens once per repo.
+
+**If docs already exist** — update only the sections affected by this PR's changes. Do not regenerate whole files; read the existing doc, find the relevant section, and edit it in place.
+
+| Files changed in this PR | Doc section to update |
+|---|---|
+| `backend/src/api/routes/` | `docs/WORKFLOWS.md` — add or update the affected API flow sequence diagram |
+| `backend/src/models/` or `backend/src/db/` | `docs/DB_SCHEMA.md` — update entity definitions and ERD |
+| `backend/src/services/` or new modules | `docs/ARCHITECTURE.md` — update component breakdown |
+| `frontend/src/components/` or `frontend/src/app/` | `docs/WORKFLOWS.md` — update the UI interaction flow |
+| `docker-compose.yml`, `Dockerfile`, CI files | `docs/DEPLOYMENT.md` — update build/deploy steps |
+| `.env.example` | `docs/DEPLOYMENT.md` — update environment variables table |
+| New external service or dependency added | `docs/ARCHITECTURE.md` — add to system diagram and external dependencies table |
+
+After updating, commit the docs to the branch so they are part of the PR:
+```bash
+git add docs/
+git commit -m "docs: update [ARCHITECTURE|WORKFLOWS|DB_SCHEMA|DEPLOYMENT] for [what changed]"
+```
+
+If nothing in the changed files affects any doc section, skip the commit but note "docs: no update needed" in the PR body.
+
+---
+
+### Step 5: Push the Branch
 
 ```bash
 git push -u origin $(git branch --show-current)
@@ -84,7 +115,7 @@ git fetch origin && git rebase origin/$(git branch --show-current)
 
 ---
 
-### Step 5: Create the PR
+### Step 6: Create the PR
 
 Use `gh pr create` with a structured body:
 
@@ -127,7 +158,7 @@ EOF
 
 ---
 
-### Step 6: Update the Work Package Checklist
+### Step 7: Update the Work Package Checklist
 
 After the PR is open:
 1. Edit `docs/checklists/[feature]-checklist.md`
@@ -165,6 +196,7 @@ This project uses `anthropics/claude-code-action` so team members can mention `@
 - ❌ Never open a PR with failing tests
 - ❌ Never create a PR from the main checkout — always from a worktree
 - ❌ Never skip the rebase step — stale branches cause CI failures and reviewer confusion
+- ❌ Never skip the doc update step — if changed files affect any doc section, update it before pushing
 - ❌ Never leave the work package checklist unchecked after the PR is open
 
 ---
@@ -177,6 +209,8 @@ git fetch origin && git rebase origin/main
 # (resolve conflicts if any)
 cd backend && pytest -q && cd ..
 cd frontend && npm test -- --watchAll=false && cd ..
+# update affected docs/ sections, then:
+git add docs/ && git commit -m "docs: update [section] for [change]"
 git push -u origin $(git branch --show-current)
 gh pr create --title "feat(scope): ..." --body "..."
 ```

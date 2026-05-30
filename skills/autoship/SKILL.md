@@ -185,7 +185,20 @@ Apply all suggestions. Run tests to confirm nothing broke.
 
 If Critical fixes are significant enough to require a new task, add it to the status board and execute it using Phase 3 before continuing.
 
-**3. Open PR**
+**3. Update Docs**
+
+Run `git diff --name-only origin/main` to see which files changed.
+
+- If `docs/ARCHITECTURE.md` does not exist → run `/repo-docs` to generate all docs from scratch
+- If docs already exist → update only the sections affected (see the doc update table in `/pr`)
+
+Commit the doc changes before opening the PR:
+```bash
+git add docs/
+git commit -m "docs: update [section] for [feature]"
+```
+
+**4. Open PR**
 ```
 /pr
 ```
@@ -238,6 +251,7 @@ After PR is open:
 - ❌ Never skip a failing task and continue to the next
 - ❌ Never open a PR with Critical review findings unresolved
 - ❌ Never open a PR with failing tests
+- ❌ Never skip the doc update step — update or generate docs before calling `/pr`
 - ❌ Never work from `main` — always from a worktree
 - ❌ Never push manually — always exit through `/pr`
 

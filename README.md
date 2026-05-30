@@ -32,7 +32,8 @@ AI behaviors that activate automatically when you use relevant keywords in conve
 |---|---|---|
 | `brainstorming` | Explore approaches, surface trade-offs, name confusion before coding. Output saved to `docs/brainstorming/`. | "Let's think about...", "What are the options..." |
 | `writing-plans` | Create implementation plans with file maps, task breakdowns, and work package checklists by discipline. Saved to `docs/plans/` + `docs/checklists/`. | "Write a plan...", "Break this down..." |
-| `tdd` | TDD-first subagent execution: Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR). Default skill for all implementation work. | "Start implementing...", "implement", any new feature or bug fix |
+| `autoship` | Fully automated plan-to-PR loop: reads a written plan, validates it, runs TDD subagents per task, then simplify → review → PR. Say "implement it with autopilot". | "implement it with autopilot", "autoship", "ship this", "execute the plan" |
+| `tdd` | TDD-first subagent execution: Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR). Default skill for individual task implementation. | "Start implementing...", "implement", any new feature or bug fix |
 | `verification` | Confirm a task is done — runs tests, lint, type-checks, spec coverage | "Is this done?", "Verify...", "Final check..." |
 | `refactor` | Improve code without changing behavior — surgical, tested, minimal | "Refactor...", "Simplify...", "Remove duplication..." |
 | `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |
@@ -122,13 +123,17 @@ Brainstorm → Plan → Commit Docs → [Assign] → TDD → [Cleanup] → Simpl
    ```
    Then tells Claude: _"I'm picking up the [Backend/Frontend/DevOps/QA] work package for [feature]. Let's start implementing."_
 
-**Per work package (each assignee runs these in their worktree):**
+**Per work package — choose your mode:**
+
+**Fast path (automated):** `/autoship` — reads the plan, validates it, runs all tasks via TDD subagents, then simplify → review → PR. You only intervene if a task blocks twice or review finds a design-level issue. Just say: _"implement it with autopilot"_.
+
+**Manual path (step by step):**
 
 4. **TDD** `/tdd` — implement task by task; Test Writer agent (RED) → Implementer agent (GREEN + REFACTOR) per task
-5. **Cleanup** `/cleanup` *(tapway-claude-template users only)* — removes scaffold placeholders left by the template; skip otherwise
-6. **Simplify** `/simplify` *(built-in)* — reviews changed code for complexity and duplication; always run this
-7. **Self-Review** `/review` — three-tier self-review (Critical / Warnings / Suggestions) before anyone else sees the code
-8. **PR** `/pr` — rebase against `main`, run full test suite, push branch, open PR, mark checklist 🟢 — **mandatory, not optional**
+5. **Cleanup** `/cleanup` *(tapway-claude-template users only)* — removes scaffold placeholders; skip otherwise
+6. **Simplify** `/simplify` *(built-in)* — always run; reduces complexity and duplication
+7. **Self-Review** `/review` — three-tier self-review (Critical / Warnings / Suggestions)
+8. **PR** `/pr` — rebase, test, push, open PR, mark checklist 🟢 — **mandatory**
 9. **Team Review** — teammates and `@claude` review on GitHub; AI-assisted fixes via `@claude fix ...` comments
 
 **After all packages merge:**
@@ -152,7 +157,8 @@ Available when the plugin is installed:
 |---|---|
 | `/brainstorming` | Explore approaches before coding (saves to `docs/brainstorming/`) |
 | `/plan` | Write a detailed implementation plan + work package checklist (saves to `docs/plans/` + `docs/checklists/`) |
-| `/tdd` | Start test-driven development via subagents |
+| `/autoship` | Run the full plan-to-PR loop automatically (plan already written) |
+| `/tdd` | Run TDD subagents for individual tasks |
 | `/pr` | Rebase, run tests, push branch, open PR, update checklist |
 | `/cleanup` | Remove template artifacts |
 | `/review` | Self-review changes before PR |

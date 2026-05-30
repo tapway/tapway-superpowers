@@ -136,11 +136,12 @@ Only after Steps 4 and 5 pass. Update the plan tracker. Proceed to Task N+1.
 
 When every task in your work package is complete, run these in order before opening the PR:
 
-1. **`/cleanup`** — scan for and remove any leftover placeholders or boilerplate
-2. **`/review`** — self code-review (three-tier: Critical / Warnings / Suggestions); fix any Critical findings before continuing
-3. **`/pr`** — rebase, full test run, push, open PR, update checklist to 🟢
+1. **`/cleanup`** *(only if using [tapway-claude-template](https://github.com/tapway/tapway-claude-template))* — removes scaffold placeholders and boilerplate left by the template. Skip this if you're not on a template-based project.
+2. **`/simplify`** — Claude Code built-in; reviews changed code for reuse, simplification, and efficiency improvements and applies them. Always run this.
+3. **`/review`** — self code-review (three-tier: Critical / Warnings / Suggestions); fix any Critical findings before continuing.
+4. **`/pr`** — rebase, full test run, push, open PR, update checklist to 🟢.
 
-Do not skip cleanup and self-review. The PR that teammates see should already be clean.
+The PR that teammates see should already be simplified and self-reviewed before it's opened.
 
 ---
 

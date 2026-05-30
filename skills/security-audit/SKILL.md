@@ -11,6 +11,15 @@ description: >
 
 **When to invoke:** Any code touching auth, payments, user data, file uploads, external APIs, admin functions, or database queries.
 
+> **Two security tools — pick the right scope:**
+>
+> | Tool | Scope | When to use |
+> |---|---|---|
+> | Claude Code built-in **`/security-review`** | Current branch diff only | Pre-PR, fast, targeted — "does this change introduce a vulnerability?" |
+> | This skill **`/security-audit`** | Full codebase | Pre-launch, after major refactors, onboarding a new component — "is the whole system secure?" |
+>
+> Use `/security-review` before every PR that touches sensitive code. Use `/security-audit` when you need confidence in the full system.
+
 ---
 
 ## OWASP Top 10 Checklist for This Stack

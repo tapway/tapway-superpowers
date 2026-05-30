@@ -53,7 +53,7 @@ main repo dir/        ← main branch, production
 2. Create a worktree: `git worktree add -b feat/[name] ../[project]-[name]`
 3. Open a new terminal tab and `cd ../[project]-[name]`
 4. Work in the new worktree — it has its own index, but shares the `.git` repo
-5. When implementation is done: run `/cleanup` → `/review` → `/pr` in that order — never push manually
+5. When implementation is done: run `/simplify` → `/review` → `/pr` (add `/cleanup` first if on tapway-claude-template) — never push manually
 6. After the PR is merged, clean up: `git worktree remove ../[project]-[name] && git worktree prune`
 
 ---

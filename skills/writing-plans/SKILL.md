@@ -146,9 +146,10 @@ Claude will read the plan and checklist and begin `/tdd` automatically.
 
 **Step 4 — When all your tasks are done**:
 ```
-/cleanup
-/review
-/pr
+/cleanup    ← only if using tapway-claude-template (removes scaffold placeholders)
+/simplify   ← always (reduces complexity, removes duplication)
+/review     ← always (self code-review before anyone else sees it)
+/pr         ← always (rebase, test, push, open PR, update checklist)
 ```
 
 **Step 5 — After your PR is merged**:

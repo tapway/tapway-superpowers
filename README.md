@@ -40,7 +40,7 @@ AI behaviors that activate automatically when you use relevant keywords in conve
 | `pr` | Full PR workflow: rebase, conflict resolution, test gate, push, and open PR with structured body. Updates work package checklist. | "Create a PR...", "I'm done with this task...", "Push and PR..." |
 | `git-worktrees` | Manage parallel git worktrees for concurrent feature work | "Worktree...", "Parallel branches..." |
 | `repo-docs` | Generate standardized architecture, schema, and deployment docs | "Document this repo...", "Write architecture docs..." |
-| `security-audit` | OWASP Top 10 audit for auth, payments, user data, file uploads | "Security review...", "Audit auth...", "Is this safe?" |
+| `security-audit` | Full-codebase OWASP Top 10 audit — use for pre-launch or major refactors. For pre-PR diff review use the built-in `/security-review` instead. | "Security review...", "Audit auth...", "Is this safe?" |
 | `pre-review-cleanup` | Scan for template placeholders, boilerplate, and stale scaffold code | "Clean up template files...", "Remove boilerplate..." |
 
 All skills are strengthened with Andrej Karpathy's coding principles: Think Before Coding, Simplicity First, Surgical Changes, and Goal-Driven Execution.
@@ -109,11 +109,11 @@ Skipping `/pr` and pushing manually bypasses all of these gates.
 Once installed, the plugin guides you through a pipeline. Steps 1–3 are team-level (done once per feature). Steps 4–8 are per work package (each team member runs these in their own worktree).
 
 ```
-Brainstorm → Plan → Commit Docs → [Assign] → TDD → Cleanup → Self-Review → PR → Team Review → Deploy → Release
+Brainstorm → Plan → Commit Docs → [Assign] → TDD → [Cleanup] → Simplify → Self-Review → PR → Team Review → Deploy → Release
 ```
 
 **Team-level (once per feature):**
-1. **Brainstorm** `/brainstorming` — explore approaches; output committed to `docs/brainstorming/`
+1. **Brainstorm** `/brainstorming` — explore approaches; output committed to `docs/brainstorming/`. Run `/deep-research` first for unfamiliar tech.
 2. **Plan** `/plan` — file map + task breakdown + work package checklist committed to `docs/plans/` + `docs/checklists/`
 3. **Assign** — each team member opens `docs/checklists/[feature]-checklist.md`, edits it to claim a package (`**Assignee:** @name, 🟡`), commits that change, then creates a worktree:
    ```bash
@@ -125,10 +125,11 @@ Brainstorm → Plan → Commit Docs → [Assign] → TDD → Cleanup → Self-Re
 **Per work package (each assignee runs these in their worktree):**
 
 4. **TDD** `/tdd` — implement task by task; Test Writer agent (RED) → Implementer agent (GREEN + REFACTOR) per task
-5. **Cleanup** `/cleanup` — scan for and remove placeholders, boilerplate, stale scaffold code
-6. **Self-Review** `/review` — three-tier self-review (Critical / Warnings / Suggestions) before anyone else sees the code
-7. **PR** `/pr` — rebase against `main`, run full test suite, push branch, open PR, mark checklist 🟢 — **mandatory, not optional**
-8. **Team Review** — teammates and `@claude` review on GitHub; AI-assisted fixes via `@claude fix ...` comments
+5. **Cleanup** `/cleanup` *(tapway-claude-template users only)* — removes scaffold placeholders left by the template; skip otherwise
+6. **Simplify** `/simplify` *(built-in)* — reviews changed code for complexity and duplication; always run this
+7. **Self-Review** `/review` — three-tier self-review (Critical / Warnings / Suggestions) before anyone else sees the code
+8. **PR** `/pr` — rebase against `main`, run full test suite, push branch, open PR, mark checklist 🟢 — **mandatory, not optional**
+9. **Team Review** — teammates and `@claude` review on GitHub; AI-assisted fixes via `@claude fix ...` comments
 
 **After all packages merge:**
 
@@ -159,6 +160,21 @@ Available when the plugin is installed:
 | `/test-all` | Run full test suite |
 | `/release <patch\|minor\|major>` | Bump version, generate release notes, tag |
 | `/upgrade-skills` | Update all plugins to latest |
+
+## Built-in Claude Code Skills (used alongside this plugin)
+
+These are Claude Code built-ins — no installation needed. Several are wired into the workflow above.
+
+| Built-in | What it does | When to use |
+|---|---|---|
+| `/deep-research` | Multi-source web research with fact-checking and citations | Before `/brainstorming` for unfamiliar tech or service comparisons |
+| `/bugfix` | Repro-first bug fixing: failing test → root cause → minimal fix → regression test → PR | For focused code bugs; stronger repro enforcement than `/systematic-debugging` |
+| `/investigate` | Parallel hypothesis agents with adversarial refutation; produces a written root-cause report | Production incidents requiring a formal report |
+| `/simplify` | Reviews changed code for reuse, simplification, and efficiency; applies fixes | Always run after `/tdd`, before `/review` |
+| `/security-review` | Security review of the current branch diff | Before every PR touching auth, payments, or user data |
+| `/verify` | Launches the app and observes behavior in a running environment | When you need golden-path confirmation beyond tests |
+
+---
 
 ## Upgrading
 

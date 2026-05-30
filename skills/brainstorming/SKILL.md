@@ -21,6 +21,18 @@ Explore the problem space thoroughly before committing to an approach. Generate 
 
 ## Protocol
 
+### 0. Deep Research (optional — unfamiliar domains only)
+
+If the problem involves technology, services, or patterns your team hasn't used before, run Claude Code's built-in **`/deep-research`** skill first:
+
+```
+/deep-research what are the best options for [job queues / auth providers / payment gateways / ...] in a FastAPI + Next.js stack?
+```
+
+It fans out across multiple sources, fact-checks claims, and returns a cited report. Use that report as input to Step 1 below — it gives you grounded options instead of guesses.
+
+Skip this step if the domain is familiar.
+
 ### 1. Restate the Problem
 Write out your understanding of what needs to be solved. Include:
 - The user-facing goal

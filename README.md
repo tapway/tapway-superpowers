@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Claude Code plugin that adds 11 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development with Next.js 14 + Python FastAPI. Built for the Tapway team's "vibe coding" workflow — the AI enforces best practices so you don't have to think about them.
+A Claude Code plugin that adds 12 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development with Next.js 14 + Python FastAPI. Built for the Tapway team's "vibe coding" workflow — the AI enforces best practices so you don't have to think about them.
 
 ## Quick Install
 
@@ -24,19 +24,20 @@ claude plugin install claude-code-setup@claude-plugins-official
 
 ## What You Get
 
-### 11 Skills
+### 12 Skills
 
 AI behaviors that activate automatically when you use relevant keywords in conversation. Also invokable explicitly with `/skill-name`.
 
 | Skill | What it does | Triggers when you say... |
 |---|---|---|
-| `brainstorming` | Explore approaches, surface trade-offs, name confusion before coding | "Let's think about...", "What are the options..." |
-| `writing-plans` | Create detailed implementation plans with file maps and task breakdowns | "Write a plan...", "Break this down..." |
+| `brainstorming` | Explore approaches, surface trade-offs, name confusion before coding. Output saved to `docs/brainstorming/`. | "Let's think about...", "What are the options..." |
+| `writing-plans` | Create implementation plans with file maps, task breakdowns, and work package checklists by discipline. Saved to `docs/plans/` + `docs/checklists/`. | "Write a plan...", "Break this down..." |
 | `tdd` | TDD-first subagent execution: Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR). Default skill for all implementation work. | "Start implementing...", "implement", any new feature or bug fix |
 | `verification` | Confirm a task is done — runs tests, lint, type-checks, spec coverage | "Is this done?", "Verify...", "Final check..." |
 | `refactor` | Improve code without changing behavior — surgical, tested, minimal | "Refactor...", "Simplify...", "Remove duplication..." |
 | `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |
 | `systematic-debugging` | Reproduce → Isolate → Hypothesize → Test → Fix → Post-mortem | "Why is X failing?", "Debug...", "Works locally but not in prod..." |
+| `pr` | Full PR workflow: rebase, conflict resolution, test gate, push, and open PR with structured body. Updates work package checklist. | "Create a PR...", "I'm done with this task...", "Push and PR..." |
 | `git-worktrees` | Manage parallel git worktrees for concurrent feature work | "Worktree...", "Parallel branches..." |
 | `repo-docs` | Generate standardized architecture, schema, and deployment docs | "Document this repo...", "Write architecture docs..." |
 | `security-audit` | OWASP Top 10 audit for auth, payments, user data, file uploads | "Security review...", "Audit auth...", "Is this safe?" |
@@ -72,17 +73,18 @@ Subagent definitions included in the repo for manual use:
 Once installed, the plugin guides you through an 8-step pipeline:
 
 ```
-Brainstorm → Plan → TDD → Cleanup → Review → Deploy → Release → Verify
+Brainstorm → Plan → Assign → TDD → PR → Review → Deploy → Release → Verify
 ```
 
-1. **Brainstorm** — describe your feature; Claude explores approaches
-2. **Write a Plan** — Claude produces a file map + task breakdown (saved to `docs/plans/`)
-3. **TDD** — Claude implements task by task, test-first, with minimal code
-4. **Pre-Review Cleanup** — scans for placeholders and boilerplate
-5. **Code Review** — three-tier self-review before PR
-6. **Deploy** — `/deploy` generates a deployment checklist
-7. **Release** — `/release patch|minor|major` bumps semver, collates release notes, creates a git tag
-8. **Verify** — `/test-all` runs the full suite; systematic debugging if anything fails
+1. **Brainstorm** `/brainstorming` — describe your feature; Claude explores approaches and saves to `docs/brainstorming/`
+2. **Write a Plan** `/plan` — Claude produces a file map + task breakdown saved to `docs/plans/`, plus a work package checklist in `docs/checklists/` broken by discipline (Backend, Frontend, DevOps, QA)
+3. **Assign** — team members pick up work packages from the checklist, each creates a git worktree for their package
+4. **TDD** `/tdd` — implement task by task inside the worktree using test-first subagents
+5. **PR** `/pr` — rebase, run tests, push branch, open PR, update checklist to 🟢
+6. **Code Review** — three-tier self-review; team mentions `@claude` in PR comments for AI-assisted fixes
+7. **Deploy** — `/deploy` generates a deployment checklist
+8. **Release** — `/release patch|minor|major` bumps semver, collates release notes, creates a git tag
+9. **Verify** — `/test-all` runs the full suite; systematic debugging if anything fails
 
 ### Guardrails That Run Silently
 
@@ -98,9 +100,10 @@ Available when the plugin is installed:
 
 | Command | Purpose |
 |---|---|
-| `/brainstorming` | Explore approaches before coding |
-| `/plan` | Write a detailed implementation plan |
-| `/tdd` | Start test-driven development |
+| `/brainstorming` | Explore approaches before coding (saves to `docs/brainstorming/`) |
+| `/plan` | Write a detailed implementation plan + work package checklist (saves to `docs/plans/` + `docs/checklists/`) |
+| `/tdd` | Start test-driven development via subagents |
+| `/pr` | Rebase, run tests, push branch, open PR, update checklist |
 | `/cleanup` | Remove template artifacts |
 | `/review` | Self-review changes before PR |
 | `/deploy` | Pre-deployment checklist |

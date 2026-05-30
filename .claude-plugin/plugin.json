@@ -16,6 +16,7 @@
     "./skills/refactor",
     "./skills/code-review",
     "./skills/systematic-debugging",
+    "./skills/pr",
     "./skills/git-worktrees",
     "./skills/repo-docs",
     "./skills/security-audit",

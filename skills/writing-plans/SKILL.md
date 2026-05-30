@@ -84,9 +84,52 @@ Always write:
 ### 5. Save the Plan
 Save to `docs/plans/[feature-name].md` before starting implementation.
 
-### 6. Execution Options
-After saving, ask:
-> "Ready to implement? Say 'start implementing' or run /tdd."
+### 6. Generate Work Package Checklist
+After the plan is written, generate a companion checklist at `docs/checklists/[feature-name]-checklist.md`.
+
+Group tasks by discipline so any team member can pick up a self-contained work package:
+
+```markdown
+# Work Package Checklist: [Feature Name]
+**Plan:** docs/plans/[feature-name].md
+**Branch:** feat/[feature-name]
+**Status:** 🔴 Not started | 🟡 In progress | 🟢 Done
+
+---
+
+## 🔧 Backend (Python FastAPI)
+**Assignee:** _(unassigned)_
+- [ ] Task 1: [description] — `test_X_passes`
+- [ ] Task 2: [description] — `endpoint returns 201`
+
+## 🎨 Frontend (Next.js / TypeScript)
+**Assignee:** _(unassigned)_
+- [ ] Task 3: [description] — `ComponentX renders`
+- [ ] Task 4: [description] — `auth.test.ts passes`
+
+## 🚀 DevOps / Infrastructure
+**Assignee:** _(unassigned)_
+- [ ] Task 5: [description] — `docker-compose up succeeds`
+
+## 🧪 QA / Integration Tests
+**Assignee:** _(unassigned)_
+- [ ] Task 6: [description] — `E2E login flow passes`
+
+---
+
+## How to Pick Up a Work Package
+1. Edit this file — set your name as Assignee and change status to 🟡
+2. Create a worktree: `git worktree add -b feat/[feature]-[package] ../[project]-[package]`
+3. Work in the worktree using `/tdd` to implement each task
+4. When your package is done, run `/pr` to push and open a PR
+5. Check off completed tasks and set status to 🟢
+```
+
+Only include discipline sections that have tasks. Omit empty sections.
+
+### 7. Execution
+After saving both files, say:
+> "Plan saved to `docs/plans/[feature-name].md`. Work package checklist at `docs/checklists/[feature-name]-checklist.md`. Ready to implement? Say 'start implementing' or run /tdd — or share the checklist with the team to divide the work."
 
 ---
 
@@ -96,3 +139,5 @@ After saving, ask:
 - [ ] All file paths are exact
 - [ ] All function/method names are consistent across tasks
 - [ ] Tests are written before implementation in every task
+- [ ] Plan saved to `docs/plans/`
+- [ ] Work package checklist saved to `docs/checklists/`

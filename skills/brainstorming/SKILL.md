@@ -56,7 +56,14 @@ State the recommended approach and why. Flag any assumptions that, if wrong, wou
 
 **Push back if warranted.** If the user's implied direction is more complex than necessary, say so. Propose the simpler alternative even if it wasn't one of the requested approaches.
 
-### 6. Hand off
+### 6. Save Output
+Save the full brainstorming session to:
+```
+docs/brainstorming/[topic-slug].md
+```
+Use kebab-case for the filename (e.g. `auth-flow-options.md`, `payment-provider-comparison.md`). This file is the team's record of why the chosen approach was selected — it must exist before moving to planning.
+
+### 7. Hand off
 If proceeding, invoke the `writing-plans` skill next to turn the recommendation into an implementation plan.
 
 ---

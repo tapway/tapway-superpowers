@@ -53,12 +53,13 @@ main repo dir/        ← main branch, production
 2. Create a worktree: `git worktree add -b feat/[name] ../[project]-[name]`
 3. Open a new terminal tab and `cd ../[project]-[name]`
 4. Work in the new worktree — it has its own index, but shares the `.git` repo
-5. When done, merge/PR the branch, then `git worktree remove` it
+5. When implementation is done: run `/cleanup` → `/review` → `/pr` in that order — never push manually
+6. After the PR is merged, clean up: `git worktree remove ../[project]-[name] && git worktree prune`
 
 ---
 
 ## With Subagents
-Worktrees are ideal when dispatching parallel subagents (see `subagent-driven-development` skill):
+Worktrees are ideal when dispatching parallel subagents (see `tdd` skill):
 - Dispatch Agent A to worktree-1 (feature X)
 - Dispatch Agent B to worktree-2 (feature Y)
 - Both work simultaneously without conflicting

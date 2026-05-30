@@ -71,6 +71,8 @@ Subagent definitions included in the repo for manual use:
 
 ## Team Collaboration
 
+> **Full walkthrough:** See [docs/team-guide.md](docs/team-guide.md) for a step-by-step example of Alice, Bob, and Charlie working on the same feature in parallel — with exact commands and Claude prompts for every step.
+
 ### Docs Structure
 
 All plans, decisions, and checklists are stored **in the project repo** alongside the code — not in this plugin. After installing the plugin, your project gets:

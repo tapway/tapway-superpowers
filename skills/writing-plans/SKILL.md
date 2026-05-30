@@ -118,12 +118,45 @@ Group tasks by discipline so any team member can pick up a self-contained work p
 ---
 
 ## How to Pick Up a Work Package
-1. Edit this file — set your name as Assignee and change status to 🟡
-2. Create a worktree: `git worktree add -b feat/[feature]-[package] ../[project]-[package]`
-3. Implement each task in the worktree using `/tdd`
-4. Run `/cleanup` — remove placeholders and boilerplate
-5. Run `/review` — self code-review; fix any Critical findings
-6. Run `/pr` — rebase, test, push, open PR, mark this package 🟢
+
+**Step 1 — Claim it** (edit this file):
+```
+**Assignee:** @your-name   **Status:** 🟡 In progress
+```
+Commit and push the change so teammates know it's taken.
+
+**Step 2 — Create your worktree** (run in the project root):
+```bash
+git fetch origin
+git worktree add -b feat/[feature]-[package] ../[project]-[package] origin/main
+cd ../[project]-[package]
+```
+
+**Step 3 — Open Claude Code and start work**:
+```bash
+claude
+```
+Then tell Claude:
+```
+I'm picking up the [Backend / Frontend / DevOps / QA] work package for [feature name].
+My tasks are in docs/checklists/[feature]-checklist.md.
+Let's start implementing.
+```
+Claude will read the plan and checklist and begin `/tdd` automatically.
+
+**Step 4 — When all your tasks are done**:
+```
+/cleanup
+/review
+/pr
+```
+
+**Step 5 — After your PR is merged**:
+```bash
+cd ../[project-root]
+git worktree remove ../[project]-[package]
+git worktree prune
+```
 ```
 
 Only include discipline sections that have tasks. Omit empty sections.

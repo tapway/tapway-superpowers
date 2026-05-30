@@ -115,7 +115,12 @@ Brainstorm → Plan → Commit Docs → [Assign] → TDD → Cleanup → Self-Re
 **Team-level (once per feature):**
 1. **Brainstorm** `/brainstorming` — explore approaches; output committed to `docs/brainstorming/`
 2. **Plan** `/plan` — file map + task breakdown + work package checklist committed to `docs/plans/` + `docs/checklists/`
-3. **Assign** — team picks up packages from the checklist; each creates a git worktree
+3. **Assign** — each team member opens `docs/checklists/[feature]-checklist.md`, edits it to claim a package (`**Assignee:** @name, 🟡`), commits that change, then creates a worktree:
+   ```bash
+   git worktree add -b feat/[feature]-[package] ../[project]-[package] origin/main
+   cd ../[project]-[package] && claude
+   ```
+   Then tells Claude: _"I'm picking up the [Backend/Frontend/DevOps/QA] work package for [feature]. Let's start implementing."_
 
 **Per work package (each assignee runs these in their worktree):**
 

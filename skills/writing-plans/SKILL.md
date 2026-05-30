@@ -120,16 +120,25 @@ Group tasks by discipline so any team member can pick up a self-contained work p
 ## How to Pick Up a Work Package
 1. Edit this file — set your name as Assignee and change status to 🟡
 2. Create a worktree: `git worktree add -b feat/[feature]-[package] ../[project]-[package]`
-3. Work in the worktree using `/tdd` to implement each task
-4. When your package is done, run `/pr` to push and open a PR
-5. Check off completed tasks and set status to 🟢
+3. Implement each task in the worktree using `/tdd`
+4. Run `/cleanup` — remove placeholders and boilerplate
+5. Run `/review` — self code-review; fix any Critical findings
+6. Run `/pr` — rebase, test, push, open PR, mark this package 🟢
 ```
 
 Only include discipline sections that have tasks. Omit empty sections.
 
-### 7. Execution
-After saving both files, say:
-> "Plan saved to `docs/plans/[feature-name].md`. Work package checklist at `docs/checklists/[feature-name]-checklist.md`. Ready to implement? Say 'start implementing' or run /tdd — or share the checklist with the team to divide the work."
+### 7. Commit the Docs
+Commit both files before any implementation begins — teammates can't pick up work packages they can't see:
+```bash
+git add docs/plans/[feature-name].md docs/checklists/[feature-name]-checklist.md
+git commit -m "docs: add plan and work package checklist for [feature-name]"
+git push
+```
+
+### 8. Execution
+After committing, say:
+> "Plan and checklist committed and pushed. Teammates can pick up a work package from `docs/checklists/[feature-name]-checklist.md`. When ready to implement your package: create a worktree, run /tdd, then /pr when done."
 
 ---
 

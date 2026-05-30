@@ -63,6 +63,12 @@ docs/brainstorming/[topic-slug].md
 ```
 Use kebab-case for the filename (e.g. `auth-flow-options.md`, `payment-provider-comparison.md`). This file is the team's record of why the chosen approach was selected — it must exist before moving to planning.
 
+Commit it immediately so the whole team can see it:
+```bash
+git add docs/brainstorming/[topic-slug].md
+git commit -m "docs: add brainstorming output for [topic]"
+```
+
 ### 7. Hand off
 If proceeding, invoke the `writing-plans` skill next to turn the recommendation into an implementation plan.
 

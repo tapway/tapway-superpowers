@@ -68,23 +68,67 @@ Subagent definitions included in the repo for manual use:
 | `security-auditor` | OWASP Top 10 audit for auth, payments, and user data paths |
 | `devops-sre` | Docker, CI/CD, and infrastructure configuration review |
 
+## Team Collaboration
+
+### Docs Structure
+
+All plans, decisions, and checklists are stored **in the project repo** alongside the code — not in this plugin. After installing the plugin, your project gets:
+
+```
+docs/
+  brainstorming/   ← why we chose this approach  (saved by /brainstorming)
+  plans/           ← what we're building and how  (saved by /plan)
+  checklists/      ← who is doing what, current status  (saved by /plan)
+```
+
+These files are committed and pushed immediately so the whole team sees them. They are the single source of truth for any in-flight feature.
+
+### Work Package Flow
+
+When a feature spans multiple disciplines (Frontend + Backend + DevOps), `/plan` generates a work package checklist. Each team member:
+
+1. Opens `docs/checklists/[feature]-checklist.md` and self-assigns a package
+2. Creates an isolated worktree: `git worktree add -b feat/[feature]-[package] ../[project]-[package]`
+3. Implements using `/tdd` inside that worktree
+4. Runs `/pr` when done — this is the **only** way to push; direct `git push` is not the workflow
+
+### `/pr` is Mandatory
+
+Every change that leaves a worktree must go through `/pr`. It enforces:
+- Rebase against `main` before push (no stale branches in review)
+- Full test suite green before push (no broken PRs)
+- Structured PR body with summary, test plan, and files changed
+- Work package checklist updated to 🟢 with PR number linked
+
+Skipping `/pr` and pushing manually bypasses all of these gates.
+
+---
+
 ## Daily Workflow
 
-Once installed, the plugin guides you through an 8-step pipeline:
+Once installed, the plugin guides you through a pipeline. Steps 1–3 are team-level (done once per feature). Steps 4–8 are per work package (each team member runs these in their own worktree).
 
 ```
-Brainstorm → Plan → Assign → TDD → PR → Review → Deploy → Release → Verify
+Brainstorm → Plan → Commit Docs → [Assign] → TDD → Cleanup → Self-Review → PR → Team Review → Deploy → Release
 ```
 
-1. **Brainstorm** `/brainstorming` — describe your feature; Claude explores approaches and saves to `docs/brainstorming/`
-2. **Write a Plan** `/plan` — Claude produces a file map + task breakdown saved to `docs/plans/`, plus a work package checklist in `docs/checklists/` broken by discipline (Backend, Frontend, DevOps, QA)
-3. **Assign** — team members pick up work packages from the checklist, each creates a git worktree for their package
-4. **TDD** `/tdd` — implement task by task inside the worktree using test-first subagents
-5. **PR** `/pr` — rebase, run tests, push branch, open PR, update checklist to 🟢
-6. **Code Review** — three-tier self-review; team mentions `@claude` in PR comments for AI-assisted fixes
-7. **Deploy** — `/deploy` generates a deployment checklist
-8. **Release** — `/release patch|minor|major` bumps semver, collates release notes, creates a git tag
-9. **Verify** — `/test-all` runs the full suite; systematic debugging if anything fails
+**Team-level (once per feature):**
+1. **Brainstorm** `/brainstorming` — explore approaches; output committed to `docs/brainstorming/`
+2. **Plan** `/plan` — file map + task breakdown + work package checklist committed to `docs/plans/` + `docs/checklists/`
+3. **Assign** — team picks up packages from the checklist; each creates a git worktree
+
+**Per work package (each assignee runs these in their worktree):**
+
+4. **TDD** `/tdd` — implement task by task; Test Writer agent (RED) → Implementer agent (GREEN + REFACTOR) per task
+5. **Cleanup** `/cleanup` — scan for and remove placeholders, boilerplate, stale scaffold code
+6. **Self-Review** `/review` — three-tier self-review (Critical / Warnings / Suggestions) before anyone else sees the code
+7. **PR** `/pr` — rebase against `main`, run full test suite, push branch, open PR, mark checklist 🟢 — **mandatory, not optional**
+8. **Team Review** — teammates and `@claude` review on GitHub; AI-assisted fixes via `@claude fix ...` comments
+
+**After all packages merge:**
+
+9. **Deploy** `/deploy` — pre-deployment checklist
+10. **Release** `/release patch|minor|major` — semver bump, release notes, git tag
 
 ### Guardrails That Run Silently
 

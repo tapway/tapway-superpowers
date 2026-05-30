@@ -33,7 +33,9 @@ For each task:
 ## Protocol
 
 ### Before Starting
+- [ ] You are in a **git worktree**, not the main checkout — `git branch --show-current` must not return `main`
 - [ ] Implementation plan is written and saved to `docs/plans/` (use `writing-plans` skill if needed)
+- [ ] Work package checklist exists at `docs/checklists/` and your name is set as Assignee
 - [ ] Git working tree is clean (`git status`)
 - [ ] Consider using `git-worktrees` skill if tasks are truly independent (enables true parallelism)
 
@@ -130,6 +132,16 @@ Invoke the `code-review` skill:
 
 Only after Steps 4 and 5 pass. Update the plan tracker. Proceed to Task N+1.
 
+### After All Tasks Are Done
+
+When every task in your work package is complete, run these in order before opening the PR:
+
+1. **`/cleanup`** — scan for and remove any leftover placeholders or boilerplate
+2. **`/review`** — self code-review (three-tier: Critical / Warnings / Suggestions); fix any Critical findings before continuing
+3. **`/pr`** — rebase, full test run, push, open PR, update checklist to 🟢
+
+Do not skip cleanup and self-review. The PR that teammates see should already be clean.
+
 ---
 
 ## Model Selection
@@ -154,6 +166,7 @@ Haiku for Test Writer is always correct: writing a single named test from a spec
 - ❌ Never paste the plan file path to a subagent — paste the task text directly
 - ❌ Never start on `main` without explicit consent
 - ❌ Never dispatch multiple Implementers in parallel without git-worktrees isolation
+- ❌ Never push commits manually after implementation — always exit via `/pr`
 
 ---
 

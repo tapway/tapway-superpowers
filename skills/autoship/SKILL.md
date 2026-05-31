@@ -4,32 +4,56 @@ description: >
   Fully automated implementation loop: reads a written plan, validates it,
   executes every task using the TDD subagent pattern (Test Writer → Implementer
   per task), then runs simplify → review → PR without human intervention.
-  Triggers include "implement it with autopilot", "autoship", "ship this",
+  Deploy mode available when running on a staging server: adds deployment,
+  health check, and integration/E2E tests before opening the PR.
+  Standard triggers: "implement it with autopilot", "autoship", "ship this",
   "execute the plan", "run the plan end to end", "implement end to end",
   "just ship it".
+  Deploy mode triggers: "implement and deploy", "autoship with deployment",
+  "ship and deploy", "full autoship", "deploy mode".
 ---
 
 # Skill: Autoship — Automated Plan-to-PR
 
-**When to invoke:** A plan already exists in `docs/plans/` and you want to execute it all the way to an open PR without manually running each step. The full loop runs automatically; you only get pulled in if something genuinely blocks progress.
+**When to invoke:** A plan already exists in `docs/plans/` and you want to execute it all the way to an open PR without manually running each step.
 
 > **Prerequisite:** The plan must exist and be saved to `docs/plans/[feature].md`. If it doesn't exist yet, run `/brainstorming` then `/plan` first.
 
 ---
 
+## Modes
+
+| Mode | Trigger | When to use |
+|---|---|---|
+| **Standard** | "implement it with autopilot" / "autoship" | CI/CD handles deployment; Claude Code is on a developer machine |
+| **Deploy** | "implement and deploy" / "autoship with deployment" | Claude Code is running directly on the staging server |
+
+---
+
 ## What It Does
 
+**Standard mode:**
 ```
 Read plan → Health check → Self-assign → Worktree
   └─ For each task:
        Test Writer (RED) → RED gate → Implementer (GREEN+REFACTOR) → Reviews
   └─ After all tasks:
-       /simplify → /review → /pr
+       /simplify → /review → Update docs → /pr
+```
+
+**Deploy mode** (everything above, plus):
+```
+  └─ After all tasks:
+       /simplify → /review → Update docs
+         → Detect deploy method → Deploy to staging
+         → Health check loop → Integration/E2E tests
+         → /pr (with deployment evidence in body)
 ```
 
 The coordinator handles everything. You only intervene if:
 - A task fails twice with no clear path forward
 - `/review` finds Critical issues that require a design decision (not just a fix)
+- Deployment or integration tests fail — **never open a PR with a broken deployment**
 
 ---
 
@@ -44,6 +68,8 @@ Or describe the feature and I'll find the matching plan.
 ```
 
 Read the plan file. Confirm it exists and has a task breakdown.
+
+If deploy mode was triggered, also detect the deployment configuration now (see Phase 4D below) and confirm it before starting the task loop — better to discover a misconfigured deploy command before 30 minutes of implementation.
 
 ---
 
@@ -169,13 +195,13 @@ Report: test output, files changed, commit hash.
 
 Once all tasks are ✅:
 
-**1. Simplify**
+**Step 1 — Simplify**
 ```
 /simplify
 ```
 Apply all suggestions. Run tests to confirm nothing broke.
 
-**2. Self-Review**
+**Step 2 — Self-Review**
 ```
 /review
 ```
@@ -185,28 +211,141 @@ Apply all suggestions. Run tests to confirm nothing broke.
 
 If Critical fixes are significant enough to require a new task, add it to the status board and execute it using Phase 3 before continuing.
 
-**3. Update Docs**
+**Step 3 — Update Docs**
 
 Run `git diff --name-only origin/main` to see which files changed.
 
 - If `docs/ARCHITECTURE.md` does not exist → run `/repo-docs` to generate all docs from scratch
 - If docs already exist → update only the sections affected (see the doc update table in `/pr`)
 
-Commit the doc changes before opening the PR:
+Commit the doc changes:
 ```bash
 git add docs/
 git commit -m "docs: update [section] for [feature]"
 ```
 
-**4. Open PR**
+---
+
+### Phase 4D: Deploy + Integration Tests *(Deploy mode only)*
+
+> Skip this phase entirely in standard mode. Only run when deploy mode was triggered.
+
+#### Step 4D-1 — Detect Deployment Method
+
+Check for these in order and use the first match:
+
+| Signal | Deploy command |
+|---|---|
+| `docker-compose.yml` or `docker-compose.yaml` | `docker compose pull && docker compose up -d` |
+| `Makefile` with a `deploy` target | `make deploy` |
+| `package.json` with a `"deploy"` script | `npm run deploy` |
+| `Procfile` | `foreman start` or platform-specific command |
+| None found | Ask the user for the exact deploy command before continuing |
+
+Record the deploy command. If it was inferred (not explicitly provided by the user), confirm it once before running:
+```
+Deploy command detected: docker compose pull && docker compose up -d
+Proceeding — interrupt if this is wrong.
+```
+
+#### Step 4D-2 — Deploy
+
+Run the deploy command. Capture stdout and stderr.
+
+```bash
+# Example for docker compose
+docker compose pull && docker compose up -d
+docker compose logs --tail=30
+```
+
+If the command exits non-zero: **stop, report the exact error output, do not continue to health check or PR.**
+
+#### Step 4D-3 — Health Check
+
+After deploying, confirm the app is responding. Try each endpoint in order until one returns 2xx:
+
+```bash
+curl -sf http://localhost:[PORT]/health      ||
+curl -sf http://localhost:[PORT]/api/health  ||
+curl -sf http://localhost:[PORT]/healthz     ||
+curl -sf http://localhost:[PORT]/ping        ||
+curl -sf http://localhost:[PORT]/
+```
+
+Retry every 5 seconds for up to 60 seconds (12 attempts). Record which endpoint responded and the HTTP status.
+
+**If still failing after 60 seconds:**
+1. Run `docker compose logs --tail=50` (or equivalent) and report the output
+2. Suggest rollback (see below)
+3. **Do not open a PR** — the deployment is broken
+
+**Rollback suggestion on health check failure:**
+```bash
+# Docker compose — restart with previous image
+docker compose down && git stash && docker compose up -d
+
+# Systemd service
+sudo systemctl restart [service-name]
+
+# PM2
+pm2 restart all
+```
+
+#### Step 4D-4 — Integration and E2E Tests
+
+Detect which integration/E2E test suites exist and run all of them:
+
+| Signal | Command |
+|---|---|
+| `tests/integration/` directory | `pytest tests/integration/ --tb=short -q` |
+| `tests/e2e/` directory | `pytest tests/e2e/ --tb=short -q` |
+| `pytest.ini` or `pyproject.toml` with `integration` marker | `pytest -m integration --tb=short -q` |
+| `playwright.config.ts` or `playwright.config.js` | `npx playwright test` |
+| `cypress.config.ts` or `cypress.config.js` | `npx cypress run` |
+| `package.json` with `"test:e2e"` script | `npm run test:e2e` |
+| `package.json` with `"test:integration"` script | `npm run test:integration` |
+| `Makefile` with `test-integration` target | `make test-integration` |
+
+Run every suite that exists. Report pass/fail counts for each.
+
+**If any integration or E2E test fails:**
+1. Report the exact failing test names and output
+2. Diagnose: is this a test environment issue, a data fixture issue, or a real regression?
+3. If it's a real regression — fix it as a new task (add to status board, run Phase 3 loop)
+4. **Do not open a PR until all integration and E2E tests pass**
+
+#### Step 4D-5 — Record Evidence
+
+Capture results for the PR body:
+
+```
+## Deployment Verified ✅
+- Environment: staging (hostname: [hostname])
+- Deployed at: [timestamp]
+- Deploy command: [command used]
+- Health check: ✅ [endpoint] → [HTTP status]
+- Unit tests: [N/N passed]
+- Integration tests: [N/N passed]  (or "none found")
+- E2E tests: [N/N passed]  (or "none found")
+```
+
+---
+
+### Phase 4: Open PR
+
 ```
 /pr
 ```
-PR body should include:
+
+**Standard mode** — PR body includes:
 - Summary of what was built (bullets per task)
 - Link to `docs/plans/[feature].md` and `docs/checklists/[feature]-checklist.md`
 - Autoship status board (copy the final table)
 - Any warnings or known limitations from `/review`
+
+**Deploy mode** — PR body also includes:
+- The "Deployment Verified" evidence block from Step 4D-5
+- Any integration/E2E test output worth highlighting
 
 ---
 
@@ -221,10 +360,25 @@ After PR is open:
    git push
    ```
 3. Report to user:
+
+   **Standard mode:**
    ```
    ## Autoship Complete ✅
    Feature: [name]
    Tasks completed: N/N
+   PR: #[number] — [title]
+   Review findings: [none / N warnings noted in PR body]
+   ```
+
+   **Deploy mode:**
+   ```
+   ## Autoship Complete ✅ (with deployment)
+   Feature: [name]
+   Tasks completed: N/N
+   Deployed to: staging ([hostname])
+   Health: ✅ [endpoint]
+   Integration tests: N/N passed
+   E2E tests: N/N passed
    PR: #[number] — [title]
    Review findings: [none / N warnings noted in PR body]
    ```
@@ -241,6 +395,7 @@ After PR is open:
 | Implementer (multi-file) | Sonnet |
 | Implementer (architecture) | Opus |
 | Simplify + Review | Sonnet |
+| Deploy diagnosis (on failure) | Sonnet — log analysis requires judgment |
 
 ---
 
@@ -250,10 +405,23 @@ After PR is open:
 - ❌ Never dispatch the Implementer before the RED gate passes
 - ❌ Never skip a failing task and continue to the next
 - ❌ Never open a PR with Critical review findings unresolved
-- ❌ Never open a PR with failing tests
+- ❌ Never open a PR with failing unit tests
+- ❌ Never open a PR with a failed deployment or failing integration/E2E tests *(deploy mode)*
 - ❌ Never skip the doc update step — update or generate docs before calling `/pr`
 - ❌ Never work from `main` — always from a worktree
 - ❌ Never push manually — always exit through `/pr`
+
+---
+
+## Failure Recovery
+
+| What failed | Recovery |
+|---|---|
+| Task fails twice | Pause, report exact blocker to user, wait for instruction |
+| Deploy command exits non-zero | Report exact error, suggest checking logs, do not open PR |
+| Health check times out (60s) | Print last 50 log lines, suggest rollback command, do not open PR |
+| Integration test fails | Diagnose real regression vs env issue; fix before PR if real |
+| E2E test fails | Same as integration — fix or document as known limitation with user approval |
 
 ---
 

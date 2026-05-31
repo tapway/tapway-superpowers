@@ -85,6 +85,12 @@ Generates `docs/plans/[feature].md` with file map, task breakdown, and success c
 ```
 Reads the plan, validates it, runs TDD subagents per task, then simplify → review → PR. You only intervene if a task blocks twice.
 
+*Deploy mode — on a staging server:*
+```
+"implement and deploy"   →   /autoship (deploy mode)
+```
+Same as above, but adds a deployment phase before opening the PR: detects the deploy method (docker compose / make / npm), deploys, waits for a health check, runs integration and E2E tests, then includes the deployment evidence in the PR body. Never opens a PR with a broken deployment.
+
 *Manual path — step by step:*
 ```
 /tdd
@@ -236,7 +242,7 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 |---|---|---|
 | `brainstorming` | Explore approaches, surface trade-offs, save decisions to `docs/brainstorming/` | "Let's think about...", "What are the options..." |
 | `writing-plans` | Implementation plans with file maps, task breakdowns, and work package checklists. Saves to `docs/plans/` + `docs/checklists/` | "Write a plan...", "Break this down..." |
-| `autoship` | Fully automated plan-to-PR: validates plan, runs TDD subagents per task, then simplify → review → docs → PR | "implement it with autopilot", "autoship", "ship this" |
+| `autoship` | Fully automated plan-to-PR: validates plan, runs TDD subagents per task, then simplify → review → docs → PR. **Deploy mode** (on staging server): also deploys, health-checks, and runs integration/E2E tests before PR | "implement it with autopilot", "autoship" / "implement and deploy", "ship and deploy" |
 | `tdd` | Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR). Structurally enforces TDD. | "Start implementing...", "implement", any new feature or bug fix |
 | `verification` | Confirm a task is done — tests, lint, type-checks, spec coverage | "Is this done?", "Verify...", "Final check..." |
 | `refactor` | **Protocol A** (active codebase): surgical incremental refactoring. **Protocol B** (legacy): characterization-test-first sequence | "Refactor...", "Clean up...", "Legacy refactor..." |
@@ -285,7 +291,7 @@ Subagent definitions for use with the TDD and autoship skills:
 |---|---|---|
 | `/brainstorming` | All | Explore approaches before coding |
 | `/plan` | All | Write implementation plan + work package checklist |
-| `/autoship` | Individual / Team | Run full plan-to-PR loop automatically |
+| `/autoship` | Individual / Team | Run full plan-to-PR loop automatically. Add "and deploy" to also deploy + run integration tests before PR (staging server only) |
 | `/tdd` | Individual / Team | TDD subagents for task-by-task implementation |
 | `/refactor` | Individual / Legacy | Incremental (Protocol A) or legacy characterization-test workflow (Protocol B) |
 | `/pr` | All | Rebase, test, update docs, push, open PR, update checklist — **mandatory exit** |

@@ -24,5 +24,13 @@
     "./skills/pre-review-cleanup"
   ],
   "hooks": [],
-  "agents": []
+  "agents": [],
+  "externalSkills": [
+    {
+      "name": "code-refactor",
+      "description": "Bulk mechanical refactoring: rename symbols across files, replace deprecated API calls, update import paths. Complements /refactor Protocol B for find-and-replace-style changes.",
+      "installHint": "claude plugin add code-refactor@andrej-karpathy-skills",
+      "usedBy": ["refactor"]
+    }
+  ]
 }

@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Claude Code plugin that adds 12 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development with Next.js 14 + Python FastAPI. Built for the Tapway team's "vibe coding" workflow — the AI enforces best practices so you don't have to think about them.
+A Claude Code plugin with 13 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development (Next.js 14 + Python FastAPI). The plugin enforces best practices structurally — TDD via agent boundaries, mandatory PR gates, docs on every push — so good habits happen automatically.
 
 ## Quick Install
 
@@ -22,171 +22,312 @@ claude plugin install andrej-karpathy-skills@karpathy-skills
 claude plugin install claude-code-setup@claude-plugins-official
 ```
 
-## What You Get
+---
 
-### 12 Skills
+## Table of Contents
 
-AI behaviors that activate automatically when you use relevant keywords in conversation. Also invokable explicitly with `/skill-name`.
-
-| Skill | What it does | Triggers when you say... |
-|---|---|---|
-| `brainstorming` | Explore approaches, surface trade-offs, name confusion before coding. Output saved to `docs/brainstorming/`. | "Let's think about...", "What are the options..." |
-| `writing-plans` | Create implementation plans with file maps, task breakdowns, and work package checklists by discipline. Saved to `docs/plans/` + `docs/checklists/`. | "Write a plan...", "Break this down..." |
-| `autoship` | Fully automated plan-to-PR loop: reads a written plan, validates it, runs TDD subagents per task, then simplify → review → PR. Say "implement it with autopilot". | "implement it with autopilot", "autoship", "ship this", "execute the plan" |
-| `tdd` | TDD-first subagent execution: Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR). Default skill for individual task implementation. | "Start implementing...", "implement", any new feature or bug fix |
-| `verification` | Confirm a task is done — runs tests, lint, type-checks, spec coverage | "Is this done?", "Verify...", "Final check..." |
-| `refactor` | Improve code without changing behavior — surgical, tested, minimal | "Refactor...", "Simplify...", "Remove duplication..." |
-| `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |
-| `systematic-debugging` | Reproduce → Isolate → Hypothesize → Test → Fix → Post-mortem | "Why is X failing?", "Debug...", "Works locally but not in prod..." |
-| `pr` | Full PR workflow: rebase, conflict resolution, test gate, push, and open PR with structured body. Updates work package checklist. | "Create a PR...", "I'm done with this task...", "Push and PR..." |
-| `git-worktrees` | Manage parallel git worktrees for concurrent feature work | "Worktree...", "Parallel branches..." |
-| `repo-docs` | Generate standardized architecture, schema, and deployment docs | "Document this repo...", "Write architecture docs..." |
-| `security-audit` | Full-codebase OWASP Top 10 audit — use for pre-launch or major refactors. For pre-PR diff review use the built-in `/security-review` instead. | "Security review...", "Audit auth...", "Is this safe?" |
-| `pre-review-cleanup` | Scan for template placeholders, boilerplate, and stale scaffold code | "Clean up template files...", "Remove boilerplate..." |
-
-All skills are strengthened with Andrej Karpathy's coding principles: Think Before Coding, Simplicity First, Surgical Changes, and Goal-Driven Execution.
-
-### 5 Guardrail Hooks
-
-Automatic checks that fire on Claude Code lifecycle events. No configuration needed.
-
-| Hook | Event | What it does |
-|---|---|---|
-| `pre-bash-safety` | PreToolUse (Bash) | Blocks force-push, hard-reset on main, commits to main. Blocks prod commands unless `ALLOW_PROD=1` is set. |
-| `post-write-lint` | PostToolUse (Write\|Edit) | Runs the project linter on changed files |
-| `pre-commit-secrets` | PreToolUse (git commit) | Scans staged files for secrets, keys, and credentials before allowing a commit |
-| `session-start` | SessionStart | Displays project info, git status, and environment summary when Claude Code starts |
-| `post-commit-release-note` | PostToolUse (git commit) | Parses conventional commits and appends formatted entries to `CHANGELOG.unreleased.md` |
-
-### 4 Specialized Agents
-
-Subagent definitions included in the repo for manual use:
-
-| Agent | Purpose |
-|---|---|
-| `code-reviewer` | Systematic code review with security, performance, and type-safety checks |
-| `test-writer` | Write tests following project conventions (pytest/Jest) |
-| `security-auditor` | OWASP Top 10 audit for auth, payments, and user data paths |
-| `devops-sre` | Docker, CI/CD, and infrastructure configuration review |
-
-## Team Collaboration
-
-> **Full walkthrough:** See [docs/team-guide.md](docs/team-guide.md) for a step-by-step example of Alice, Bob, and Charlie working on the same feature in parallel — with exact commands and Claude prompts for every step.
-
-### Docs Structure
-
-All plans, decisions, and checklists are stored **in the project repo** alongside the code — not in this plugin. After installing the plugin, your project gets:
-
-```
-docs/
-  brainstorming/   ← why we chose this approach  (saved by /brainstorming)
-  plans/           ← what we're building and how  (saved by /plan)
-  checklists/      ← who is doing what, current status  (saved by /plan)
-```
-
-These files are committed and pushed immediately so the whole team sees them. They are the single source of truth for any in-flight feature.
-
-### Work Package Flow
-
-When a feature spans multiple disciplines (Frontend + Backend + DevOps), `/plan` generates a work package checklist. Each team member:
-
-1. Opens `docs/checklists/[feature]-checklist.md` and self-assigns a package
-2. Creates an isolated worktree: `git worktree add -b feat/[feature]-[package] ../[project]-[package]`
-3. Implements using `/tdd` inside that worktree
-4. Runs `/pr` when done — this is the **only** way to push; direct `git push` is not the workflow
-
-### `/pr` is Mandatory
-
-Every change that leaves a worktree must go through `/pr`. It enforces:
-- Rebase against `main` before push (no stale branches in review)
-- Full test suite green before push (no broken PRs)
-- Structured PR body with summary, test plan, and files changed
-- Work package checklist updated to 🟢 with PR number linked
-
-Skipping `/pr` and pushing manually bypasses all of these gates.
+- [Modes](#modes)
+  - [Individual — solo feature or bug fix](#individual--solo-feature-or-bug-fix)
+  - [Team Collaboration — parallel work packages](#team-collaboration--parallel-work-packages)
+  - [Legacy Refactor — existing repo without tests](#legacy-refactor--existing-repo-without-tests)
+- [What You Get](#what-you-get)
+  - [13 Skills](#13-skills)
+  - [5 Guardrail Hooks](#5-guardrail-hooks)
+  - [4 Specialized Agents](#4-specialized-agents)
+- [Slash Commands Reference](#slash-commands-reference)
+- [Built-in Claude Code Skills](#built-in-claude-code-skills)
+- [Guardrails That Run Silently](#guardrails-that-run-silently)
+- [Upgrading](#upgrading)
+- [For Template Users](#for-template-users)
+- [Uninstalling](#uninstalling)
 
 ---
 
-## Daily Workflow
+## Modes
 
-Once installed, the plugin guides you through a pipeline. Steps 1–3 are team-level (done once per feature). Steps 4–8 are per work package (each team member runs these in their own worktree).
+Not sure which mode applies? Use this table:
 
-```
-Brainstorm → Plan → Commit Docs → [Assign] → TDD → [Cleanup] → Simplify → Self-Review → PR → Team Review → Deploy → Release
-```
-
-**Team-level (once per feature):**
-1. **Brainstorm** `/brainstorming` — explore approaches; output committed to `docs/brainstorming/`. Run `/deep-research` first for unfamiliar tech.
-2. **Plan** `/plan` — file map + task breakdown + work package checklist committed to `docs/plans/` + `docs/checklists/`
-3. **Assign** — each team member opens `docs/checklists/[feature]-checklist.md`, edits it to claim a package (`**Assignee:** @name, 🟡`), commits that change, then creates a worktree:
-   ```bash
-   git worktree add -b feat/[feature]-[package] ../[project]-[package] origin/main
-   cd ../[project]-[package] && claude
-   ```
-   Then tells Claude: _"I'm picking up the [Backend/Frontend/DevOps/QA] work package for [feature]. Let's start implementing."_
-
-**Per work package — choose your mode:**
-
-**Fast path (automated):** `/autoship` — reads the plan, validates it, runs all tasks via TDD subagents, then simplify → review → PR. You only intervene if a task blocks twice or review finds a design-level issue. Just say: _"implement it with autopilot"_.
-
-**Manual path (step by step):**
-
-4. **TDD** `/tdd` — implement task by task; Test Writer agent (RED) → Implementer agent (GREEN + REFACTOR) per task
-5. **Cleanup** `/cleanup` *(tapway-claude-template users only)* — removes scaffold placeholders; skip otherwise
-6. **Simplify** `/simplify` *(built-in)* — always run; reduces complexity and duplication
-7. **Self-Review** `/review` — three-tier self-review (Critical / Warnings / Suggestions)
-8. **PR** `/pr` — rebase, test, push, open PR, mark checklist 🟢 — **mandatory**
-9. **Team Review** — teammates and `@claude` review on GitHub; AI-assisted fixes via `@claude fix ...` comments
-
-**After all packages merge:**
-
-9. **Deploy** `/deploy` — pre-deployment checklist
-10. **Release** `/release patch|minor|major` — semver bump, release notes, git tag
-
-### Guardrails That Run Silently
-
-- You can't accidentally commit to `main` — the hook blocks it and tells you to create a branch
-- You can't accidentally run prod commands — the hook requires `ALLOW_PROD=1`
-- Every conventional commit auto-generates a release note entry
-- Secrets in staged files are caught before commit
-- Linting runs automatically after file edits
-
-### Slash Commands
-
-Available when the plugin is installed:
-
-| Command | Purpose |
+| Situation | Mode |
 |---|---|
-| `/brainstorming` | Explore approaches before coding (saves to `docs/brainstorming/`) |
-| `/plan` | Write a detailed implementation plan + work package checklist (saves to `docs/plans/` + `docs/checklists/`) |
-| `/autoship` | Run the full plan-to-PR loop automatically (plan already written) |
-| `/tdd` | Run TDD subagents for individual tasks |
-| `/pr` | Rebase, run tests, push branch, open PR, update checklist |
-| `/cleanup` | Remove template artifacts |
-| `/review` | Self-review changes before PR |
-| `/deploy` | Pre-deployment checklist |
-| `/test-all` | Run full test suite |
-| `/release <patch\|minor\|major>` | Bump version, generate release notes, tag |
-| `/upgrade-skills` | Update all plugins to latest |
+| Solo developer, building a new feature or fixing a bug | [Individual](#individual--solo-feature-or-bug-fix) |
+| Team of 2+ people working on the same repo in parallel | [Team Collaboration](#team-collaboration--parallel-work-packages) |
+| Taking over or improving an existing codebase without tests | [Legacy Refactor](#legacy-refactor--existing-repo-without-tests) |
 
-## Built-in Claude Code Skills (used alongside this plugin)
+---
 
-These are Claude Code built-ins — no installation needed. Several are wired into the workflow above.
+### Individual — solo feature or bug fix
+
+**Full guide:** this section covers it. No separate document needed.
+
+#### Workflow
+
+```
+/brainstorming → /plan → [implement] → /simplify → /review → /pr
+```
+
+**Step 1 — Brainstorm** (optional, but recommended for anything non-trivial)
+```
+/brainstorming
+```
+Explore approaches, surface trade-offs, name confusion before writing code. Output is committed to `docs/brainstorming/`. Run `/deep-research` first if the domain is unfamiliar.
+
+**Step 2 — Plan**
+```
+/plan
+```
+Generates `docs/plans/[feature].md` with file map, task breakdown, and success criteria. For multi-task features, also generates a work package checklist at `docs/checklists/[feature]-checklist.md`.
+
+**Step 3 — Implement**
+
+*Fast path — fully automated:*
+```
+"implement it with autopilot"   →   /autoship
+```
+Reads the plan, validates it, runs TDD subagents per task, then simplify → review → PR. You only intervene if a task blocks twice.
+
+*Manual path — step by step:*
+```
+/tdd
+```
+Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR) per task. Structurally impossible to skip the failing test.
+
+**Step 4 — Pre-PR sequence** (always, in this order)
+```
+/simplify       ← reduce complexity and duplication
+/review         ← three-tier self-review (Critical / Warnings / Suggestions)
+/pr             ← rebase, test, update docs, push, open PR
+```
+
+**`/pr` is mandatory** — it rebasees against `main`, runs the full test suite, updates project docs, and opens a structured PR. Never push manually.
+
+---
+
+### Team Collaboration — parallel work packages
+
+**Full guide:** [docs/team-guide.md](docs/team-guide.md) — step-by-step walkthrough with Alice, Bob, and Charlie working on JWT auth in parallel, with exact commands and Claude prompts for every step.
+
+#### Workflow
+
+```
+Tech lead: /brainstorming → /plan → commit docs → assign packages
+Each member: worktree → /tdd or /autoship → /pr
+After all PRs: merge in dependency order → /release
+```
+
+#### How It Works
+
+**One worktree per person per package.** Never two people editing the same branch.
+
+```bash
+# After self-assigning in docs/checklists/[feature]-checklist.md:
+git worktree add -b feat/[feature]-[package] ../[project]-[package] origin/main
+cd ../[project]-[package] && claude
+# Tell Claude: "I'm picking up the [Backend] work package for [feature]. Let's start implementing."
+```
+
+**Docs as the coordination layer.** `docs/checklists/` is the live status board — who has what, what's in progress, what's merged. No Slack threads needed for "who's doing what".
+
+```
+docs/
+  brainstorming/   ← why we chose this approach
+  plans/           ← what we're building and how
+  checklists/      ← who is doing what, current status
+```
+
+**`@claude` in PR comments.** After a PR is open, teammates can mention `@claude` to get AI-assisted fixes without leaving GitHub:
+```
+@claude fix the failing test in test_auth_service.py
+@claude resolve the merge conflict in this PR
+@claude explain why the type error is happening
+```
+
+**Merge order matters.** If Package B depends on Package A's schema changes, merge A first and have B rebase:
+```bash
+git fetch origin && git rebase origin/main
+# resolve any conflicts, then re-push
+```
+
+#### Quick Reference
+
+```bash
+# Self-assign and start
+# 1. Edit docs/checklists/[feature]-checklist.md → set Assignee + 🟡
+git add docs/checklists/ && git commit -m "chore: claim [package] for [name]" && git push
+
+# 2. Create worktree
+git worktree add -b feat/[feature]-[package] ../[project]-[package] origin/main
+cd ../[project]-[package] && claude
+
+# 3. Implement (automated or manual)
+# "implement it with autopilot"   OR   /tdd
+
+# 4. Exit via PR (never push manually)
+# /simplify → /review → /pr
+```
+
+---
+
+### Legacy Refactor — existing repo without tests
+
+**Full guide:** [docs/legacy-refactor-guide.md](docs/legacy-refactor-guide.md) — complete workflow for teams taking over an existing codebase.
+
+#### The Core Problem
+
+You cannot safely refactor code you haven't locked down with tests. On legacy code that means writing **characterization tests** — tests that capture current behavior before you change anything — before the first line of refactored code is written.
+
+#### Workflow
+
+```
+Install superpowers → /repo-docs → /code-review + /security-audit
+  → /brainstorming (refactor goals)
+  → Characterization tests  ← lock down current behavior FIRST
+  → /plan → /tdd → /pr
+```
+
+#### Key Differences from the Standard Workflow
+
+| Step | Standard (new feature) | Legacy refactor |
+|---|---|---|
+| Tests | Written for desired behavior | Written for **current** behavior first |
+| RED phase | Fails because feature doesn't exist | Fails because code is too coupled to unit-test |
+| GREEN phase | Implement the behavior | Decouple/extract until test + characterization tests pass |
+| Plan scope | New capabilities | Specific code smells with measurable before/after |
+
+#### For Bulk Mechanical Changes
+
+For renames, deprecated API replacements, and import path updates across many files — use the optional `code-refactor` community skill:
+
+```bash
+claude plugin add code-refactor@andrej-karpathy-skills
+```
+
+**Always write characterization tests before running bulk changes on untested code.** Bulk renames on untested code cascade silently into broken behavior.
+
+#### Quick Start
+
+```bash
+# 1. Generate architecture docs first
+/repo-docs
+
+# 2. Run audits (parallel)
+/code-review
+/security-audit
+
+# 3. Set refactoring goals
+/brainstorming
+# "Given the audit findings, what does this codebase need to look like in 6 months?"
+
+# 4. Write characterization tests — before any production change
+# See docs/legacy-refactor-guide.md for examples
+
+# 5. Plan + execute + PR
+/plan → /tdd → /pr
+```
+
+---
+
+## What You Get
+
+### 13 Skills
+
+AI behaviors that activate automatically when you use relevant keywords. Also invokable explicitly with `/skill-name`.
+
+| Skill | What it does | Triggers |
+|---|---|---|
+| `brainstorming` | Explore approaches, surface trade-offs, save decisions to `docs/brainstorming/` | "Let's think about...", "What are the options..." |
+| `writing-plans` | Implementation plans with file maps, task breakdowns, and work package checklists. Saves to `docs/plans/` + `docs/checklists/` | "Write a plan...", "Break this down..." |
+| `autoship` | Fully automated plan-to-PR: validates plan, runs TDD subagents per task, then simplify → review → docs → PR | "implement it with autopilot", "autoship", "ship this" |
+| `tdd` | Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR). Structurally enforces TDD. | "Start implementing...", "implement", any new feature or bug fix |
+| `verification` | Confirm a task is done — tests, lint, type-checks, spec coverage | "Is this done?", "Verify...", "Final check..." |
+| `refactor` | **Protocol A** (active codebase): surgical incremental refactoring. **Protocol B** (legacy): characterization-test-first sequence | "Refactor...", "Clean up...", "Legacy refactor..." |
+| `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |
+| `systematic-debugging` | Repro → Isolate → Hypothesize → Test → Fix → Post-mortem saved to `docs/post-mortems/` | "Why is X failing?", "Debug...", "Works locally but not in prod..." |
+| `pr` | Rebase, conflict resolution, test gate, **update docs**, push, open PR, update checklist | "Create a PR...", "I'm done...", "Push and PR..." |
+| `git-worktrees` | Manage parallel git worktrees for concurrent feature work | "Worktree...", "Parallel branches..." |
+| `repo-docs` | Generate `ARCHITECTURE.md`, `WORKFLOWS.md`, `DB_SCHEMA.md`, `DEPLOYMENT.md` | "Document this repo...", "Write architecture docs..." |
+| `security-audit` | Full-codebase OWASP Top 10 audit — for pre-launch or major refactors | "Security audit...", "Audit the whole codebase..." |
+| `pre-review-cleanup` | Scan for template placeholders, boilerplate, and stale scaffold code | "Clean up template files...", "Remove boilerplate..." |
+
+> All skills apply Andrej Karpathy's coding principles: Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution.
+
+---
+
+### 5 Guardrail Hooks
+
+Automatic checks that fire on Claude Code lifecycle events.
+
+| Hook | Event | What it does |
+|---|---|---|
+| `pre-bash-safety` | PreToolUse (Bash) | Blocks force-push, hard-reset on `main`, direct commits to `main`. Blocks prod commands unless `ALLOW_PROD=1` is set. |
+| `post-write-lint` | PostToolUse (Write\|Edit) | Runs the project linter on changed files |
+| `pre-commit-secrets` | PreToolUse (git commit) | Scans staged files for secrets, keys, and credentials before allowing a commit |
+| `session-start` | SessionStart | Displays project info, git status, and environment summary when Claude Code opens |
+| `post-commit-release-note` | PostToolUse (git commit) | Parses conventional commits and appends formatted entries to `CHANGELOG.unreleased.md` |
+
+---
+
+### 4 Specialized Agents
+
+Subagent definitions for use with the TDD and autoship skills:
+
+| Agent | Purpose |
+|---|---|
+| `code-reviewer` | Systematic review with security, performance, and type-safety checks |
+| `test-writer` | Write tests following project conventions (pytest / Jest) |
+| `security-auditor` | OWASP Top 10 audit for auth, payments, and user data paths |
+| `devops-sre` | Docker, CI/CD, and infrastructure configuration review |
+
+---
+
+## Slash Commands Reference
+
+| Command | Mode | Purpose |
+|---|---|---|
+| `/brainstorming` | All | Explore approaches before coding |
+| `/plan` | All | Write implementation plan + work package checklist |
+| `/autoship` | Individual / Team | Run full plan-to-PR loop automatically |
+| `/tdd` | Individual / Team | TDD subagents for task-by-task implementation |
+| `/refactor` | Individual / Legacy | Incremental (Protocol A) or legacy characterization-test workflow (Protocol B) |
+| `/pr` | All | Rebase, test, update docs, push, open PR, update checklist — **mandatory exit** |
+| `/repo-docs` | Legacy / All | Generate architecture, schema, workflow, deployment docs |
+| `/cleanup` | Individual | Remove template artifacts *(tapway-claude-template users only)* |
+| `/review` | All | Three-tier self-review before PR |
+| `/release <patch\|minor\|major>` | All | Semver bump, release notes, git tag |
+| `/upgrade-skills` | All | Update all plugins to latest |
+
+---
+
+## Built-in Claude Code Skills
+
+These ship with Claude Code — no installation needed. Several are wired into the skills above.
 
 | Built-in | What it does | When to use |
 |---|---|---|
-| `/deep-research` | Multi-source web research with fact-checking and citations | Before `/brainstorming` for unfamiliar tech or service comparisons |
-| `/bugfix` | Repro-first bug fixing: failing test → root cause → minimal fix → regression test → PR | For focused code bugs; stronger repro enforcement than `/systematic-debugging` |
-| `/investigate` | Parallel hypothesis agents with adversarial refutation; produces a written root-cause report | Production incidents requiring a formal report |
-| `/simplify` | Reviews changed code for reuse, simplification, and efficiency; applies fixes | Always run after `/tdd`, before `/review` |
-| `/security-review` | Security review of the current branch diff | Before every PR touching auth, payments, or user data |
-| `/verify` | Launches the app and observes behavior in a running environment | When you need golden-path confirmation beyond tests |
+| `/deep-research` | Multi-source web research with fact-checking and citations | Before `/brainstorming` for unfamiliar tech |
+| `/bugfix` | Repro-first: failing test → root cause → minimal fix → regression test | Focused code bugs |
+| `/investigate` | Parallel hypothesis agents with adversarial refutation; formal root-cause report | Production incidents |
+| `/simplify` | Reviews changed code for reuse, simplification, efficiency; applies fixes | Always after `/tdd`, before `/review` |
+| `/security-review` | Security review of the current branch diff | Before PRs touching auth, payments, user data |
+| `/verify` | Launches the app and observes behavior in a running environment | Golden-path confirmation beyond tests |
+
+**`/security-review` vs `/security-audit`:** `/security-review` scans the current diff (fast, pre-PR). `/security-audit` scans the full codebase (thorough, pre-launch or after major refactors).
+
+---
+
+## Guardrails That Run Silently
+
+These happen automatically — no commands needed:
+
+- **Can't commit to `main` directly** — the hook blocks it and tells you to create a branch
+- **Can't run prod commands accidentally** — blocked unless `ALLOW_PROD=1` is set
+- **Secrets caught before commit** — staged files scanned for keys and credentials on every `git commit`
+- **Linting after every file edit** — runs the project linter automatically
+- **Release notes auto-generated** — every conventional commit appends to `CHANGELOG.unreleased.md`
+- **Docs updated on every PR** — `/pr` runs `/repo-docs` or updates affected doc sections before pushing
 
 ---
 
 ## Upgrading
-
-When new versions of this plugin are released:
 
 ```
 /upgrade-skills
@@ -201,9 +342,13 @@ claude plugin update tapway-superpowers@tapway-superpowers
 
 Restart Claude Code after updating to apply changes.
 
+---
+
 ## For Template Users
 
-If you cloned the [tapway-claude-template](https://github.com/tapway/tapway-claude-template), this plugin is already declared in `.claude/settings.json` and auto-installs on first open. You don't need to run any install commands.
+If you cloned the [tapway-claude-template](https://github.com/tapway/tapway-claude-template), this plugin is already declared in `.claude/settings.json` and auto-installs on first open. No install commands needed.
+
+---
 
 ## Uninstalling
 
@@ -211,7 +356,9 @@ If you cloned the [tapway-claude-template](https://github.com/tapway/tapway-clau
 claude plugin uninstall tapway-superpowers@tapway-superpowers
 ```
 
-Your code and configuration files are unaffected.
+Your code and project docs are unaffected.
+
+---
 
 ## License
 

@@ -18,4 +18,13 @@ if grep -q "\- \[ \]" CLAUDE.md 2>/dev/null; then
   echo ""
 fi
 
+# Check for @claude GitHub Actions workflow
+if [ -d ".git" ] && [ ! -f ".github/workflows/claude.yml" ]; then
+  echo "⚠️  SETUP REQUIRED: .github/workflows/claude.yml is missing."
+  echo "   Without it, @claude mentions in PR comments will not trigger fixes."
+  echo "   To fix: tell me 'set up the @claude GitHub Actions workflow'"
+  echo "   and I will create and commit the file for you."
+  echo ""
+fi
+
 echo "✅ Project context loaded. CLAUDE.md is your source of truth."

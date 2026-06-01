@@ -253,6 +253,7 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `repo-docs` | Generate `ARCHITECTURE.md`, `WORKFLOWS.md`, `DB_SCHEMA.md`, `DEPLOYMENT.md` | "Document this repo...", "Write architecture docs..." |
 | `security-audit` | Full-codebase OWASP Top 10 audit — for pre-launch or major refactors | "Security audit...", "Audit the whole codebase..." |
 | `pre-review-cleanup` | Scan for template placeholders, boilerplate, and stale scaffold code | "Clean up template files...", "Remove boilerplate..." |
+| `setup-project` | One-time setup: creates `.github/workflows/claude.yml` and `CLAUDE.md`, commits, prints checklist for remaining manual steps | "set up the @claude workflow", "setup project", "add @claude to this repo" |
 
 > All skills apply Andrej Karpathy's coding principles: Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution.
 
@@ -289,6 +290,7 @@ Subagent definitions for use with the TDD and autoship skills:
 
 | Command | Mode | Purpose |
 |---|---|---|
+| `/setup-project` | All | One-time project setup: creates `.github/workflows/claude.yml` and `CLAUDE.md`, commits, and prints a manual-steps checklist (GitHub secret). Run this in any new repo adopting the plugin. |
 | `/brainstorming` | All | Explore approaches before coding |
 | `/plan` | All | Write implementation plan + work package checklist |
 | `/autoship` | Individual / Team | Run full plan-to-PR loop automatically. Add "and deploy" to also deploy + run integration tests before PR (staging server only) |
@@ -330,6 +332,7 @@ These happen automatically — no commands needed:
 - **Linting after every file edit** — runs the project linter automatically
 - **Release notes auto-generated** — every conventional commit appends to `CHANGELOG.unreleased.md`
 - **Docs updated on every PR** — `/pr` runs `/repo-docs` or updates affected doc sections before pushing
+- **Missing workflow detected on session start** — if `.github/workflows/claude.yml` is absent, the session-start hook warns and tells you to run `/setup-project`
 
 ---
 

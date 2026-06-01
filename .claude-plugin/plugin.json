@@ -21,7 +21,8 @@
     "./skills/git-worktrees",
     "./skills/repo-docs",
     "./skills/security-audit",
-    "./skills/pre-review-cleanup"
+    "./skills/pre-review-cleanup",
+    "./skills/setup-project"
   ],
   "hooks": [],
   "agents": [],

@@ -309,6 +309,7 @@ Then add `ANTHROPIC_API_KEY` to GitHub repo secrets.
 If either job doesn't fire or errors out, check:
 - `ANTHROPIC_API_KEY` is set in repo secrets (Settings → Secrets and variables → Actions)
 - Both jobs have `id-token: write` in their `permissions` block — the action uses OIDC for authentication and will fail with "Unable to get ACTIONS_ID_TOKEN_REQUEST_URL" without it
+- Both jobs have `actions/checkout@v4` as the **first step** — the action runs `git fetch` internally and will fail with "fatal: not a git repository" if the repo isn't checked out first
 - The workflow file exists at `.github/workflows/claude.yml`
 - GitHub Actions is enabled for the repo (Settings → Actions → General)
 

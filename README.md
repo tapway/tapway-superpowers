@@ -30,6 +30,7 @@ claude plugin install claude-code-setup@claude-plugins-official
   - [Individual — solo feature or bug fix](#individual--solo-feature-or-bug-fix)
   - [Team Collaboration — parallel work packages](#team-collaboration--parallel-work-packages)
   - [Legacy Refactor — existing repo without tests](#legacy-refactor--existing-repo-without-tests)
+- [GitHub Actions — AI-Powered PR Review](#github-actions--ai-powered-pr-review)
 - [What You Get](#what-you-get)
   - [13 Skills](#13-skills)
   - [5 Guardrail Hooks](#5-guardrail-hooks)
@@ -104,7 +105,7 @@ Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFA
 /pr             ← rebase, test, update docs, push, open PR
 ```
 
-**`/pr` is mandatory** — it rebasees against `main`, runs the full test suite, updates project docs, and opens a structured PR. Never push manually.
+**`/pr` is mandatory** — it rebases against `main`, runs the full test suite, updates project docs, and opens a structured PR. Never push manually.
 
 ---
 
@@ -140,14 +141,7 @@ docs/
   checklists/      ← who is doing what, current status
 ```
 
-**Auto-review on every PR.** The workflow automatically triggers a three-tier code review (Critical / Warning / Suggestion) when any PR is opened or updated — no mention needed. Claude posts inline comments on specific lines and requests changes if Critical issues are found.
-
-**`@claude` for fixes.** After the auto-review (or any human review), mention `@claude` to push fix commits directly to the branch:
-```
-@claude fix the failing test in test_auth_service.py
-@claude resolve the merge conflict in this PR
-@claude address all the Critical findings from the auto-review
-```
+**Auto-review on every PR + `@claude` for fixes.** Every PR gets an automatic three-tier code review when opened. After review, anyone can mention `@claude` in a comment to push fix commits directly to the branch. See [GitHub Actions — AI-Powered PR Review](#github-actions--ai-powered-pr-review) for setup instructions and the required `ANTHROPIC_API_KEY` secret.
 
 **Merge order matters.** If Package B depends on Package A's schema changes, merge A first and have B rebase:
 ```bash
@@ -230,6 +224,103 @@ claude plugin add code-refactor@andrej-karpathy-skills
 
 # 5. Plan + execute + PR
 /plan → /tdd → /pr
+```
+
+---
+
+## GitHub Actions — AI-Powered PR Review
+
+The plugin ships a GitHub Actions workflow (`.github/workflows/claude.yml`) that gives every PR an automatic AI code review and lets any team member trigger fix commits by mentioning `@claude` in a comment.
+
+> **This must be added to each project repo separately.** Run `/setup-project` in any repo to create and commit the file automatically.
+
+### Prerequisites
+
+**Add `ANTHROPIC_API_KEY` to GitHub repo secrets — this is required for any of the below to work.**
+
+```
+GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+  Name:  ANTHROPIC_API_KEY
+  Value: your key from https://console.anthropic.com
+```
+
+Without this secret, the workflow will be present but every run will fail with an authentication error.
+
+### How It Works — Two Jobs
+
+The workflow contains two separate jobs with different triggers and permissions:
+
+#### 1. `auto-review` — fires on every PR, no mention needed
+
+| Property | Value |
+|---|---|
+| **Trigger** | PR opened, updated (`synchronize`), or reopened |
+| **Permissions** | Read-only (`contents: read`, `pull-requests: write`) |
+| **What it does** | Posts a three-tier code review as inline PR comments |
+
+Claude reads the full diff and posts findings categorised as:
+
+- **Critical** — must fix before merge (bugs, security issues, data loss risks, broken contracts)
+- **Warning** — should fix or justify (missing tests, type gaps, N+1 queries, unhandled errors)
+- **Suggestion** — optional improvements (simplification, naming, duplication)
+
+If Critical findings exist, Claude requests changes. If only Warnings/Suggestions, it approves with comments. The review summary is prefixed with `## Auto-review` so it's clearly labelled as automated.
+
+#### 2. `on-mention` — fires when `@claude` is mentioned
+
+| Property | Value |
+|---|---|
+| **Trigger** | `@claude` in any PR comment, review comment, or review body |
+| **Permissions** | Read-write (`contents: write`) — can push fix commits |
+| **What it does** | Executes whatever instruction follows `@claude` |
+
+Common uses:
+```
+@claude fix the Critical findings from the auto-review
+@claude fix the failing test in test_auth_service.py
+@claude resolve the merge conflict in this file
+@claude explain why this approach was chosen
+```
+
+### Setup
+
+**Option A — Automated (recommended):**
+```
+/setup-project
+```
+Creates `.github/workflows/claude.yml`, commits it, and prints the remaining manual steps including the secret reminder.
+
+**Option B — Manual:**
+```bash
+mkdir -p .github/workflows
+# Copy .github/workflows/claude.yml from this repo into your project
+git add .github/workflows/claude.yml
+git commit -m "chore: add @claude GitHub Actions workflow"
+git push
+```
+Then add `ANTHROPIC_API_KEY` to GitHub repo secrets.
+
+### Verifying It Works
+
+1. Open any PR in the repo
+2. Within ~30 seconds, an `## Auto-review` comment should appear from the `auto-review` job
+3. On the same PR, comment `@claude explain what this PR does` — the `on-mention` job should reply within ~30 seconds
+
+If either job doesn't fire, check:
+- `ANTHROPIC_API_KEY` is set in repo secrets (Settings → Secrets and variables → Actions)
+- The workflow file exists at `.github/workflows/claude.yml`
+- GitHub Actions is enabled for the repo (Settings → Actions → General)
+
+### Cost
+
+Each `auto-review` run costs roughly $0.50–2.00 depending on the size of the diff (input tokens). `on-mention` runs vary by task. For a small team running 20–30 PRs/month, expect under $30/month total.
+
+To limit auto-review to specific branches (e.g. only PRs targeting `main`):
+```yaml
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]   # add this line
 ```
 
 ---

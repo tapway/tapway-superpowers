@@ -68,6 +68,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      id-token: write
 
     steps:
       - uses: anthropics/claude-code-action@v1
@@ -112,6 +113,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      id-token: write
 
     steps:
       - uses: anthropics/claude-code-action@v1

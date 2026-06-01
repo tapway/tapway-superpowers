@@ -306,8 +306,9 @@ Then add `ANTHROPIC_API_KEY` to GitHub repo secrets.
 2. Within ~30 seconds, an `## Auto-review` comment should appear from the `auto-review` job
 3. On the same PR, comment `@claude explain what this PR does` — the `on-mention` job should reply within ~30 seconds
 
-If either job doesn't fire, check:
+If either job doesn't fire or errors out, check:
 - `ANTHROPIC_API_KEY` is set in repo secrets (Settings → Secrets and variables → Actions)
+- Both jobs have `id-token: write` in their `permissions` block — the action uses OIDC for authentication and will fail with "Unable to get ACTIONS_ID_TOKEN_REQUEST_URL" without it
 - The workflow file exists at `.github/workflows/claude.yml`
 - GitHub Actions is enabled for the repo (Settings → Actions → General)
 

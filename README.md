@@ -140,11 +140,13 @@ docs/
   checklists/      ← who is doing what, current status
 ```
 
-**`@claude` in PR comments.** After a PR is open, teammates can mention `@claude` to get AI-assisted fixes without leaving GitHub:
+**Auto-review on every PR.** The workflow automatically triggers a three-tier code review (Critical / Warning / Suggestion) when any PR is opened or updated — no mention needed. Claude posts inline comments on specific lines and requests changes if Critical issues are found.
+
+**`@claude` for fixes.** After the auto-review (or any human review), mention `@claude` to push fix commits directly to the branch:
 ```
 @claude fix the failing test in test_auth_service.py
 @claude resolve the merge conflict in this PR
-@claude explain why the type error is happening
+@claude address all the Critical findings from the auto-review
 ```
 
 **Merge order matters.** If Package B depends on Package A's schema changes, merge A first and have B rebase:

@@ -50,6 +50,8 @@ Write the following content exactly to `.github/workflows/claude.yml`:
 name: Claude Code
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   issue_comment:
     types: [created]
   pull_request_review_comment:
@@ -58,7 +60,49 @@ on:
     types: [submitted]
 
 jobs:
-  claude:
+  # Runs automatically on every PR open or update.
+  # Read-only: posts review comments but cannot push fix commits.
+  auto-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            Review this pull request. Read the diff carefully and check for:
+
+            **Critical** (must fix before merge):
+            - Correctness bugs — logic errors, wrong conditions, off-by-one
+            - Security issues — injection, exposed secrets, missing auth, OWASP Top 10
+            - Data loss risks — unhandled errors on writes, missing rollbacks
+            - Broken contracts — API response shape changes, removed required fields
+
+            **Warnings** (should fix, or justify in PR body):
+            - Missing test coverage for new logic
+            - Type safety gaps — `any`, unchecked casts, implicit nulls
+            - Performance issues — N+1 queries, unbounded loops, large payloads
+            - Error handling gaps on external calls
+
+            **Suggestions** (optional improvements):
+            - Simplification opportunities
+            - Naming clarity
+            - Duplication that could be extracted
+
+            Format:
+            - Post findings as inline review comments on the specific lines where possible
+            - If there are Critical findings, request changes
+            - If there are only Warnings/Suggestions, approve with comments
+            - If everything looks good, approve with a one-paragraph summary
+            - Start your review summary with "## Auto-review" so it's clear this is automated
+
+  # Fires when @claude is mentioned in a PR comment, review, or issue comment.
+  # Read-write: can push fix commits to the branch in addition to commenting.
+  on-mention:
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
@@ -145,8 +189,8 @@ Manual steps still required:
   ☐ Fill in CLAUDE.md (stack, commands, conventions)
       → This is what Claude reads every session to understand your project
 
-  ☐ Test it: open any PR, comment "@claude explain what this PR does"
-      → Claude should reply within ~30 seconds
+  ☐ Test auto-review: open any PR — Claude should post an "## Auto-review" comment automatically within ~30 seconds
+  ☐ Test @claude: comment "@claude explain what this PR does" on any PR — Claude should reply and can push fix commits
 ```
 
 ---

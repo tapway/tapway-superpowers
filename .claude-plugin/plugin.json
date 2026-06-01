@@ -1,13 +1,22 @@
 {
   "name": "tapway-superpowers",
   "description": "Tapway's collection of Claude Code skills, agents, and hooks for full-stack development with Next.js 14 + Python FastAPI. Includes brainstorming, TDD, code review, systematic debugging, security audit, and more.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "Tapway",
     "email": "cheehow@gotapway.com"
   },
   "license": "MIT",
-  "keywords": ["skills", "agents", "hooks", "tdd", "code-review", "full-stack", "nextjs", "fastapi"],
+  "keywords": [
+    "skills",
+    "agents",
+    "hooks",
+    "tdd",
+    "code-review",
+    "full-stack",
+    "nextjs",
+    "fastapi"
+  ],
   "skills": [
     "./skills/brainstorming",
     "./skills/writing-plans",
@@ -31,7 +40,9 @@
       "name": "code-refactor",
       "description": "Bulk mechanical refactoring: rename symbols across files, replace deprecated API calls, update import paths. Complements /refactor Protocol B for find-and-replace-style changes.",
       "installHint": "claude plugin add code-refactor@andrej-karpathy-skills",
-      "usedBy": ["refactor"]
+      "usedBy": [
+        "refactor"
+      ]
     }
   ]
 }

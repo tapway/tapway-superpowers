@@ -6,6 +6,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.1.0] — 2026-06-01
+
+### Added
+
+- **`/setup-project` skill** — one-time project setup for any repo adopting the plugin: creates `.github/workflows/claude.yml` (with both auto-review and on-mention jobs), creates a minimal `CLAUDE.md` if missing, commits both, and prints a manual-steps checklist (GitHub secret, filling in CLAUDE.md). The session-start hook now warns if the workflow file is absent and prompts the user to run this skill.
+- **`/autoship` deploy mode** — triggered by "implement and deploy" or "ship and deploy". Adds Phase 4D before opening the PR: auto-detects deployment method (docker compose / make / npm / Procfile), deploys, runs a 60-second health-check loop against `/health` `/healthz` `/ping`, runs all integration and E2E test suites found (pytest, Playwright, Cypress), and includes deployment evidence in the PR body. Never opens a PR with a broken deployment.
+- **Auto-review GitHub Actions job** — `.github/workflows/claude.yml` now contains two separate jobs: `auto-review` (fires on every PR open/update, read-only, posts three-tier Critical/Warning/Suggestion inline review automatically) and `on-mention` (fires on `@claude` mentions, read-write, can push fix commits). Previously only the on-mention job existed.
+- **`docs/legacy-refactor-guide.md`** — complete workflow guide for teams taking over an existing codebase without tests: bootstrap with `/repo-docs`, audit with `/code-review` + `/security-audit`, goal alignment with `/brainstorming`, characterization tests before any production change, then `/plan` → `/tdd` → `/pr`.
+- **`externalSkills` field in `plugin.json`** — documents the optional `code-refactor` community skill (bulk renames, deprecated API replacements) as a complement to `/refactor` Protocol B.
+
+### Changed
+
+- **`/pr` skill** — added mandatory Step 4 (Update Docs): runs `git diff --name-only origin/main`, triggers `/repo-docs` on first-ever PR if `docs/ARCHITECTURE.md` is absent, otherwise updates only the affected doc sections per a file-to-doc mapping table. Steps renumbered: Push=5, Create PR=6, Update Checklist=7.
+- **`/autoship` skill** — Phase 4 now explicitly includes a doc update step (same logic as `/pr`) before calling `/pr`, making the full flow transparent.
+- **`/refactor` skill** — rewritten with two clearly labelled protocols: **Protocol A** (incremental, for codebases that already have tests — original content preserved) and **Protocol B** (legacy, characterization-test-first sequence for repos without coverage). Community skill `code-refactor` documented at the bottom.
+- **README** — complete restructure with a table of contents and three mode sections (Individual, Team Collaboration, Legacy Refactor), each with a workflow diagram, step-by-step guide, and quick-reference block. Added "GitHub Actions — AI-Powered PR Review" section with setup instructions, two-job breakdown, `ANTHROPIC_API_KEY` reminder with exact GitHub Settings navigation path, cost estimate, and troubleshooting checklist.
+- **Session-start hook** — now checks for `.github/workflows/claude.yml` on every session start and prints a setup warning with fix instructions if the file is absent.
+
+### Fixed
+
+- **`id-token: write` permission** — added to both `auto-review` and `on-mention` jobs in `.github/workflows/claude.yml`. `claude-code-action@v1` uses GitHub OIDC for authentication; without this permission every run failed with `Unable to get ACTIONS_ID_TOKEN_REQUEST_URL`.
+
+---
+
 ## [1.0.0] — 2026-05-30
 
 ### Added

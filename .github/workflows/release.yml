@@ -85,7 +85,11 @@ jobs:
           git tag "$VERSION"
           git push origin "$VERSION"
 
+          # Extract the top CHANGELOG section (between first ## [ and second ## [ or ---)
+          awk '/^## \[/{if(p)exit; p=1; next} p && /^(## \[|---)/{exit} p{print}' CHANGELOG.md \
+            > /tmp/release-notes.md
+
           gh release create "$VERSION" \
             --title "$VERSION" \
             --target "${{ github.ref_name }}" \
-            --generate-notes
+            --notes-file /tmp/release-notes.md

@@ -2,10 +2,11 @@
 name: setup-project
 description: >
   One-time project setup for teams adopting tapway-superpowers: creates the
-  @claude GitHub Actions workflow, verifies CLAUDE.md exists, and prints a
-  checklist of any remaining manual steps (GitHub secret). Triggers include
-  "set up the @claude workflow", "set up the @claude GitHub Actions workflow",
-  "add @claude to this repo", "setup project", "initialize project for the team",
+  @claude GitHub Actions workflow, the auto-release workflow (YYYY.WW.XX.YY-env
+  CalVer), verifies CLAUDE.md exists with TARGET_BRANCH set, commits everything,
+  and prints a checklist of remaining manual steps. Triggers include "set up the
+  @claude workflow", "set up the @claude GitHub Actions workflow", "add @claude
+  to this repo", "setup project", "initialize project for the team",
   "project setup".
 ---
 
@@ -17,10 +18,11 @@ description: >
 
 ## What It Does
 
-1. Creates `.github/workflows/claude.yml` — enables `@claude` in PR comments
-2. Verifies `CLAUDE.md` exists — the project's source of truth for Claude
-3. Commits both files and pushes to the current branch
-4. Prints a manual-steps checklist for anything that can't be automated (GitHub secret)
+1. Creates `.github/workflows/claude.yml` — auto-review on every PR + `@claude` fix commands
+2. Creates `.github/workflows/release.yml` — CalVer auto-release on merge to `stg` / `prod`
+3. Creates `CLAUDE.md` (if missing) with `TARGET_BRANCH: stg` pre-filled
+4. Commits all files and pushes
+5. Prints a manual-steps checklist (GitHub secret, filling in CLAUDE.md)
 
 ---
 
@@ -29,7 +31,8 @@ description: >
 ### Step 1 — Check Current State
 
 ```bash
-ls .github/workflows/claude.yml 2>/dev/null && echo "EXISTS" || echo "MISSING"
+ls .github/workflows/claude.yml   2>/dev/null && echo "EXISTS" || echo "MISSING"
+ls .github/workflows/release.yml  2>/dev/null && echo "EXISTS" || echo "MISSING"
 ls CLAUDE.md 2>/dev/null && echo "EXISTS" || echo "MISSING"
 git branch --show-current
 ```
@@ -129,12 +132,90 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-### Step 3 — Verify CLAUDE.md
+### Step 3 — Create the Auto-Release Workflow
+
+If `.github/workflows/release.yml` does not exist, write the following content exactly to `.github/workflows/release.yml`:
+
+```yaml
+name: Auto Release
+
+# Fires on every merge to stg or prod.
+# Computes a CalVer tag: YYYY.WW.XX.YY-stg or YYYY.WW.XX.YY-prod
+#
+# YYYY = year, WW = ISO week number (01-53)
+# XX   = major increment within the week (resets to 1 each new week)
+# YY   = minor increment within XX (bugfixes, small changes)
+#
+# XX increments when any merged commit contains "feat!" or "BREAKING CHANGE".
+# YY increments for all other merges.
+
+on:
+  push:
+    branches:
+      - stg
+      - prod
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: ver
+        run: |
+          set -e
+          YEAR=$(date +%Y)
+          WEEK=$(date +%V)
+          BRANCH="${GITHUB_REF_NAME}"
+          ENV="-stg"
+          [ "$BRANCH" = "prod" ] && ENV="-prod"
+          PREFIX="${YEAR}.${WEEK}."
+          LATEST=$(git tag -l "${PREFIX}*${ENV}" 2>/dev/null | sort -V | tail -1)
+          if [ -z "$LATEST" ]; then
+            XX=1; YY=0
+          else
+            INNER=${LATEST#"${PREFIX}"}; INNER=${INNER%"${ENV}"}
+            XX=$(echo "$INNER" | cut -d. -f1); YY=$(echo "$INNER" | cut -d. -f2)
+            if git log "${LATEST}..HEAD" --format="%s%n%b" 2>/dev/null \
+               | grep -qE '(^feat!|BREAKING CHANGE)'; then
+              XX=$((XX + 1)); YY=0
+            else
+              YY=$((YY + 1))
+            fi
+          fi
+          VERSION="${YEAR}.${WEEK}.${XX}.${YY}${ENV}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Computed version: ${VERSION}"
+
+      - name: Tag and publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$VERSION"
+          git push origin "$VERSION"
+          gh release create "$VERSION" \
+            --title "$VERSION" \
+            --target "${{ github.ref_name }}" \
+            --generate-notes
+```
+
+### Step 4 — Verify CLAUDE.md
 
 If `CLAUDE.md` does not exist at the project root, create a minimal one:
 
 ```markdown
 # [Project Name]
+
+TARGET_BRANCH: stg
 
 ## Project Overview
 [One paragraph description — fill this in]
@@ -158,27 +239,33 @@ If `CLAUDE.md` does not exist at the project root, create a minimal one:
 - [Things Claude should never do in this repo]
 ```
 
-Tell the user: "I've created a minimal CLAUDE.md. Fill in the stack, commands, and conventions before the team starts using it — Claude reads this every session."
+If `CLAUDE.md` already exists, check whether it has a `TARGET_BRANCH:` line. If not, add it near the top:
+```
+TARGET_BRANCH: stg
+```
 
-### Step 4 — Commit and Push
+Tell the user: "I've set TARGET_BRANCH: stg — this tells the /pr skill which branch to target. Change it if your integration branch has a different name."
+
+### Step 5 — Commit and Push
 
 ```bash
 git add .github/workflows/claude.yml
-git add CLAUDE.md  # only if newly created
-git commit -m "chore: add @claude GitHub Actions workflow and CLAUDE.md"
+git add .github/workflows/release.yml  # only if newly created
+git add CLAUDE.md  # only if newly created or modified
+git commit -m "chore: add GitHub Actions workflows and CLAUDE.md"
 git push
 ```
 
-If on `main` and the pre-bash hook blocks the push (it blocks direct commits to main), create a branch:
+If on `stg` or `main` and the pre-bash hook blocks the push, create a branch:
 
 ```bash
-git checkout -b chore/setup-claude-workflow
-git push -u origin chore/setup-claude-workflow
+git checkout -b chore/setup-tapway-superpowers
+git push -u origin chore/setup-tapway-superpowers
 ```
 
 Then tell the user to merge it via PR.
 
-### Step 5 — Print Manual Steps Checklist
+### Step 6 — Print Manual Steps Checklist
 
 After committing, print this checklist for the user:
 
@@ -186,27 +273,35 @@ After committing, print this checklist for the user:
 ## Project Setup Complete ✅
 
 Automated:
-  ✅ .github/workflows/claude.yml created
-  ✅ CLAUDE.md created (or already existed)
+  ✅ .github/workflows/claude.yml  — auto-review on every PR + @claude fix commands
+  ✅ .github/workflows/release.yml — CalVer auto-release (YYYY.WW.XX.YY-stg/prod) on merge
+  ✅ CLAUDE.md with TARGET_BRANCH: stg
   ✅ Changes committed and pushed
 
 Manual steps still required:
-  ☐ Add ANTHROPIC_API_KEY to GitHub repo secrets
+  ☐ Add ANTHROPIC_API_KEY to GitHub repo secrets (needed for claude.yml jobs)
       → GitHub repo → Settings → Secrets and variables → Actions → New repository secret
       → Name: ANTHROPIC_API_KEY
       → Value: your Anthropic API key (https://console.anthropic.com)
+      Note: release.yml uses GITHUB_TOKEN (built-in) and needs no extra secrets.
+
+  ☐ Set stg as the default branch in GitHub
+      → GitHub repo → Settings → Branches → Default branch → stg
+      This ensures gh pr create targets stg by default.
 
   ☐ Fill in CLAUDE.md (stack, commands, conventions)
-      → This is what Claude reads every session to understand your project
+      → Claude reads this every session to understand your project
 
-  ☐ Test auto-review: open any PR — Claude should post an "## Auto-review" comment automatically within ~30 seconds
-  ☐ Test @claude: comment "@claude explain what this PR does" on any PR — Claude should reply and can push fix commits
+  ☐ Verify: merge any PR to stg — a YYYY.WW.1.0-stg release should appear automatically
+  ☐ Test auto-review: open any PR — Claude should post an "## Auto-review" comment within ~30 seconds
+  ☐ Test @claude: comment "@claude explain what this PR does" on any open PR
 ```
 
 ---
 
 ## Hard Rules
 
-- ❌ Never overwrite an existing `.github/workflows/claude.yml` — if it exists, skip Step 2 and say "already set up"
-- ❌ Never overwrite an existing `CLAUDE.md` — if it exists, skip Step 3 and say "already exists"
-- ❌ Never push directly to `main` — if the hook blocks it, create a setup branch instead
+- ❌ Never overwrite an existing `.github/workflows/claude.yml` — skip and say "already set up"
+- ❌ Never overwrite an existing `.github/workflows/release.yml` — skip and say "already set up"
+- ❌ Never overwrite an existing `CLAUDE.md` — add `TARGET_BRANCH` if missing, otherwise skip
+- ❌ Never push directly to `stg` or `main` — if the hook blocks it, create a setup branch instead

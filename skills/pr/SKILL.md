@@ -1,22 +1,22 @@
 ---
 name: pr
 description: >
-  Full PR preparation and creation workflow: rebase against main, resolve
-  conflicts, run tests, push branch, and open a PR with a conventional commit
-  title and structured body. Always operates inside a git worktree. Triggers
-  include "create a PR", "open a pull request", "push and PR", "submit my
-  work", "I'm done with this task", "/pr".
+  Full PR preparation and creation workflow: rebase against the integration
+  branch (stg by default), resolve conflicts, run tests, run /repo-docs,
+  push branch, and open a PR targeting stg. Always operates inside a git
+  worktree. Triggers include "create a PR", "open a pull request", "push and
+  PR", "submit my work", "I'm done with this task", "/pr".
 ---
 
 # Skill: PR Creation & CI/CD Workflow
 
-**When to invoke:** When a work package or feature is complete and ready for review. Always run from inside a git worktree, never from `main`.
+**When to invoke:** When a work package or feature is complete and ready for review. Always run from inside a git worktree, never from the integration branch.
 
 ---
 
 ## Core Principle
 
-> One worktree = one branch = one PR. Never work directly on `main`.
+> One worktree = one branch = one PR. Never work directly on `stg` (or your project's integration branch).
 
 ---
 
@@ -25,38 +25,54 @@ description: >
 ### Step 1: Verify You're in a Worktree
 
 ```bash
-git branch --show-current   # must NOT be main or master
+git branch --show-current   # must NOT be stg/main/master
 git worktree list            # confirm you're in a worktree, not the main checkout
 ```
 
-If you're on `main`, stop. Use the `git-worktrees` skill to create a worktree first:
+If you're on `stg` (or `main`), stop. Use the `git-worktrees` skill to create a worktree first:
 ```bash
 git worktree add -b feat/[feature-name] ../[project]-[feature-name]
 ```
 
 ---
 
-### Step 2: Sync with Main
+### Step 2: Determine Target Branch
+
+Read the project's integration branch from `CLAUDE.md`:
+```bash
+TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md 2>/dev/null | awk '{print $2}')
+TARGET=${TARGET:-stg}   # default to stg if not set
+echo "Targeting: $TARGET"
+```
+
+If `CLAUDE.md` has no `TARGET_BRANCH` entry, default to `stg`. Add it once to avoid the lookup:
+```
+TARGET_BRANCH: stg
+```
+
+---
+
+### Step 3: Sync with Target Branch
 
 ```bash
 git fetch origin
-git rebase origin/main
+git rebase origin/$TARGET
 ```
 
 **If conflicts appear**, resolve them with intent-aware analysis:
 - Read both sides of every conflict marker
 - Preserve the intent of both branches — do not simply pick one side
 - After resolving: `git add [file] && git rebase --continue`
-- Run `git diff origin/main` after rebase to sanity-check the result
+- Run `git diff origin/$TARGET` after rebase to sanity-check the result
 
 Ask Claude for help with specific conflicts:
 ```
-claude "resolve the conflict in src/services/auth.py — preserve the rate limiting from main and the new JWT logic from this branch"
+claude "resolve the conflict in src/services/auth.py — preserve the rate limiting from stg and the new JWT logic from this branch"
 ```
 
 ---
 
-### Step 3: Run Tests
+### Step 4: Run Tests
 
 Run the test suite for every discipline that was touched:
 
@@ -70,38 +86,29 @@ All tests must be green before pushing. If a test fails that was passing before 
 
 ---
 
-### Step 4: Update Docs
+### Step 5: Update Docs
 
-Check which files changed in this branch:
-```bash
-git diff --name-only origin/main
+Run `/repo-docs` — this is mandatory on every PR, no exceptions.
+
+```
+/repo-docs
 ```
 
-**If `docs/ARCHITECTURE.md` does not exist** — run `/repo-docs` first to generate all documentation from scratch, then continue. This only happens once per repo.
+`/repo-docs` will:
+- Generate `docs/ARCHITECTURE.md`, `docs/WORKFLOWS.md`, `docs/DB_SCHEMA.md`, `docs/DEPLOYMENT.md` from scratch if they don't exist
+- Update only the sections affected by changes in this branch if docs already exist
 
-**If docs already exist** — update only the sections affected by this PR's changes. Do not regenerate whole files; read the existing doc, find the relevant section, and edit it in place.
-
-| Files changed in this PR | Doc section to update |
-|---|---|
-| `backend/src/api/routes/` | `docs/WORKFLOWS.md` — add or update the affected API flow sequence diagram |
-| `backend/src/models/` or `backend/src/db/` | `docs/DB_SCHEMA.md` — update entity definitions and ERD |
-| `backend/src/services/` or new modules | `docs/ARCHITECTURE.md` — update component breakdown |
-| `frontend/src/components/` or `frontend/src/app/` | `docs/WORKFLOWS.md` — update the UI interaction flow |
-| `docker-compose.yml`, `Dockerfile`, CI files | `docs/DEPLOYMENT.md` — update build/deploy steps |
-| `.env.example` | `docs/DEPLOYMENT.md` — update environment variables table |
-| New external service or dependency added | `docs/ARCHITECTURE.md` — add to system diagram and external dependencies table |
-
-After updating, commit the docs to the branch so they are part of the PR:
+After `/repo-docs` completes, commit any doc changes:
 ```bash
 git add docs/
-git commit -m "docs: update [ARCHITECTURE|WORKFLOWS|DB_SCHEMA|DEPLOYMENT] for [what changed]"
+git commit -m "docs: update project docs for [feature/change]"
 ```
 
-If nothing in the changed files affects any doc section, skip the commit but note "docs: no update needed" in the PR body.
+If `/repo-docs` made no changes (output says "no sections affected"), skip the commit but note "docs: no changes" in the PR body.
 
 ---
 
-### Step 5: Push the Branch
+### Step 6: Push the Branch
 
 ```bash
 git push -u origin $(git branch --show-current)
@@ -115,9 +122,9 @@ git fetch origin && git rebase origin/$(git branch --show-current)
 
 ---
 
-### Step 6: Create the PR
+### Step 7: Create the PR
 
-Use `gh pr create` with a structured body:
+Use `gh pr create` with a structured body. Target branch defaults to `stg`:
 
 **Title format:** `feat/fix/refactor(scope): short description`
 - Examples: `feat(auth): add JWT login endpoint`, `fix(payments): handle Stripe webhook retry`
@@ -139,12 +146,13 @@ Use `gh pr create` with a structured body:
 - [ ] [Any manual verification step]
 
 ## Files Changed
-[Paste output of `git diff --name-only origin/main`]
+[Paste output of `git diff --name-only origin/$TARGET`]
 ```
 
 Run:
 ```bash
 gh pr create \
+  --base $TARGET \
   --title "feat(scope): description" \
   --body "$(cat <<'EOF'
 ## Summary
@@ -156,9 +164,13 @@ EOF
 )"
 ```
 
+> **What happens automatically after this PR is opened:**
+> - The `auto-review` GitHub Actions job fires within ~30 seconds and posts a three-tier code review (Critical / Warning / Suggestion) as inline PR comments — no mention needed.
+> - When the PR is merged, the `release.yml` workflow creates a `YYYY.WW.XX.YY-stg` tag and GitHub release automatically.
+
 ---
 
-### Step 7: Update the Work Package Checklist
+### Step 8: Update the Work Package Checklist
 
 After the PR is open:
 1. Edit `docs/checklists/[feature]-checklist.md`
@@ -175,28 +187,13 @@ git push
 
 ---
 
-## GitHub Actions — @claude in PRs
-
-This project uses `anthropics/claude-code-action` so team members can mention `@claude` in any PR comment to get AI-assisted fixes.
-
-**Workflow file:** `.github/workflows/claude.yml` (already in this repo)
-
-**How to use it:**
-- `@claude fix the failing test in test_auth_service.py` — Claude analyzes and pushes a fix commit
-- `@claude resolve the merge conflict in this PR` — Claude resolves and commits
-- `@claude explain why this is failing` — Claude comments with an analysis (no commit)
-
-**Cost:** Targeting specific problems with `@claude` keeps spend low — typically under $5/month for a team running 50 PRs.
-
----
-
 ## Hard Rules
 
-- ❌ Never push directly to `main` or `master`
+- ❌ Never push directly to `stg`, `main`, or `master`
 - ❌ Never open a PR with failing tests
-- ❌ Never create a PR from the main checkout — always from a worktree
+- ❌ Never create a PR from the integration branch — always from a worktree
 - ❌ Never skip the rebase step — stale branches cause CI failures and reviewer confusion
-- ❌ Never skip the doc update step — if changed files affect any doc section, update it before pushing
+- ❌ Never skip `/repo-docs` — docs must be updated on every PR
 - ❌ Never leave the work package checklist unchecked after the PR is open
 
 ---
@@ -204,13 +201,21 @@ This project uses `anthropics/claude-code-action` so team members can mention `@
 ## Quick Reference
 
 ```bash
-# Full flow in one sequence
-git fetch origin && git rebase origin/main
-# (resolve conflicts if any)
+# Read target branch
+TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md 2>/dev/null | awk '{print $2}'); TARGET=${TARGET:-stg}
+
+# Sync
+git fetch origin && git rebase origin/$TARGET
+
+# Tests
 cd backend && pytest -q && cd ..
 cd frontend && npm test -- --watchAll=false && cd ..
-# update affected docs/ sections, then:
-git add docs/ && git commit -m "docs: update [section] for [change]"
+
+# Docs (mandatory)
+# /repo-docs
+git add docs/ && git commit -m "docs: update project docs for [change]"
+
+# Push and PR
 git push -u origin $(git branch --show-current)
-gh pr create --title "feat(scope): ..." --body "..."
+gh pr create --base $TARGET --title "feat(scope): ..." --body "..."
 ```

@@ -213,15 +213,17 @@ If Critical fixes are significant enough to require a new task, add it to the st
 
 **Step 3 — Update Docs**
 
-Run `git diff --name-only origin/main` to see which files changed.
+Run `/repo-docs` — mandatory on every autoship run, no exceptions.
 
-- If `docs/ARCHITECTURE.md` does not exist → run `/repo-docs` to generate all docs from scratch
-- If docs already exist → update only the sections affected (see the doc update table in `/pr`)
+```
+/repo-docs
+```
 
-Commit the doc changes:
+`/repo-docs` updates only the sections affected by this branch's changes if docs already exist, or generates all docs from scratch if this is the first time. Commit any changes it makes:
+
 ```bash
 git add docs/
-git commit -m "docs: update [section] for [feature]"
+git commit -m "docs: update project docs for [feature]"
 ```
 
 ---

@@ -31,6 +31,7 @@ claude plugin install claude-code-setup@claude-plugins-official
   - [Team Collaboration — parallel work packages](#team-collaboration--parallel-work-packages)
   - [Legacy Refactor — existing repo without tests](#legacy-refactor--existing-repo-without-tests)
 - [GitHub Actions — AI-Powered PR Review](#github-actions--ai-powered-pr-review)
+- [Release Convention — YYYY.WW.XX.YY](#release-convention--yyyywwxxyy)
 - [What You Get](#what-you-get)
   - [13 Skills](#13-skills)
   - [5 Guardrail Hooks](#5-guardrail-hooks)
@@ -324,6 +325,49 @@ on:
     types: [opened, synchronize, reopened]
     branches: [main]   # add this line
 ```
+
+---
+
+## Release Convention — YYYY.WW.XX.YY
+
+Releases are created **automatically** every time a PR merges to `stg` or `prod`, via `.github/workflows/release.yml`.
+
+### Format
+
+```
+YYYY.WW.XX.YY-env
+```
+
+| Segment | Meaning | Example |
+|---|---|---|
+| `YYYY` | Year | `2026` |
+| `WW` | ISO week number (01–53) | `24` |
+| `XX` | Major increment within the week | `1` |
+| `YY` | Minor increment within XX (bugfix / small change) | `3` |
+| `-env` | Target environment | `-stg` or `-prod` |
+
+### Examples
+
+```
+2026.24.1.0-stg   ← first merge of week 24 to stg
+2026.24.1.1-stg   ← bugfix on top of 1.0
+2026.24.1.2-stg   ← another small change
+2026.24.2.0-stg   ← breaking change or major feature (XX increments, YY resets)
+2026.24.1.0-prod  ← stg 1.0 promoted to prod
+```
+
+### Rules
+
+- **YY increments** on every merge by default
+- **XX increments** (and YY resets to 0) when any commit in the merge contains `feat!` or `BREAKING CHANGE` in the message
+- **Both counters reset** to `XX=1 YY=0` at the start of each new week
+- `stg` and `prod` maintain independent XX.YY counters
+
+### Setup
+
+`release.yml` is created automatically by `/setup-project`. It requires only the built-in `GITHUB_TOKEN` — no extra secrets needed.
+
+Set `stg` as your repo's default branch (GitHub → Settings → Branches → Default branch) so `gh pr create` targets it automatically.
 
 ---
 

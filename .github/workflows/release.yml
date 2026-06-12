@@ -1,0 +1,91 @@
+name: Auto Release
+
+# Fires on every merge to stg or prod.
+# Computes a CalVer tag: YYYY.WW.XX.YY-stg or YYYY.WW.XX.YY-prod
+#
+# YYYY = year, WW = ISO week number (01–53)
+# XX   = major increment within the week (resets to 1 each week)
+# YY   = minor increment within XX (bugfixes, small changes)
+#
+# XX increments when any merged commit contains "feat!" or "BREAKING CHANGE".
+# YY increments for all other merges.
+#
+# Example progression in week 24 of 2026:
+#   2026.24.1.0-stg  ← first merge of the week
+#   2026.24.1.1-stg  ← bugfix
+#   2026.24.2.0-stg  ← breaking change / major feature
+#   2026.24.1.0-prod ← stg 1.0 promoted to prod
+
+on:
+  push:
+    branches:
+      - stg
+      - prod
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed to read existing tags
+
+      - name: Compute next version
+        id: ver
+        run: |
+          set -e
+
+          YEAR=$(date +%Y)
+          WEEK=$(date +%V)   # ISO week, zero-padded: 01-53
+          BRANCH="${GITHUB_REF_NAME}"
+          ENV="-stg"
+          [ "$BRANCH" = "prod" ] && ENV="-prod"
+
+          PREFIX="${YEAR}.${WEEK}."
+
+          # Latest tag for this env this week (e.g. 2026.24.1.2-stg)
+          LATEST=$(git tag -l "${PREFIX}*${ENV}" 2>/dev/null | sort -V | tail -1)
+
+          if [ -z "$LATEST" ]; then
+            # First release this week for this env
+            XX=1
+            YY=0
+          else
+            # Parse XX and YY from YYYY.WW.XX.YY-env
+            INNER=${LATEST#"${PREFIX}"}
+            INNER=${INNER%"${ENV}"}
+            XX=$(echo "$INNER" | cut -d. -f1)
+            YY=$(echo "$INNER" | cut -d. -f2)
+
+            # Check for breaking changes since last tag
+            if git log "${LATEST}..HEAD" --format="%s%n%b" 2>/dev/null \
+               | grep -qE '(^feat!|BREAKING CHANGE)'; then
+              XX=$((XX + 1))
+              YY=0
+            else
+              YY=$((YY + 1))
+            fi
+          fi
+
+          VERSION="${YEAR}.${WEEK}.${XX}.${YY}${ENV}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Computed version: ${VERSION}"
+
+      - name: Tag and publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$VERSION"
+          git push origin "$VERSION"
+
+          gh release create "$VERSION" \
+            --title "$VERSION" \
+            --target "${{ github.ref_name }}" \
+            --generate-notes

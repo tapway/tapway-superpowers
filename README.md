@@ -349,7 +349,7 @@ YYYY.WW.XX.YY-env
 ### Examples
 
 ```
-2026.24.1.0-stg   ← first merge of week 24 to stg
+2026.24.1.0-stg   ← first merge of week 24 to staging
 2026.24.1.1-stg   ← bugfix on top of 1.0
 2026.24.1.2-stg   ← another small change
 2026.24.2.0-stg   ← breaking change or major feature (XX increments, YY resets)
@@ -367,7 +367,7 @@ YYYY.WW.XX.YY-env
 
 `release.yml` is created automatically by `/setup-project`. It requires only the built-in `GITHUB_TOKEN` — no extra secrets needed.
 
-Set `stg` as your repo's default branch (GitHub → Settings → Branches → Default branch) so `gh pr create` targets it automatically.
+Set `staging` as your repo's default branch (GitHub → Settings → Branches → Default branch) so `gh pr create` targets it automatically (branch name: `staging`, tag suffix: `-stg`).
 
 ---
 

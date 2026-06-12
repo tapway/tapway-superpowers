@@ -19,8 +19,8 @@ description: >
 ## What It Does
 
 1. Creates `.github/workflows/claude.yml` — auto-review on every PR + `@claude` fix commands
-2. Creates `.github/workflows/release.yml` — CalVer auto-release on merge to `stg` / `prod`
-3. Creates `CLAUDE.md` (if missing) with `TARGET_BRANCH: stg` pre-filled
+2. Creates `.github/workflows/release.yml` — CalVer auto-release on merge to `staging` / `prod`
+3. Creates `CLAUDE.md` (if missing) with `TARGET_BRANCH: staging` pre-filled
 4. Commits all files and pushes
 5. Prints a manual-steps checklist (GitHub secret, filling in CLAUDE.md)
 
@@ -139,7 +139,7 @@ If `.github/workflows/release.yml` does not exist, write the following content e
 ```yaml
 name: Auto Release
 
-# Fires on every merge to stg or prod.
+# Fires on every merge to staging or prod.
 # Computes a CalVer tag: YYYY.WW.XX.YY-stg or YYYY.WW.XX.YY-prod
 #
 # YYYY = year, WW = ISO week number (01-53)
@@ -152,7 +152,7 @@ name: Auto Release
 on:
   push:
     branches:
-      - stg
+      - staging
       - prod
 
 jobs:
@@ -215,7 +215,7 @@ If `CLAUDE.md` does not exist at the project root, create a minimal one:
 ```markdown
 # [Project Name]
 
-TARGET_BRANCH: stg
+TARGET_BRANCH: staging
 
 ## Project Overview
 [One paragraph description — fill this in]
@@ -241,10 +241,10 @@ TARGET_BRANCH: stg
 
 If `CLAUDE.md` already exists, check whether it has a `TARGET_BRANCH:` line. If not, add it near the top:
 ```
-TARGET_BRANCH: stg
+TARGET_BRANCH: staging
 ```
 
-Tell the user: "I've set TARGET_BRANCH: stg — this tells the /pr skill which branch to target. Change it if your integration branch has a different name."
+Tell the user: "I've set TARGET_BRANCH: staging — this tells the /pr skill which branch to target. Change it if your integration branch has a different name."
 
 ### Step 5 — Commit and Push
 
@@ -256,7 +256,7 @@ git commit -m "chore: add GitHub Actions workflows and CLAUDE.md"
 git push
 ```
 
-If on `stg` or `main` and the pre-bash hook blocks the push, create a branch:
+If on `staging` or `main` and the pre-bash hook blocks the push, create a branch:
 
 ```bash
 git checkout -b chore/setup-tapway-superpowers
@@ -275,7 +275,7 @@ After committing, print this checklist for the user:
 Automated:
   ✅ .github/workflows/claude.yml  — auto-review on every PR + @claude fix commands
   ✅ .github/workflows/release.yml — CalVer auto-release (YYYY.WW.XX.YY-stg/prod) on merge
-  ✅ CLAUDE.md with TARGET_BRANCH: stg
+  ✅ CLAUDE.md with TARGET_BRANCH: staging
   ✅ Changes committed and pushed
 
 Manual steps still required:
@@ -285,9 +285,9 @@ Manual steps still required:
       → Value: your Anthropic API key (https://console.anthropic.com)
       Note: release.yml uses GITHUB_TOKEN (built-in) and needs no extra secrets.
 
-  ☐ Set stg as the default branch in GitHub
-      → GitHub repo → Settings → Branches → Default branch → stg
-      This ensures gh pr create targets stg by default.
+  ☐ Set staging as the default branch in GitHub
+      → GitHub repo → Settings → Branches → Default branch → staging
+      This ensures gh pr create targets staging by default.
 
   ☐ Fill in CLAUDE.md (stack, commands, conventions)
       → Claude reads this every session to understand your project
@@ -304,4 +304,4 @@ Manual steps still required:
 - ❌ Never overwrite an existing `.github/workflows/claude.yml` — skip and say "already set up"
 - ❌ Never overwrite an existing `.github/workflows/release.yml` — skip and say "already set up"
 - ❌ Never overwrite an existing `CLAUDE.md` — add `TARGET_BRANCH` if missing, otherwise skip
-- ❌ Never push directly to `stg` or `main` — if the hook blocks it, create a setup branch instead
+- ❌ Never push directly to `staging` or `main` — if the hook blocks it, create a setup branch instead

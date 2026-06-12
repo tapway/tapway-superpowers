@@ -2,8 +2,8 @@
 name: pr
 description: >
   Full PR preparation and creation workflow: rebase against the integration
-  branch (stg by default), resolve conflicts, run tests, run /repo-docs,
-  push branch, and open a PR targeting stg. Always operates inside a git
+  branch (staging by default), resolve conflicts, run tests, run /repo-docs,
+  push branch, and open a PR targeting staging. Always operates inside a git
   worktree. Triggers include "create a PR", "open a pull request", "push and
   PR", "submit my work", "I'm done with this task", "/pr".
 ---
@@ -16,7 +16,7 @@ description: >
 
 ## Core Principle
 
-> One worktree = one branch = one PR. Never work directly on `stg` (or your project's integration branch).
+> One worktree = one branch = one PR. Never work directly on `staging` (or your project's integration branch).
 
 ---
 
@@ -25,11 +25,11 @@ description: >
 ### Step 1: Verify You're in a Worktree
 
 ```bash
-git branch --show-current   # must NOT be stg/main/master
+git branch --show-current   # must NOT be staging/main/master
 git worktree list            # confirm you're in a worktree, not the main checkout
 ```
 
-If you're on `stg` (or `main`), stop. Use the `git-worktrees` skill to create a worktree first:
+If you're on `staging` (or `main`), stop. Use the `git-worktrees` skill to create a worktree first:
 ```bash
 git worktree add -b feat/[feature-name] ../[project]-[feature-name]
 ```
@@ -41,13 +41,13 @@ git worktree add -b feat/[feature-name] ../[project]-[feature-name]
 Read the project's integration branch from `CLAUDE.md`:
 ```bash
 TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md 2>/dev/null | awk '{print $2}')
-TARGET=${TARGET:-stg}   # default to stg if not set
+TARGET=${TARGET:-staging}   # default to staging if not set
 echo "Targeting: $TARGET"
 ```
 
-If `CLAUDE.md` has no `TARGET_BRANCH` entry, default to `stg`. Add it once to avoid the lookup:
+If `CLAUDE.md` has no `TARGET_BRANCH` entry, default to `staging`. Add it once to avoid the lookup:
 ```
-TARGET_BRANCH: stg
+TARGET_BRANCH: staging
 ```
 
 ---
@@ -67,7 +67,7 @@ git rebase origin/$TARGET
 
 Ask Claude for help with specific conflicts:
 ```
-claude "resolve the conflict in src/services/auth.py — preserve the rate limiting from stg and the new JWT logic from this branch"
+claude "resolve the conflict in src/services/auth.py — preserve the rate limiting from staging and the new JWT logic from this branch"
 ```
 
 ---
@@ -124,7 +124,7 @@ git fetch origin && git rebase origin/$(git branch --show-current)
 
 ### Step 7: Create the PR
 
-Use `gh pr create` with a structured body. Target branch defaults to `stg`:
+Use `gh pr create` with a structured body. Target branch defaults to `staging`:
 
 **Title format:** `feat/fix/refactor(scope): short description`
 - Examples: `feat(auth): add JWT login endpoint`, `fix(payments): handle Stripe webhook retry`
@@ -189,7 +189,7 @@ git push
 
 ## Hard Rules
 
-- ❌ Never push directly to `stg`, `main`, or `master`
+- ❌ Never push directly to `staging`, `main`, or `master`
 - ❌ Never open a PR with failing tests
 - ❌ Never create a PR from the integration branch — always from a worktree
 - ❌ Never skip the rebase step — stale branches cause CI failures and reviewer confusion
@@ -202,7 +202,7 @@ git push
 
 ```bash
 # Read target branch
-TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md 2>/dev/null | awk '{print $2}'); TARGET=${TARGET:-stg}
+TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md 2>/dev/null | awk '{print $2}'); TARGET=${TARGET:-staging}
 
 # Sync
 git fetch origin && git rebase origin/$TARGET

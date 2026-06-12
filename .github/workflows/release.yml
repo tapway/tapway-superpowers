@@ -19,7 +19,7 @@ name: Auto Release
 on:
   push:
     branches:
-      - stg
+      - staging
       - prod
 
 jobs:
@@ -41,7 +41,7 @@ jobs:
           YEAR=$(date +%Y)
           WEEK=$(date +%V)   # ISO week, zero-padded: 01-53
           BRANCH="${GITHUB_REF_NAME}"
-          ENV="-stg"
+          ENV="-stg"   # staging branch → -stg suffix
           [ "$BRANCH" = "prod" ] && ENV="-prod"
 
           PREFIX="${YEAR}.${WEEK}."

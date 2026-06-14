@@ -41,6 +41,18 @@ For each task:
 
 ---
 
+### Step 0: Source Check (Framework-Specific Tasks)
+
+Before dispatching any subagent, ground the implementation in current official docs:
+
+1. **Detect stack versions** from dependency files (`package.json`, `pyproject.toml`, `requirements.txt`, `Pipfile.lock`). Never assume versions.
+2. **For framework-specific tasks** (new middleware, ORM patterns, auth flows, cloud SDK calls): fetch the official docs for the detected version — not blogs, not StackOverflow, not your training data.
+3. **State the stack explicitly** at the top of every subagent prompt: `Stack: FastAPI 0.115.x, Python 3.12` or `Stack: Next.js 15.x, React 19`.
+
+Skip Step 0 only for pure business logic with no framework surface area.
+
+---
+
 ### For Each Task
 
 #### Step 1: Dispatch Test Writer (RED Phase)

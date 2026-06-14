@@ -6,6 +6,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.0] — 2026-06-14
+
+### Added
+
+- **`/interview` skill** — requirements extraction through structured one-question-at-a-time interviewing before any planning or building begins. Surfaces the real goal behind the stated request: who benefits, why now, success criteria, constraints, out of scope. Stops when you can predict the user's reaction to the next 3 questions. Output is a Confirmed Intent statement that feeds directly into `/brainstorming` or `/plan`.
+- **`/doubt` skill** — adversarial in-flight decision review. Spawns a fresh-context subagent to disprove rather than validate a decision. The reviewer receives only the artifact and its contract, never the reasoning — eliminating confirmation bias. Finding classes: Contract misread / Actionable / Trade-off / Noise. Max 3 cycles. Includes explicit cross-model review offer for high-stakes decisions.
+- **`/observe` skill** — structured observability implementation shipped alongside features, not as a post-launch afterthought. Protocol: define on-call questions first, then choose signal (log / metric / trace), implement structured logging with correlation IDs, RED metrics with bounded label values, OpenTelemetry with auto-instrumentation, symptom-based alerting with runbooks, and staging verification by inducing failures. Never log PII; never use unbounded values as metric labels.
+- **`/deprecate` skill** — safe removal of APIs, endpoints, feature flags, and internal modules. Decision gate (unique value? consumer count? replacement exists?), build replacement first, choose advisory vs compulsory type, migration guide at `docs/migrations/`, Strangler/Adapter/Feature-flag patterns, 14-day zero-traffic verification for external APIs, CHANGELOG `### Removed` entry. Includes zombie code protocol.
+
+### Changed
+
+- **`/tdd` skill** — added **Step 0: Source Check** before dispatching any subagent. Detects stack versions from dependency files, fetches official docs for framework-specific tasks, and states the stack explicitly at the top of every subagent prompt. Prevents training-data drift on fast-moving frameworks.
+- **`release.yml`** — trigger branch renamed `stg` → `staging` to match the actual branch name. Release notes now extracted from `CHANGELOG.md` via awk instead of GitHub's auto-generated changelog.
+- **`/pr` skill** and **`/setup-project` skill** — updated all references from `stg` → `staging` to match the correct branch name.
+
+---
+
 ## [1.1.0] — 2026-06-01
 
 ### Added

@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Claude Code plugin with 13 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development (Next.js 14 + Python FastAPI). The plugin enforces best practices structurally — TDD via agent boundaries, mandatory PR gates, docs on every push — so good habits happen automatically.
+A Claude Code plugin with 17 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development (Next.js 14 + Python FastAPI). The plugin enforces best practices structurally — TDD via agent boundaries, mandatory PR gates, docs on every push — so good habits happen automatically.
 
 ## Quick Install
 
@@ -64,8 +64,16 @@ Not sure which mode applies? Use this table:
 #### Workflow
 
 ```
-/brainstorming → /plan → [implement] → /simplify → /review → /pr
+/interview → /brainstorming → /plan → [implement] → /simplify → /review → /pr
 ```
+
+`/interview` is optional but recommended any time the request is underspecified. `/observe` runs before `/pr` on any new endpoint. `/doubt` is called on demand for high-stakes decisions.
+
+**Step 0 — Clarify** (when the request is fuzzy)
+```
+/interview
+```
+One question at a time. Stops when it can predict your next three questions. Outputs a **Confirmed Intent** statement (outcome / user / why now / success / constraints / out of scope) that feeds into `/brainstorming` or `/plan`. Never start planning until intent is confirmed.
 
 **Step 1 — Brainstorm** (optional, but recommended for anything non-trivial)
 ```
@@ -98,6 +106,18 @@ Same as above, but adds a deployment phase before opening the PR: detects the de
 /tdd
 ```
 Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR) per task. Structurally impossible to skip the failing test.
+
+**Between steps — on demand**
+
+```
+/doubt
+```
+Use this any time you're about to commit to an irreversible decision: service boundary, schema migration, auth flow, security assumption. Spawns a fresh-context adversarial reviewer that sees only the artifact + contract — never your reasoning. Max 3 cycles.
+
+```
+/observe
+```
+Run this before `/pr` on any new endpoint, background task, or external integration. Defines on-call questions first, then adds structured logging (with correlation IDs), RED metrics (bounded labels), OpenTelemetry auto-instrumentation, and symptom-based alerts. Includes staging verification: induce failures, confirm telemetry catches them.
 
 **Step 4 — Pre-PR sequence** (always, in this order)
 ```
@@ -330,7 +350,7 @@ on:
 
 ## Release Convention — YYYY.WW.XX.YY
 
-Releases are created **automatically** every time a PR merges to `stg` or `prod`, via `.github/workflows/release.yml`.
+Releases are created **automatically** every time a PR merges to `staging` or `prod`, via `.github/workflows/release.yml`.
 
 ### Format
 
@@ -373,7 +393,7 @@ Set `staging` as your repo's default branch (GitHub → Settings → Branches �
 
 ## What You Get
 
-### 13 Skills
+### 17 Skills
 
 AI behaviors that activate automatically when you use relevant keywords. Also invokable explicitly with `/skill-name`.
 
@@ -393,6 +413,10 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `security-audit` | Full-codebase OWASP Top 10 audit — for pre-launch or major refactors | "Security audit...", "Audit the whole codebase..." |
 | `pre-review-cleanup` | Scan for template placeholders, boilerplate, and stale scaffold code | "Clean up template files...", "Remove boilerplate..." |
 | `setup-project` | One-time setup: creates `.github/workflows/claude.yml` and `CLAUDE.md`, commits, prints checklist for remaining manual steps | "set up the @claude workflow", "setup project", "add @claude to this repo" |
+| `interview` | Requirements extraction — one question at a time before planning begins. Stops when it can predict your next 3 questions. Outputs a Confirmed Intent statement. | "interview me", "help me figure out requirements", "I'm not sure what I want" |
+| `doubt` | Adversarial in-flight decision review. Fresh-context subagent gets only artifact + contract (never your reasoning). Finds problems, doesn't approve. Max 3 cycles. | "second opinion", "double-check this decision", "stress-test this design" |
+| `observe` | Structured observability shipped with the feature: on-call questions first → structured logs + correlation IDs → RED metrics → OTel → symptom-based alerts → staging verification | "add observability", "add logging", "add metrics", "add tracing", "instrument this" |
+| `deprecate` | Safe removal of APIs, modules, or features: decision gate → replacement first → advisory/compulsory type → migration guide → Strangler/Adapter/Feature-flag → zero-usage gate → remove | "deprecate this", "remove this API", "sunset this feature", "migrate away from X" |
 
 > All skills apply Andrej Karpathy's coding principles: Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution.
 
@@ -430,12 +454,16 @@ Subagent definitions for use with the TDD and autoship skills:
 | Command | Mode | Purpose |
 |---|---|---|
 | `/setup-project` | All | One-time project setup: creates `.github/workflows/claude.yml` and `CLAUDE.md`, commits, and prints a manual-steps checklist (GitHub secret). Run this in any new repo adopting the plugin. |
+| `/interview` | All | Extract requirements one question at a time before planning. Use when the request is underspecified. Output feeds into `/brainstorming` or `/plan`. |
 | `/brainstorming` | All | Explore approaches before coding |
 | `/plan` | All | Write implementation plan + work package checklist |
 | `/autoship` | Individual / Team | Run full plan-to-PR loop automatically. Add "and deploy" to also deploy + run integration tests before PR (staging server only) |
 | `/tdd` | Individual / Team | TDD subagents for task-by-task implementation |
 | `/refactor` | Individual / Legacy | Incremental (Protocol A) or legacy characterization-test workflow (Protocol B) |
+| `/doubt` | All | Adversarial review of any high-stakes decision before it's locked in. Use for irreversible changes, service boundaries, security assumptions. |
+| `/observe` | All | Add structured logging, RED metrics, OTel, and alerts to any new endpoint or task. Run before `/pr`. |
 | `/pr` | All | Rebase, test, update docs, push, open PR, update checklist — **mandatory exit** |
+| `/deprecate` | All | Safe removal of any API, module, or feature. Enforces: replacement first, migration guide, zero-usage gate. |
 | `/repo-docs` | Legacy / All | Generate architecture, schema, workflow, deployment docs |
 | `/cleanup` | Individual | Remove template artifacts *(tapway-claude-template users only)* |
 | `/review` | All | Three-tier self-review before PR |

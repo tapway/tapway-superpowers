@@ -1,6 +1,9 @@
 name: Auto Release
 
-# Fires on every merge to stg or prod.
+# Fires automatically on every merge to `staging` or `prod`.
+# Can also be triggered manually (Actions → Run workflow) to release to any
+# environment directly — useful for small projects without a staging branch.
+#
 # Computes a CalVer tag: YYYY.WW.XX.YY-stg or YYYY.WW.XX.YY-prod
 #
 # YYYY = year, WW = ISO week number (01–53)
@@ -11,16 +14,26 @@ name: Auto Release
 # YY increments for all other merges.
 #
 # Example progression in week 24 of 2026:
-#   2026.24.1.0-stg  ← first merge of the week
+#   2026.24.1.0-stg  ← first merge of the week to staging
 #   2026.24.1.1-stg  ← bugfix
 #   2026.24.2.0-stg  ← breaking change / major feature
-#   2026.24.1.0-prod ← stg 1.0 promoted to prod
+#   2026.24.1.0-prod ← promoted to prod (or released directly via workflow_dispatch)
 
 on:
   push:
     branches:
       - staging
       - prod
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
 
 jobs:
   release:
@@ -40,9 +53,19 @@ jobs:
 
           YEAR=$(date +%Y)
           WEEK=$(date +%V)   # ISO week, zero-padded: 01-53
-          BRANCH="${GITHUB_REF_NAME}"
-          ENV="-stg"   # staging branch → -stg suffix
-          [ "$BRANCH" = "prod" ] && ENV="-prod"
+
+          # Determine environment suffix:
+          #   - workflow_dispatch: use the input value
+          #   - push to prod branch: -prod
+          #   - push to staging branch (or anything else): -stg
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            INPUT="${{ github.event.inputs.environment }}"
+            [ "$INPUT" = "production" ] && ENV="-prod" || ENV="-stg"
+          else
+            BRANCH="${GITHUB_REF_NAME}"
+            ENV="-stg"
+            [ "$BRANCH" = "prod" ] && ENV="-prod"
+          fi
 
           PREFIX="${YEAR}.${WEEK}."
 

@@ -6,11 +6,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre-bash-safety/pre-bash-safety.sh"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre-bash-safety/pre-bash-safety.sh"
           },
           {
             "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre-commit-secrets/pre-commit-secrets.sh",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre-commit-secrets/pre-commit-secrets.sh",
             "if": "Bash(git commit *)"
           }
         ]
@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/post-write-lint/post-write-lint.sh"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/hooks/post-write-lint/post-write-lint.sh"
           }
         ]
       },
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/post-commit-release-note/post-commit-release-note.sh",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/hooks/post-commit-release-note/post-commit-release-note.sh",
             "if": "Bash(git commit *)"
           }
         ]
@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start/session-start.sh"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start/session-start.sh"
           }
         ]
       }

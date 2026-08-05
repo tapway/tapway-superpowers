@@ -6,21 +6,48 @@ A port of the [Tapway Superpowers](https://github.com/tapway/tapway-superpowers)
 
 ## Install
 
-Run the installer (it copies the 6 Tapway skills into your Hermes skills directory):
+All **18** Tapway skills are installed through Hermes's **native skill hub** — one
+command scaffolds the whole skillpack, no local file copying. The installer also
+creates a **`/tapway` skill bundle** so the entire strict pipeline loads with a
+single slash command.
 
 **macOS / Linux:**
 ```bash
-bash install.sh
-# or specify a custom skills dir:
-bash install.sh /path/to/hermes/skills
+bash install.sh            # installs all 18 skills + the /tapway bundle
+bash install.sh <category> # optional: custom skills category (default: tapway)
+
+# Preview without installing anything:
+HERMES_DRY_RUN=1 bash install.sh
 ```
 
 **Windows (PowerShell):**
 ```powershell
 .\install.ps1
+# Preview: $env:HERMES_DRY_RUN = "1"; .\install.ps1
 ```
 
-Then restart Hermes (or run `hermes skills list` to confirm `tapway/interview`, `tapway/brainstorming`, `tapway/writing-plans`, `tapway/tdd`, `tapway/repo-docs`, `tapway/pr` are present).
+The installer resolves each skill by its GitHub identifier
+(`tapway/tapway-superpowers/hermes/skills/<name>`) via `hermes skills install`, so
+it works from anywhere and stays in sync with this repo. Authenticate GitHub
+(`gh auth login` or a `GITHUB_TOKEN`) to avoid unauthenticated API rate limits.
+
+Then verify:
+```bash
+hermes skills list | grep tapway   # 18 tapway/* skills present
+hermes bundles list                # "tapway" bundle present
+```
+
+> **No installer needed?** Because Hermes auto-derives a `/skill-name` command
+> from every installed skill, you can also install an individual skill directly:
+> ```bash
+> hermes skills install tapway/tapway-superpowers/hermes/skills/tdd --category tapway
+> ```
+
+### What you get: 18 skills
+
+discovery/planning | implementation | quality/gates | process/infra
+---|---|---|---
+`interview`, `brainstorming`, `writing-plans` | `tdd`, `autoship`, `refactor`, `systematic-debugging` | `code-review`, `pre-review-cleanup`, `security-audit`, `verification`, `doubt`, `observe`, `deprecate` | `pr`, `repo-docs`, `git-worktrees`, `setup-project`
 
 ## The Strict Pipeline
 
@@ -56,14 +83,20 @@ Add this to your Hermes memory so the process runs on every task automatically:
 
 ## What is NOT ported (Claude Code-only)
 These rely on Claude Code's hook/command system and have no Hermes equivalent that runs automatically:
-- Commit-to-`main` blocking hook
+- Commit-to-`main` blocking hook (Hermes has a `hooks` system — see below)
 - Pre-commit secret scanning
 - Auto-changelog on conventional commits
 - Post-edit auto-lint
 - `@claude` PR fix comments (GitHub Actions workflow)
-- `/autoship`, `/cleanup`, `/release`, `/upgrade-skills` (template/CI-bound commands)
+- `/cleanup`, `/release`, `/upgrade-skills` (template/CI-bound commands)
 
 The **discipline** behind them is preserved by the manual pipeline above.
+
+> **Hermes has a `hermes hooks` system** — shell hooks declared in `config.yaml`
+> (`hermes hooks list` / `doctor`). The commit-guard, secret-scan, and post-edit
+> lint behaviors *can* be replicated as Hermes hooks; they're left as documented
+> discipline here so the port stays pure-skill.
+
 
 ## License
 MIT © Tapway — ported for Hermes by `limcheehow`.

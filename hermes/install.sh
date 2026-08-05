@@ -1,59 +1,119 @@
 #!/usr/bin/env bash
-# install.sh — Install Tapway Superpowers skills into Hermes Agent
 #
-# Copies the 6 Tapway-specific skills into your Hermes skills directory and
-# optionally reminds you to pin the dev process to memory. Idempotent: re-running
-# just refreshes the files.
+# install.sh — Install all 18 Tapway Superpowers skills into Hermes Agent
+#              (gbrain-style: one command scaffolds the whole skillpack).
+#
+# Unlike the earlier copy-based installer, this uses Hermes's native skill hub.
+# Each skill is installed by its GitHub identifier, so there is no dependence
+# on local file layout — it works from anywhere, stays in sync with the repo,
+# and is idempotent (re-running just refreshes/updates nothing that changed).
+#
+# After installing the skills it creates a `/tapway` skill bundle so you can
+# load the whole strict pipeline with a single slash command.
 #
 # Usage:
-#   bash install.sh [path-to-hermes-skills-dir]
+#   bash install.sh                                 # default category: tapway
+#   bash install.sh <hermes-skills-category>        # e.g. "sweng"
 #
-# If no path is given it auto-detects the default Hermes skills location.
+# Prereqs:
+#   - `hermes` CLI on PATH (hermes-agent installed)
+#   - Skills are fetched from the tapway/tapway-superpowers GitHub repo, so an
+#     authenticated GitHub (gh auth login, or GITHUB_TOKEN) is recommended to
+#     avoid unauthenticated API rate limits (60 req/hr).
+#
+# Dry-run / preview first (no writes):
+#   HERMES_DRY_RUN=1 bash install.sh
 
 set -euo pipefail
 
-# --- locate this script's skills folder (parent of this file) ---
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC_DIR="$SCRIPT_DIR"
+REPO="tapway/tapway-superpowers"
+SKILL_ROOT="hermes/skills"
+CATEGORY="${1:-tapway}"
 
-# --- locate Hermes skills dir ---
-if [ "$#" -ge 1 ]; then
-  HERMES_SKILLS="$1"
-elif [ -n "${HERMES_SKILLS_HOME:-}" ]; then
-  HERMES_SKILLS="$HERMES_SKILLS_HOME"
-elif [ -n "${HERMES_HOME:-}" ]; then
-  HERMES_SKILLS="$HERMES_HOME/skills"
-elif [ -n "${XDG_CONFIG_HOME:-}" ]; then
-  HERMES_SKILLS="$XDG_CONFIG_HOME/hermes/skills"
-elif [ -n "${APPDATA:-}" ]; then
-  HERMES_SKILLS="$APPDATA/Local/hermes/skills"
-else
-  HERMES_SKILLS="$HOME/Local/hermes/skills"
-  # Fallback for common layouts
-  [ -d "$HOME/.hermes/skills" ] && HERMES_SKILLS="$HOME/.hermes/skills"
+# All 18 ported skills. Order = pipeline order.
+SKILLS=(
+  interview
+  brainstorming
+  writing-plans
+  tdd
+  autoship
+  refactor
+  systematic-debugging
+  code-review
+  pre-review-cleanup
+  security-audit
+  verification
+  doubt
+  observe
+  deprecate
+  pr
+  repo-docs
+  git-worktrees
+  setup-project
+)
+
+if ! command -v hermes >/dev/null 2>&1; then
+  echo "Error: 'hermes' CLI not found on PATH." >&2
+  echo "Install Hermes Agent first:  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash" >&2
+  exit 1
 fi
 
-# Skills this installer brings (Tapway-specific; others already exist in Hermes core)
-SKILLS=(interview brainstorming writing-plans tdd repo-docs pr)
-
-echo "Source : $SRC_DIR"
-echo "Target : $HERMES_SKILLS"
+echo "Installing Tapway Superpowers into Hermes (category: $CATEGORY)"
+echo "Source repo: $REPO/$SKILL_ROOT"
 echo
 
-mkdir -p "$HERMES_SKILLS/tapway"
+installed=0
+for skill in "${SKILLS[@]}"; do
+  identifier="$REPO/$SKILL_ROOT/$skill"
+  printf "  • %-20s " "$skill"
 
-for s in "${SKILLS[@]}"; do
-  if [ -f "$SRC_DIR/$s/SKILL.md" ]; then
-    mkdir -p "$HERMES_SKILLS/tapway/$s"
-    cp "$SRC_DIR/$s/SKILL.md" "$HERMES_SKILLS/tapway/$s/SKILL.md"
-    echo "  ✓ installed tapway/$s"
+  if [ -n "${HERMES_DRY_RUN:-}" ]; then
+    echo "(dry-run) hermes skills install $identifier --category $CATEGORY --yes"
+    installed=$((installed + 1))
+    continue
+  fi
+
+  if hermes skills install "$identifier" --category "$CATEGORY" --yes; then
+    echo "✓ installed tapway/$skill"
+    installed=$((installed + 1))
   else
-    echo "  ! missing source for $s (skipped)"
+    echo "✗ FAILED to install tapway/$skill" >&2
+    echo "  Try: HERMES_DRY_RUN=1 bash install.sh  (preview the commands)" >&2
+    echo "  Or authenticate GitHub: gh auth login  (avoids rate limits)" >&2
   fi
 done
 
 echo
-echo "Done. Restart Hermes (or run 'hermes skills list' to verify)."
+if [ -n "${HERMES_DRY_RUN:-}" ]; then
+  echo "[dry-run] Would create bundle:"
+  echo "          hermes bundles create tapway \\"
+  n=${#SKILLS[@]}
+  for i in "${!SKILLS[@]}"; do
+    suffix="\\"
+    [ $((i + 1)) -eq "$n" ] && suffix=""
+    printf "            --skill %s %s\n" "${SKILLS[$i]}" "$suffix"
+  done
+  echo "            --description \"Tapway strict engineering pipeline\" --force"
+  echo
+  echo "Dry-run complete: $installed/$installed skills would be installed."
+  exit 0
+fi
+
+# Create (or refresh) the /tapway bundle that loads the whole pipeline.
+bundle_args=()
+for skill in "${SKILLS[@]}"; do
+  bundle_args+=(--skill "$skill")
+done
+hermes bundles create tapway \
+  "${bundle_args[@]}" \
+  --description "Tapway strict engineering pipeline" \
+  --force
+
+echo
+echo "Done. $installed/$installed skills installed."
+echo "  • Verify:         hermes skills list | grep tapway"
+echo "  • Run the whole pipeline:  /tapway"
+echo "  • Or invoke a single step: /interview /brainstorming /writing-plans /tdd ... /pr"
 echo
 echo "Recommended: pin the dev process to memory so it runs on every task:"
 echo "  interview → brainstorming → writing-plans → [tdd] → simplify-code → requesting-code-review → pr"

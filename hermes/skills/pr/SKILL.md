@@ -38,9 +38,14 @@ git checkout -b feat/[feature-name]
 ```
 
 ### Step 2: Determine Target Branch
-Read the project's integration branch from `CLAUDE.md` (or a `TARGET_BRANCH` entry). Default to `staging` if unset:
+Read the project's integration branch from a project context file (`CLAUDE.md`,
+`AGENTS.md`, or `.hermes.md`) or a `TARGET_BRANCH` entry. Default to `staging` if unset
+(Hermes projects that don't create `CLAUDE.md` will pick up `AGENTS.md` / `.hermes.md`
+instead):
 ```bash
-TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md 2>/dev/null | awk '{print $2}'); TARGET=${TARGET:-staging}
+# Check CLAUDE.md, then AGENTS.md, then .hermes.md (first hit wins)
+TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md AGENTS.md .hermes.md 2>/dev/null | head -1 | awk '{print $2}')
+TARGET=${TARGET:-staging}
 echo "Targeting: $TARGET"
 ```
 
@@ -161,8 +166,9 @@ git push
 
 ## Quick Reference
 ```bash
-# Read target branch
-TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md 2>/dev/null | awk '{print $2}'); TARGET=${TARGET:-staging}
+# Read target branch (CLAUDE.md / AGENTS.md / .hermes.md, default staging)
+TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md AGENTS.md .hermes.md 2>/dev/null | head -1 | awk '{print $2}')
+TARGET=${TARGET:-staging}
 
 # Sync
 git fetch origin && git rebase origin/$TARGET

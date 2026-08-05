@@ -17,6 +17,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - **`pr` skill** — target branch now read from `AGENTS.md` / `.hermes.md` / `CLAUDE.md` (with `staging` fallback) instead of `CLAUDE.md` only, so Hermes projects that don't ship `CLAUDE.md` work correctly.
+- **`release.yml`** — replaced the CalVer convention (`YYYY.WW.XX.YY-env`) with **Semantic Versioning** (`vMAJOR.MINOR.PATCH-stg` / `-prod`). The bump is derived from conventional commits: `feat!`/`BREAKING CHANGE` → MAJOR, `feat:` → MINOR, otherwise PATCH. Each environment keeps an independent version stream.
+- **`setup-project` skill & session-start hook** — no longer create or check for a `.github/workflows/claude.yml` PR-review workflow; only `release.yml` is set up.
+
+### Removed
+
+- **GitHub Actions PR review** (`.github/workflows/claude.yml`) — removed. Tapway now does code review inside the AI agent (`/review` in Claude Code, `requesting-code-review` in Hermes) before a PR is opened, instead of in GitHub CI. No `ANTHROPIC_API_KEY` secret is required.
 
 ---
 

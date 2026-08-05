@@ -286,7 +286,7 @@ Now there are three open PRs: #14 (backend), #15 (frontend), #16 (devops).
 2. **PR #14 (Backend)** second — frontend needs the API to be in `main` for final integration testing
 3. **PR #15 (Frontend)** last — after backend is merged, Charlie rebases and verifies the real API works
 
-Each reviewer can comment `@claude fix the failing test in test_auth_service.py` and Claude pushes a fix commit without the author needing to context-switch.
+Code review is done inside the AI agent (not in GitHub CI). Each PR is already self-reviewed by its implementing agent (`/simplify → /review → /pr`) before it's opened, so reviewers get a clean, simplified diff. Teammates review on GitHub in the normal way.
 
 ### What if Frontend PR needs rebasing after Backend merges?
 
@@ -374,7 +374,7 @@ Only do this if the original assignee has explicitly dropped it (updated checkli
 
 ### "I want to review a teammate's PR without running Claude Code"
 
-Just review it on GitHub normally. `@claude` is opt-in — you only get AI-assisted fixes when you explicitly tag it.
+Just review it on GitHub normally. The implementing agent has already self-reviewed the diff before the PR was opened, so the code reaching GitHub is simplified and reviewed — no GitHub Actions review or `@claude` tagging is involved.
 
 ### "The plan was wrong — a task needs to change mid-implementation"
 
@@ -436,6 +436,6 @@ DevOps → Backend → Frontend (most to least likely to be depended upon)
 | "Why did we build it this way?" | Brainstorming output in `docs/brainstorming/` |
 | "The PR has no context" | `/pr` generates a structured body with summary, test plan, files changed |
 | "I accidentally broke main" | Hooks block direct commits to `main`; `/pr` runs tests before push |
-| "Two people conflicted on the same file" | Worktrees isolate branches; rebase + `@claude` resolve conflicts |
+| "Two people conflicted on the same file" | Worktrees isolate branches; rebase with intent-aware conflict resolution |
 | "The PR is messy / overcomplicated" | `/simplify` runs before every PR |
 | "I don't know if this actually works" | `/verification` and `/verify` run the app before declaring done |

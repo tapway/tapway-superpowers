@@ -165,8 +165,8 @@ EOF
 ```
 
 > **What happens automatically after this PR is opened:**
-> - The `auto-review` GitHub Actions job fires within ~30 seconds and posts a three-tier code review (Critical / Warning / Suggestion) as inline PR comments — no mention needed.
-> - When the PR is merged, the `release.yml` workflow creates a `YYYY.WW.XX.YY-stg` tag and GitHub release automatically.
+> - No GitHub Actions code review runs — Tapway reviews code inside the agent (via `/review`) before the PR is opened, so the PR reaches GitHub already simplified and self-reviewed.
+> - When the PR is merged, the `release.yml` workflow creates a `vX.Y.Z-stg` tag and GitHub release automatically.
 
 ---
 

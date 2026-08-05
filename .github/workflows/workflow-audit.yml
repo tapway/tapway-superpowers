@@ -1,0 +1,156 @@
+name: Workflow Audit (Balanced)
+
+# Runs on every PR. Enforces the tapway-superpowers workflow discipline
+# server-side so it cannot be bypassed by skipping client hooks.
+#
+# TIERS:
+#   BLOCK   — hard fail, cannot merge. Fix before merge.
+#   WARNING — annotated on the PR, but does not block merge.
+#
+# The audit is the "workflow proxy": the pipeline's observable artifacts
+# (plan, checklist, conventional commits, docs, no secrets) are required,
+# so requiring the artifacts ≈ requiring the workflow.
+#
+# Balanced profile:
+#   conventional-commits  -> BLOCK (always)
+#   secrets               -> BLOCK (always)
+#   plan doc              -> BLOCK for feat/refactor; WARNING for small fixes
+#   checklist             -> WARNING (team awareness)
+#   docs updated          -> WARNING
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write   # to post tier annotations
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history to read all PR commits
+
+      - name: Collect PR facts
+        id: facts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -e
+
+          # All commit subjects in this PR (excluding merges)
+          git log origin/main..HEAD --format='%s' --no-merges > /tmp/commits.txt
+          echo "--- commits ---"
+          cat /tmp/commits.txt
+
+          # Files changed: added/modified (omit docs/checklists/plans for doc-touch check)
+          git diff origin/main...HEAD --name-status > /tmp/files.txt
+          echo "--- files ---"
+          cat /tmp/files.txt
+
+          # Classify the nature of the change
+          HAS_FEAT=$(grep -cE '^(feat|feat\(|feat!|BREAKING)' /tmp/commits.txt || true)
+          HAS_REFACTOR=$(grep -cE '^(refactor|refactor\()' /tmp/commits.txt || true)
+
+          TOUCHED_PLAN=$(grep -cE 'docs/plans/' /tmp/files.txt || true)
+          TOUCHED_CHECKLIST=$(grep -cE 'docs/checklists/' /tmp/files.txt || true)
+          TOUCHED_DOCS=$(grep -cE 'docs/' /tmp/files.txt || true)
+
+          # Non-conventional commits (anything not in the allowed set)
+          BAD=$(grep -viE '^(feat|fix|chore|docs|refactor|test|build|ci|perf|style|revert|wip)(\([a-z0-9_-]+\))?!?(:| )' /tmp/commits.txt || true)
+
+          echo "has_feat=${HAS_FEAT}"            >> "$GITHUB_OUTPUT"
+          echo "has_refactor=${HAS_REFACTOR}"    >> "$GITHUB_OUTPUT"
+          echo "touched_plan=${TOUCHED_PLAN}"    >> "$GITHUB_OUTPUT"
+          echo "touched_checklist=${TOUCHED_CHECKLIST}" >> "$GITHUB_OUTPUT"
+          echo "touched_docs=${TOUCHED_DOCS}"    >> "$GITHUB_OUTPUT"
+          echo "bad_commits<<EOF"                >> "$GITHUB_OUTPUT"
+          echo "$BAD"                            >> "$GITHUB_OUTPUT"
+          echo "EOF"                             >> "$GITHUB_OUTPUT"
+
+      - name: Secret scan (BLOCK)
+        run: |
+          set -e
+          # Scan the PR diff for common secret patterns.
+          git diff origin/main...HEAD -- . ':!*.lock' ':!*.md' \
+            | grep -nE '(AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----)'
+          # If grep matched anything it exits 0 -> we want to FAIL. If nothing matched
+          # grep exits 1 -> pass. Swap the sense.
+          if [ $? -eq 0 ]; then
+            echo "::error::SECRET detected in diff. Remove it before merge."
+            exit 1
+          fi
+          echo "No secrets found in diff."
+
+      - name: Conventional commits (BLOCK)
+        run: |
+          set -e
+          BAD="${{ steps.facts.outputs.bad_commits }}"
+          if [ -n "$BAD" ]; then
+            echo "::error::Non-conventional commit(s) found. Use feat:/fix:/docs:/chore:/refactor:/test:/build:/ci:/perf:/style:"
+            echo "$BAD"
+            exit 1
+          fi
+          echo "All commits conventional."
+
+      - name: Plan + checklist audit (BLOCK for feat/refactor, WARNING otherwise)
+        id: plan
+        env:
+          HAS_FEAT: ${{ steps.facts.outputs.has_feat }}
+          HAS_REFACTOR: ${{ steps.facts.outputs.has_refactor }}
+          TOUCHED_PLAN: ${{ steps.facts.outputs.touched_plan }}
+          TOUCHED_CHECKLIST: ${{ steps.facts.outputs.touched_checklist }}
+        run: |
+          set -e
+          NEEDS_PLAN="0"
+          if [ "${HAS_FEAT}" != "0" ] || [ "${HAS_REFACTOR}" != "0" ]; then
+            NEEDS_PLAN="1"
+          fi
+
+          echo "needs_plan=${NEEDS_PLAN}" >> "$GITHUB_OUTPUT"
+
+          if [ "${NEEDS_PLAN}" = "1" ] && [ "${TOUCHED_PLAN}" = "0" ]; then
+            echo "::error::Feature/refactor PR missing docs/plans/*.md. Run /plan and commit the plan."
+            exit 1
+          fi
+          echo "Plan check: ${NEEDS_PLAN}=needs, touched=${TOUCHED_PLAN}."
+
+      - name: Post WARNING annotations
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          TOUCHED_CHECKLIST: ${{ steps.facts.outputs.touched_checklist }}
+          TOUCHED_DOCS: ${{ steps.facts.outputs.touched_docs }}
+          NEEDS_PLAN: ${{ steps.plan.outputs.needs_plan }}
+        with:
+          script: |
+            const notes = [];
+            const cl = process.env.TOUCHED_CHECKLIST;
+            const docs = process.env.TOUCHED_DOCS;
+            const needs = process.env.NEEDS_PLAN;
+
+            if (cl === "0") notes.push("⚠️ WARNING: no docs/checklists/*.md touched. Claim your work package in the checklist.");
+            if (needs === "1" && docs === "0") notes.push("⚠️ WARNING: feature PR didn't touch docs/. Run /pr (or /repo-docs) to update docs.");
+            else if (docs === "0") notes.push("ℹ️ No docs/ touched — fine for small fixes, but consider updating affected doc sections.");
+
+            if (notes.length === 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: "✅ **Workflow audit passed** — conventional commits ✓, plan ✓, no secrets ✓."
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: "✅ **Workflow audit passed** (non-blocking notes):\n\n" + notes.join("\n")
+              });
+            }

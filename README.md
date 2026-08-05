@@ -2,7 +2,11 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Claude Code plugin with 17 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development (Next.js 14 + Python FastAPI). The plugin enforces best practices structurally — TDD via agent boundaries, mandatory PR gates, docs on every push — so good habits happen automatically.
+A Claude Code plugin (and now a Hermes Agent port) with 17 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development (Next.js 14 + Python FastAPI). The plugin enforces best practices structurally — TDD via agent boundaries, mandatory PR gates, docs on every push — so good habits happen automatically.
+
+**Pick your tool:**
+- **Claude Code users** → install the plugin below (slash commands + hooks).
+- **Hermes Agent users** → see [Hermes Support](#hermes-support) for a ready-to-install skill port that runs the same pipeline.
 
 ## Quick Install
 
@@ -24,6 +28,22 @@ claude plugin install claude-code-setup@claude-plugins-official
 
 ---
 
+## Hermes Support
+
+Prefer **Hermes Agent** over Claude Code? A port of these skills ships in this repo under [`hermes/`](hermes/). Same skills, same strict pipeline — `interview → brainstorming → writing-plans → tdd → simplify-code → requesting-code-review → pr` — running on Hermes's own skill system.
+
+```bash
+# From inside the cloned repo:
+cd hermes
+bash install.sh        # macOS / Linux
+# or, on Windows (PowerShell):
+.\install.ps1
+```
+
+This copies the 6 Tapway-specific skills into your Hermes skills directory. A few Claude-only pieces (commit hooks, secret scanning, `@claude` PR comments) don't auto-run in Hermes — the equivalent discipline is preserved by following the pipeline. Full details and the skill-to-Hermes mapping are in [`hermes/README.md`](hermes/README.md).
+
+---
+
 ## Table of Contents
 
 - [Modes](#modes)
@@ -37,6 +57,7 @@ claude plugin install claude-code-setup@claude-plugins-official
   - [5 Guardrail Hooks](#5-guardrail-hooks)
   - [4 Specialized Agents](#4-specialized-agents)
 - [Slash Commands Reference](#slash-commands-reference)
+- [Hermes Support](#hermes-support)
 - [Built-in Claude Code Skills](#built-in-claude-code-skills)
 - [Guardrails That Run Silently](#guardrails-that-run-silently)
 - [Upgrading](#upgrading)

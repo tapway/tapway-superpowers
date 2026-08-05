@@ -6,6 +6,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Hermes Agent port** — all 18 Tapway skills converted to Hermes `SKILL.md` format so Hermes users can run the same strict engineering pipeline as the Claude Code plugin (`interview → brainstorming → writing-plans → tdd → simplify-code → requesting-code-review → pr`). Ships under [`hermes/`](hermes/).
+- **`hermes/install.sh` / `install.ps1`** — gbrain-style installer using Hermes's native skill hub (`hermes skills install <github-id>`). Installs all 18 skills and creates a **`/tapway` skill bundle** so the whole pipeline loads with one slash command. Supports `HERMES_DRY_RUN` for safe preview. No local file-layout dependency; stays in sync with the repo.
+- **`hermes/README.md`** — skill-to-Hermes mapping and the strict-pipeline reference.
+
+### Changed
+
+- **`pr` skill** — target branch now read from `AGENTS.md` / `.hermes.md` / `CLAUDE.md` (with `staging` fallback) instead of `CLAUDE.md` only, so Hermes projects that don't ship `CLAUDE.md` work correctly.
+
+---
+
 ## [1.2.0] — 2026-06-14
 
 ### Added

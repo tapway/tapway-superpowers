@@ -18,18 +18,13 @@ if grep -q "\- \[ \]" CLAUDE.md 2>/dev/null; then
   echo ""
 fi
 
-# Check for required GitHub Actions workflows
+# Check for required GitHub Actions release workflow
 if [ -d ".git" ]; then
-  MISSING=""
-  [ ! -f ".github/workflows/claude.yml" ]  && MISSING="$MISSING claude.yml"
-  [ ! -f ".github/workflows/release.yml" ] && MISSING="$MISSING release.yml"
-  if [ -n "$MISSING" ]; then
-    echo "⚠️  SETUP REQUIRED: missing GitHub Actions workflows:$MISSING"
-    echo "   • claude.yml  — auto PR review + @claude fix commands"
-    echo "   • release.yml — CalVer auto-release (YYYY.WW.XX.YY-stg/prod) on merge"
-    echo "   To fix: tell me 'setup project' and I will create them for you."
-    echo ""
-  fi
+  [ ! -f ".github/workflows/release.yml" ] && \
+    { echo "⚠️  SETUP REQUIRED: missing .github/workflows/release.yml"
+      echo "   • release.yml — semver auto-release (vX.Y.Z-stg/prod) on merge"
+      echo "   To fix: tell me 'setup project' and I will create it for you."
+      echo ""; }
 fi
 
 echo "✅ Project context loaded. CLAUDE.md is your source of truth."

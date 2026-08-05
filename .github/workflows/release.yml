@@ -4,20 +4,17 @@ name: Auto Release
 # Can also be triggered manually (Actions → Run workflow) to release to any
 # environment directly — useful for small projects without a staging branch.
 #
-# Computes a CalVer tag: YYYY.WW.XX.YY-stg or YYYY.WW.XX.YY-prod
+# Produces a Semantic Versioning tag with an environment suffix:
+#   vMAJOR.MINOR.PATCH-stg   (staging)
+#   vMAJOR.MINOR.PATCH-prod  (production)
 #
-# YYYY = year, WW = ISO week number (01–53)
-# XX   = major increment within the week (resets to 1 each week)
-# YY   = minor increment within XX (bugfixes, small changes)
+# The bump is derived from conventional commits since the last tag for the
+# same environment, using standard SemVer rules:
+#   feat! / BREAKING CHANGE  →  MAJOR
+#   feat:                    →  MINOR
+#   anything else            →  PATCH
 #
-# XX increments when any merged commit contains "feat!" or "BREAKING CHANGE".
-# YY increments for all other merges.
-#
-# Example progression in week 24 of 2026:
-#   2026.24.1.0-stg  ← first merge of the week to staging
-#   2026.24.1.1-stg  ← bugfix
-#   2026.24.2.0-stg  ← breaking change / major feature
-#   2026.24.1.0-prod ← promoted to prod (or released directly via workflow_dispatch)
+# Each environment keeps its own independent version stream.
 
 on:
   push:
@@ -44,15 +41,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history needed to read existing tags
+          fetch-depth: 0   # full history needed to read existing tags & commits
 
       - name: Compute next version
         id: ver
         run: |
           set -e
-
-          YEAR=$(date +%Y)
-          WEEK=$(date +%V)   # ISO week, zero-padded: 01-53
 
           # Determine environment suffix:
           #   - workflow_dispatch: use the input value
@@ -67,35 +61,45 @@ jobs:
             [ "$BRANCH" = "prod" ] && ENV="-prod"
           fi
 
-          PREFIX="${YEAR}.${WEEK}."
-
-          # Latest tag for this env this week (e.g. 2026.24.1.2-stg)
-          LATEST=$(git tag -l "${PREFIX}*${ENV}" 2>/dev/null | sort -V | tail -1)
+          # Latest semver tag for this env, e.g. v1.2.3-stg
+          LATEST=$(git tag -l "v*${ENV}" 2>/dev/null | sort -V | tail -1)
 
           if [ -z "$LATEST" ]; then
-            # First release this week for this env
-            XX=1
-            YY=0
+            # No release for this env yet — start at 0.0.0 so the first
+            # conventional commit below rolls us to 1.0.0 (feat) / 0.1.0.
+            MAJOR=0; MINOR=0; PATCH=0
           else
-            # Parse XX and YY from YYYY.WW.XX.YY-env
-            INNER=${LATEST#"${PREFIX}"}
-            INNER=${INNER%"${ENV}"}
-            XX=$(echo "$INNER" | cut -d. -f1)
-            YY=$(echo "$INNER" | cut -d. -f2)
-
-            # Check for breaking changes since last tag
-            if git log "${LATEST}..HEAD" --format="%s%n%b" 2>/dev/null \
-               | grep -qE '(^feat!|BREAKING CHANGE)'; then
-              XX=$((XX + 1))
-              YY=0
-            else
-              YY=$((YY + 1))
-            fi
+            # Parse MAJOR.MINOR.PATCH from "vX.Y.Z-env"
+            VER=${LATEST#v}
+            VER=${VER%%"${ENV}"}
+            MAJOR=$(echo "$VER" | cut -d. -f1)
+            MINOR=$(echo "$VER" | cut -d. -f2)
+            PATCH=$(echo "$VER" | cut -d. -f3)
           fi
 
-          VERSION="${YEAR}.${WEEK}.${XX}.${YY}${ENV}"
+          # Decide the bump from conventional commits since the last env tag
+          # (or the repo start if this is the first release for this env).
+          RANGE="${LATEST:-$(git rev-list --max-parents=0 HEAD)}..HEAD"
+
+          BUMP="patch"
+          if git log "${RANGE}" --format="%s%n%b" 2>/dev/null \
+             | grep -qE '(^feat!|BREAKING CHANGE)'; then
+            BUMP="major"
+          elif git log "${RANGE}" --format="%s" 2>/dev/null \
+             | grep -qE '^(feat|feat\()'; then
+            BUMP="minor"
+          fi
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          VERSION="v${MAJOR}.${MINOR}.${PATCH}${ENV}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Computed version: ${VERSION}"
+          echo "bump=${BUMP}"        >> "$GITHUB_OUTPUT"
+          echo "Computed version: ${VERSION} (${BUMP} bump)"
 
       - name: Tag and publish release
         env:

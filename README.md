@@ -42,7 +42,7 @@ bash install.sh        # macOS / Linux — installs all 18 skills + the /tapway 
 
 This installs all **18** Tapway skills through Hermes's native skill hub and creates a
 `/tapway` skill bundle that loads the whole pipeline with one slash command. A few
-Claude-only pieces (commit hooks, secret scanning, `@claude` PR comments) don't auto-run
+Claude-only pieces (commit hooks, secret scanning) don't auto-run
 in Hermes — the equivalent discipline is preserved by following the pipeline. Full details
 and the skill-to-Hermes mapping are in [`hermes/README.md`](hermes/README.md).
 
@@ -54,8 +54,8 @@ and the skill-to-Hermes mapping are in [`hermes/README.md`](hermes/README.md).
   - [Individual — solo feature or bug fix](#individual--solo-feature-or-bug-fix)
   - [Team Collaboration — parallel work packages](#team-collaboration--parallel-work-packages)
   - [Legacy Refactor — existing repo without tests](#legacy-refactor--existing-repo-without-tests)
-- [GitHub Actions — AI-Powered PR Review](#github-actions--ai-powered-pr-review)
-- [Release Convention — YYYY.WW.XX.YY](#release-convention--yyyywwxxyy)
+- [Code Review — Inside the Agent](#code-review--inside-the-agent)
+- [Release Convention — Semantic Versioning](#release-convention--semantic-versioning)
 - [What You Get](#what-you-get)
   - [13 Skills](#13-skills)
   - [5 Guardrail Hooks](#5-guardrail-hooks)
@@ -187,7 +187,7 @@ docs/
   checklists/      ← who is doing what, current status
 ```
 
-**Auto-review on every PR + `@claude` for fixes.** Every PR gets an automatic three-tier code review when opened. After review, anyone can mention `@claude` in a comment to push fix commits directly to the branch. See [GitHub Actions — AI-Powered PR Review](#github-actions--ai-powered-pr-review) for setup instructions and the required `ANTHROPIC_API_KEY` secret.
+**Code review happens inside the AI agent, not in GitHub CI.** Every PR is reviewed by the agent using the `/review` (Claude Code) or `requesting-code-review` (Hermes) skill before it's opened — a three-tier Critical/Warning/Suggestion self-review run by the implementing agent. There is no GitHub Actions-based PR review workflow; review discipline is enforced by the pipeline, not by CI.
 
 **Merge order matters.** If Package B depends on Package A's schema changes, merge A first and have B rebase:
 ```bash
@@ -274,139 +274,54 @@ claude plugin add code-refactor@andrej-karpathy-skills
 
 ---
 
-## GitHub Actions — AI-Powered PR Review
+## Code Review — Inside the Agent
 
-The plugin ships a GitHub Actions workflow (`.github/workflows/claude.yml`) that gives every PR an automatic AI code review and lets any team member trigger fix commits by mentioning `@claude` in a comment.
+Tapway does **not** run PR review in GitHub CI. Code review is performed by the AI agent during development, before a PR is opened:
 
-> **This must be added to each project repo separately.** Run `/setup-project` in any repo to create and commit the file automatically.
+| Tool | Review skill | When |
+|---|---|---|
+| Claude Code | `/review` (built-in) — three-tier Critical / Warnings / Suggestions | Every PR, before `/pr` |
+| Hermes | `requesting-code-review` (core) | Every PR, before `pr` |
 
-### Prerequisites
+This is structural in the pipeline (`/simplify → /review → /pr`), so a PR that reaches GitHub has already been simplified and self-reviewed by the implementing agent. If Critical findings are raised, the agent fixes them before opening the PR.
 
-**Add `ANTHROPIC_API_KEY` to GitHub repo secrets — this is required for any of the below to work.**
-
-```
-GitHub repo → Settings → Secrets and variables → Actions → New repository secret
-  Name:  ANTHROPIC_API_KEY
-  Value: your key from https://console.anthropic.com
-```
-
-Without this secret, the workflow will be present but every run will fail with an authentication error.
-
-### How It Works — Two Jobs
-
-The workflow contains two separate jobs with different triggers and permissions:
-
-#### 1. `auto-review` — fires on every PR, no mention needed
-
-| Property | Value |
-|---|---|
-| **Trigger** | PR opened, updated (`synchronize`), or reopened |
-| **Permissions** | Read-only (`contents: read`, `pull-requests: write`) |
-| **What it does** | Posts a three-tier code review as inline PR comments |
-
-Claude reads the full diff and posts findings categorised as:
-
-- **Critical** — must fix before merge (bugs, security issues, data loss risks, broken contracts)
-- **Warning** — should fix or justify (missing tests, type gaps, N+1 queries, unhandled errors)
-- **Suggestion** — optional improvements (simplification, naming, duplication)
-
-If Critical findings exist, Claude requests changes. If only Warnings/Suggestions, it approves with comments. The review summary is prefixed with `## Auto-review` so it's clearly labelled as automated.
-
-#### 2. `on-mention` — fires when `@claude` is mentioned
-
-| Property | Value |
-|---|---|
-| **Trigger** | `@claude` in any PR comment, review comment, or review body |
-| **Permissions** | Read-write (`contents: write`) — can push fix commits |
-| **What it does** | Executes whatever instruction follows `@claude` |
-
-Common uses:
-```
-@claude fix the Critical findings from the auto-review
-@claude fix the failing test in test_auth_service.py
-@claude resolve the merge conflict in this file
-@claude explain why this approach was chosen
-```
-
-### Setup
-
-**Option A — Automated (recommended):**
-```
-/setup-project
-```
-Creates `.github/workflows/claude.yml`, commits it, and prints the remaining manual steps including the secret reminder.
-
-**Option B — Manual:**
-```bash
-mkdir -p .github/workflows
-# Copy .github/workflows/claude.yml from this repo into your project
-git add .github/workflows/claude.yml
-git commit -m "chore: add @claude GitHub Actions workflow"
-git push
-```
-Then add `ANTHROPIC_API_KEY` to GitHub repo secrets.
-
-### Verifying It Works
-
-1. Open any PR in the repo
-2. Within ~30 seconds, an `## Auto-review` comment should appear from the `auto-review` job
-3. On the same PR, comment `@claude explain what this PR does` — the `on-mention` job should reply within ~30 seconds
-
-If either job doesn't fire or errors out, check:
-- `ANTHROPIC_API_KEY` is set in repo secrets (Settings → Secrets and variables → Actions)
-- Both jobs have `id-token: write` in their `permissions` block — the action uses OIDC for authentication and will fail with "Unable to get ACTIONS_ID_TOKEN_REQUEST_URL" without it
-- Both jobs have `actions/checkout@v4` as the **first step** — the action runs `git fetch` internally and will fail with "fatal: not a git repository" if the repo isn't checked out first
-- The workflow file exists at `.github/workflows/claude.yml`
-- GitHub Actions is enabled for the repo (Settings → Actions → General)
-
-### Cost
-
-Each `auto-review` run costs roughly $0.50–2.00 depending on the size of the diff (input tokens). `on-mention` runs vary by task. For a small team running 20–30 PRs/month, expect under $30/month total.
-
-To limit auto-review to specific branches (e.g. only PRs targeting `main`):
-```yaml
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]   # add this line
-```
+No `ANTHROPIC_API_KEY` secret, no `claude.yml` workflow, and no GitHub Actions review cost.
 
 ---
 
-## Release Convention — YYYY.WW.XX.YY
+## Release Convention — Semantic Versioning
 
 Releases are created **automatically** every time a PR merges to `staging` or `prod`, via `.github/workflows/release.yml`.
 
 ### Format
 
 ```
-YYYY.WW.XX.YY-env
+vMAJOR.MINOR.PATCH-env
 ```
 
 | Segment | Meaning | Example |
 |---|---|---|
-| `YYYY` | Year | `2026` |
-| `WW` | ISO week number (01–53) | `24` |
-| `XX` | Major increment within the week | `1` |
-| `YY` | Minor increment within XX (bugfix / small change) | `3` |
+| `MAJOR` | Breaking change (`feat!` or `BREAKING CHANGE`) | `2` |
+| `MINOR` | New feature (`feat:`) | `1` |
+| `PATCH` | Bugfix / small change (anything else) | `3` |
 | `-env` | Target environment | `-stg` or `-prod` |
+
+### Rules
+
+- **PATCH increments** on every merge by default
+- **MINOR increments** (and PATCH resets to 0) when any merged commit is `feat: ...`
+- **MAJOR increments** (and MINOR/PATCH reset to 0) when any merged commit contains `feat!` or `BREAKING CHANGE`
+- `stg` and `prod` maintain **independent** MAJOR.MINOR.PATCH streams
 
 ### Examples
 
 ```
-2026.24.1.0-stg   ← first merge of week 24 to staging
-2026.24.1.1-stg   ← bugfix on top of 1.0
-2026.24.1.2-stg   ← another small change
-2026.24.2.0-stg   ← breaking change or major feature (XX increments, YY resets)
-2026.24.1.0-prod  ← stg 1.0 promoted to prod
+v1.1.0-stg   ← feature merge to staging
+v1.1.1-stg   ← bugfix on top of 1.1.0
+v1.2.0-stg   ← next feature
+v2.0.0-stg   ← breaking change (MAJOR bump)
+v1.1.0-prod  ← promoted to prod (prod's own stream)
 ```
-
-### Rules
-
-- **YY increments** on every merge by default
-- **XX increments** (and YY resets to 0) when any commit in the merge contains `feat!` or `BREAKING CHANGE` in the message
-- **Both counters reset** to `XX=1 YY=0` at the start of each new week
-- `stg` and `prod` maintain independent XX.YY counters
 
 ### Setup
 
@@ -437,7 +352,7 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `repo-docs` | Generate `ARCHITECTURE.md`, `WORKFLOWS.md`, `DB_SCHEMA.md`, `DEPLOYMENT.md` | "Document this repo...", "Write architecture docs..." |
 | `security-audit` | Full-codebase OWASP Top 10 audit — for pre-launch or major refactors | "Security audit...", "Audit the whole codebase..." |
 | `pre-review-cleanup` | Scan for template placeholders, boilerplate, and stale scaffold code | "Clean up template files...", "Remove boilerplate..." |
-| `setup-project` | One-time setup: creates `.github/workflows/claude.yml` and `CLAUDE.md`, commits, prints checklist for remaining manual steps | "set up the @claude workflow", "setup project", "add @claude to this repo" |
+| `setup-project` | One-time setup: creates `.github/workflows/release.yml` and `CLAUDE.md`, commits, prints checklist for remaining manual steps | "setup project", "initialize project for the team", "project setup" |
 | `interview` | Requirements extraction — one question at a time before planning begins. Stops when it can predict your next 3 questions. Outputs a Confirmed Intent statement. | "interview me", "help me figure out requirements", "I'm not sure what I want" |
 | `doubt` | Adversarial in-flight decision review. Fresh-context subagent gets only artifact + contract (never your reasoning). Finds problems, doesn't approve. Max 3 cycles. | "second opinion", "double-check this decision", "stress-test this design" |
 | `observe` | Structured observability shipped with the feature: on-call questions first → structured logs + correlation IDs → RED metrics → OTel → symptom-based alerts → staging verification | "add observability", "add logging", "add metrics", "add tracing", "instrument this" |
@@ -478,7 +393,7 @@ Subagent definitions for use with the TDD and autoship skills:
 
 | Command | Mode | Purpose |
 |---|---|---|
-| `/setup-project` | All | One-time project setup: creates `.github/workflows/claude.yml` and `CLAUDE.md`, commits, and prints a manual-steps checklist (GitHub secret). Run this in any new repo adopting the plugin. |
+| `/setup-project` | All | One-time project setup: creates `.github/workflows/release.yml` and `CLAUDE.md`, commits, prints a manual-steps checklist. Run this in any new repo adopting the plugin. |
 | `/interview` | All | Extract requirements one question at a time before planning. Use when the request is underspecified. Output feeds into `/brainstorming` or `/plan`. |
 | `/brainstorming` | All | Explore approaches before coding |
 | `/plan` | All | Write implementation plan + work package checklist |
@@ -524,7 +439,7 @@ These happen automatically — no commands needed:
 - **Linting after every file edit** — runs the project linter automatically
 - **Release notes auto-generated** — every conventional commit appends to `CHANGELOG.unreleased.md`
 - **Docs updated on every PR** — `/pr` runs `/repo-docs` or updates affected doc sections before pushing
-- **Missing workflow detected on session start** — if `.github/workflows/claude.yml` is absent, the session-start hook warns and tells you to run `/setup-project`
+- **Missing workflow detected on session start** — if `.github/workflows/release.yml` is absent, the session-start hook warns and tells you to run `/setup-project`
 
 ---
 

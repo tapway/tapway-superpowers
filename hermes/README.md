@@ -87,8 +87,11 @@ These rely on Claude Code's hook/command system and have no Hermes equivalent th
 - Pre-commit secret scanning
 - Auto-changelog on conventional commits
 - Post-edit auto-lint
-- `@claude` PR fix comments (GitHub Actions workflow)
 - `/cleanup`, `/release`, `/upgrade-skills` (template/CI-bound commands)
+
+> Tapway no longer ships a GitHub Actions PR-review workflow (`claude.yml` / `@claude`).
+> Code review is done inside the AI agent (`requesting-code-review` / the `/review` skill)
+> before a PR is opened, so there is no GitHub Actions review to port anyway.
 
 The **discipline** behind them is preserved by the manual pipeline above.
 

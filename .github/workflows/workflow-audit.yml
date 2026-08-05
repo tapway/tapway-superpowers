@@ -78,11 +78,10 @@ jobs:
         run: |
           set -e
           # Scan the PR diff for common secret patterns.
-          git diff origin/main...HEAD -- . ':!*.lock' ':!*.md' \
-            | grep -nE '(AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----)'
-          # If grep matched anything it exits 0 -> we want to FAIL. If nothing matched
-          # grep exits 1 -> pass. Swap the sense.
-          if [ $? -eq 0 ]; then
+          # grep exits 1 when nothing matches -> we WANT to pass then.
+          # Capture the exit code explicitly so `set -e` doesn't kill us.
+          if git diff origin/main...HEAD -- . ':!*.lock' ':!*.md' \
+             | grep -nE '(AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----)'; then
             echo "::error::SECRET detected in diff. Remove it before merge."
             exit 1
           fi

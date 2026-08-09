@@ -226,6 +226,23 @@ git add docs/
 git commit -m "docs: update project docs for [feature]"
 ```
 
+**Step 4 — E2E Gate (conditional — mandated for frontend and/or backend, skipped for docs-only)**
+
+Run `git diff --name-only main...HEAD` and classify the changed files:
+
+- **Frontend files changed** (`*.tsx`, `*.jsx`, `**/pages/**`, `**/app/**`, `**/components/**`, `*.css`, etc.) → frontend E2E (Playwright) is **mandated**. Run the `e2e-playwright` skill's frontend section: scaffold `@playwright/test` if absent → write `e2e/<feature>.spec.ts` (golden path + edge cases + error states, auth via `auth.setup.ts` storageState) → `npx playwright test` → debug failures from traces (never weaken assertions).
+- **Backend files changed** (`*.py`, `**/backend/**`, `**/api/**`) → backend E2E (pytest) is **mandated**. Run the `e2e-playwright` skill's backend section: write `backend/tests/integration/` + `backend/tests/e2e/` tests (httpx + ASGITransport, real test DB) → `pytest tests/integration/ tests/e2e/ --tb=short -q` → fix failures (never weaken assertions).
+- **Only docs/config files changed** → skip this step entirely.
+
+- [ ] Frontend change detection run — decision recorded (REQUIRED or SKIPPED)
+- [ ] If frontend REQUIRED: `npx playwright test` passes (full suite, no new failures)
+- [ ] Backend change detection run — decision recorded (REQUIRED or SKIPPED)
+- [ ] If backend REQUIRED: `pytest tests/integration/ tests/e2e/ --tb=short -q` passes
+
+If any E2E suite fails, fix the tests or the app and re-run. **Never open a PR with a failing E2E suite.**
+
+If no frontend or backend files changed, skip this step entirely — the E2E gate does not apply to docs-only changes.
+
 ---
 
 ### Phase 4D: Deploy + Integration Tests *(Deploy mode only)*

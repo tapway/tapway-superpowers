@@ -1,0 +1,24 @@
+# Playwright E2E artifacts — never commit these
+playwright-report/
+test-results/
+e2e/.auth/
+
+# pytest artifacts
+.pytest_cache/
+
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+out/
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db

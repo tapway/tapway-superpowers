@@ -6,6 +6,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **`e2e-playwright` skill** — structural end-to-end testing for both frontend (Playwright browser tests) and backend (pytest integration/E2E). Scaffolds `@playwright/test` + pytest, writes persistent specs (golden path + edge cases + error states, auth via `auth.setup.ts` storageState for frontend, httpx + ASGITransport + real test DB for backend), runs them, and debug-fixes failures from traces — never by weakening assertions. Conditionally mandated: frontend E2E when frontend files change, backend E2E when backend files change, both skip for docs-only.
+- **`.github/workflows/playwright.yml`** — CI workflow with two jobs: `frontend-e2e` (Playwright, path-filtered to frontend changes) and `backend-e2e` (pytest integration/E2E, path-filtered to backend changes). Both upload artifacts on failure. Add `E2E_USER` / `E2E_PASSWORD` repo secrets for auth-dependent suites.
+- **Structural enforcement** — `e2e-playwright` is wired into the pipeline so it's not optional: `tdd` runs it after unit GREEN for frontend and backend work, `autoship` makes it a **mandatory standard-mode gate** (not just deploy mode), and `verification` adds both `npx playwright test` and `pytest tests/integration/ tests/e2e/` to the checklist. The `test-writer` agent now emits E2E specs for both UI and API changes.
+
+### Changed
+
+- **Skill count** — 18 → 19 (`install.sh` / `install.ps1` / README counts updated).
+
+---
+
 ## [1.1.0] — 2026-08-05
 
 ### Added

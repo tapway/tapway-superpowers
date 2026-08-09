@@ -74,8 +74,9 @@ check(db_claude is not None and "test" in db_claude.lower(),
 
 # --- 3. Templates --------------------------------------------------------
 print("\n[3] Templates shipped")
-ac_tpl = read("skills", "api-contract-testing", "templates", "schemathesis.ini")
-check(ac_tpl is not None, "api-contract-testing schemathesis.ini template exists")
+ac_tpl = read("skills", "api-contract-testing", "templates", "schemathesis.toml")
+check(ac_tpl is not None, "api-contract-testing schemathesis.toml template exists")
+check(ac_tpl is not None and "base-url" in ac_tpl, "schemathesis template uses modern kebab-case keys (base-url)")
 
 db_tpl = read("skills", "db-migration-testing", "templates", "test_migration.py")
 check(db_tpl is not None, "db-migration-testing test_migration.py template exists")

@@ -10,7 +10,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **`api-contract-testing` skill** — prevents API contract drift: OpenAPI schema validation, Schemathesis property-based fuzzing, Pact consumer-driven contracts. Wired into `e2e-playwright` (Step H) and `verification`. Ships `schemathesis.ini` template.
+- **`api-contract-testing` skill** — prevents API contract drift: OpenAPI schema validation, Schemathesis property-based fuzzing, Pact consumer-driven contracts. Wired into `e2e-playwright` (Step H) and `verification`. Ships `schemathesis.toml` template.
 - **`db-migration-testing` skill** — makes migrations safe to ship: up/down round-trip tests, data preservation, zero-downtime expand-contract for large tables. Wired into `e2e-playwright` (Step H) and `verification`. Ships `test_migration.py` template.
 
 ### Changed

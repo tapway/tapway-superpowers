@@ -71,10 +71,9 @@ changes (missing/renamed fields, wrong types) before consumers break.
 
 ```python
 # backend/tests/integration/test_api_contract.py
-import json
 import pytest
 from openapi_spec_validator import validate_spec
-from schemathesis import from_persistent
+from schemathesis import from_uri
 
 def test_openapi_schema_is_valid(client):
     """The auto-generated OpenAPI schema itself must be valid."""
@@ -174,5 +173,5 @@ If any endpoint's response drifts from its schema, fix the schema or the code �
 - ❌ Never change a response shape without updating the OpenAPI schema in the same PR
 - ❌ Never disable a failing contract check to merge — fix the drift
 - ❌ Never claim "responses match the schema" without running the validator
-- ❌ Never add `--psyco`/`--hypothesis-suppress-health-check` to hide real failures
+- ❌ Never add `--hypothesis-suppress-health-check` / `suppress-health-check` to hide real failures
 - ❌ Never mark an API task done until the contract test passes

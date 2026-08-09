@@ -30,7 +30,12 @@ echo "→ Running pre-commit quality gate..."
 
 # --- Backend: ruff lint + format, mypy typecheck, pytest-cov ---
 if [ "$HAS_BACKEND" = "1" ]; then
-  cd backend 2>/dev/null || cd . 2>/dev/null
+  # Try to cd into backend/ — if it doesn't exist, run from root
+  BACKEND_DIR="."
+  if [ -d backend ]; then
+    BACKEND_DIR="backend"
+  fi
+  cd "$BACKEND_DIR" 2>/dev/null || true
 
   if command -v ruff >/dev/null 2>&1; then
     echo "→ backend lint (ruff)"
@@ -38,17 +43,26 @@ if [ "$HAS_BACKEND" = "1" ]; then
     ruff format --check . || { echo "❌ Format check failed"; FAILED=1; }
   fi
 
-  if command -v mypy >/dev/null 2>&1; then
+  if command -v mypy >/dev/null 2>&1 && [ -d src ]; then
     echo "→ backend typecheck (mypy)"
     mypy src/ --ignore-missing-imports || { echo "❌ Typecheck failed"; FAILED=1; }
+  elif command -v mypy >/dev/null 2>&1 && [ -n "$(find . -maxdepth 2 -name '*.py' -print -quit 2>/dev/null)" ]; then
+    echo "→ backend typecheck (mypy, no src/ — scanning root)"
+    mypy . --ignore-missing-imports || { echo "❌ Typecheck failed"; FAILED=1; }
   fi
 
   if command -v pytest >/dev/null 2>&1; then
     echo "→ backend coverage gate (pytest-cov)"
-    if grep -q "cov-fail-under" pyproject.toml 2>/dev/null; then
+    # Detect coverage config either via addopts --cov-fail-under OR [tool.coverage] fail_under
+    if grep -qE "cov-fail-under|fail_under" pyproject.toml 2>/dev/null; then
       pytest --cov=src --cov-report=term-missing -q || { echo "❌ Tests/coverage failed"; FAILED=1; }
     else
-      pytest -q || { echo "❌ Tests failed"; FAILED=1; }
+      # Run pytest only if tests exist; "no tests collected" is not a failure
+      if [ -d tests ] || [ -n "$(find . -maxdepth 3 -name 'test_*.py' -o -name '*_test.py' -print -quit 2>/dev/null)" ]; then
+        pytest -q || { echo "❌ Tests failed"; FAILED=1; }
+      else
+        echo "→ No test directory found — skipping pytest"
+      fi
     fi
   fi
 
@@ -56,18 +70,18 @@ if [ "$HAS_BACKEND" = "1" ]; then
 fi
 
 # --- Frontend: lint, prettier, tsc strict, coverage ---
-if [ "$HAS_FRONTEND" = "1" ] && [ -f frontend/package.json ]; then
-  cd frontend || exit 0
+if [ "$HAS_FRONTEND" = "1" ] && [ -d frontend ] && [ -f frontend/package.json ]; then
+  (
+    cd frontend 2>/dev/null || exit 0
 
-  if [ -f package-lock.json ]; then
-    echo "→ frontend lint + typecheck + test"
-    npm run lint || { echo "❌ Frontend lint failed"; FAILED=1; }
-    npx prettier --check . || { echo "❌ Frontend format failed"; FAILED=1; }
-    npx tsc --noEmit || { echo "❌ Frontend typecheck failed"; FAILED=1; }
-    npm test -- --coverage --watchAll=false || { echo "❌ Frontend tests failed"; FAILED=1; }
-  fi
-
-  cd - >/dev/null 2>&1 || true
+    if [ -f package-lock.json ]; then
+      echo "→ frontend lint + typecheck + test"
+      npm run lint || { echo "❌ Frontend lint failed"; exit 1; }
+      npx prettier --check . || { echo "❌ Frontend format failed"; exit 1; }
+      npx tsc --noEmit || { echo "❌ Frontend typecheck failed"; exit 1; }
+      npm test -- --coverage --watchAll=false || { echo "❌ Frontend tests failed"; exit 1; }
+    fi
+  ) || FAILED=1
 fi
 
 # --- Result ---

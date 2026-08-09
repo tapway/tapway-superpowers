@@ -44,7 +44,7 @@ jobs:
           cd backend
           # pytest picks up addopts (including --cov-fail-under) from pyproject.toml
           # if configured; otherwise run plain pytest.
-          if grep -q "cov-fail-under" pyproject.toml 2>/dev/null; then
+          if grep -qE "cov-fail-under|fail_under" pyproject.toml 2>/dev/null; then
             pytest -q
           else
             pytest -q
@@ -81,7 +81,17 @@ jobs:
           fi
 
       - name: Dependency audit — Python (BLOCKING)
-        run: pip-audit
+        run: |
+          # Target the project's lockfile/requirements, not the runner env
+          if [ -f requirements.txt ]; then
+            pip-audit -r requirements.txt
+          elif [ -f backend/requirements.txt ]; then
+            pip-audit -r backend/requirements.txt
+          elif [ -f pyproject.toml ]; then
+            pip-audit -r pyproject.toml
+          else
+            echo "No Python dependency files found — skipping pip-audit"
+          fi
 
       - name: Dependency audit — Node (BLOCKING)
         if: ${{ hashFiles('frontend/package-lock.json') != '' }}

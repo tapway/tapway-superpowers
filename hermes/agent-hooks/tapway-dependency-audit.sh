@@ -6,7 +6,15 @@
 # READ stdin JSON: {"tool_input":{"command":"git commit ..."}, ...}
 
 payload="$(cat -)"
-cmd=$(printf '%s' "$payload" | python3 -c "import json,sys; print(json.load(sys.stdin).get('tool_input',{}).get('command',''))" 2>/dev/null)
+# Extract the command from stdin JSON. Prefer jq; fall back to python3.
+if command -v jq >/dev/null 2>&1; then
+  cmd=$(printf '%s' "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null)
+elif command -v python3 >/dev/null 2>&1; then
+  cmd=$(printf '%s' "$payload" | python3 -c "import json,sys; print(json.load(sys.stdin).get('tool_input',{}).get('command',''))" 2>/dev/null)
+else
+  printf '{}\n'
+  exit 0
+fi
 
 case "$cmd" in
   git\ commit*|git\ cm*) ;;

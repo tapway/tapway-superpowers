@@ -17,8 +17,10 @@ SCANNED=0
 
 echo "→ Running dependency audit..."
 
-# --- Lockfile detection (no assumptions about repo layout) ---
-LOCKFILES=$(git diff --cached --name-only 2>/dev/null; ls 2>/dev/null)
+# --- Lockfile detection (staged files + committed lockfiles, not ls) ---
+STAGED_LOCKFILES=$(git diff --cached --name-only 2>/dev/null | grep -E "\.lock$|package-lock\.json$|yarn\.lock$|pnpm-lock\.yaml$|poetry\.lock$|Pipfile\.lock$|uv\.lock$|go\.sum$|Cargo\.lock$" 2>/dev/null || true)
+TRACKED_LOCKFILES=$(git ls-files 2>/dev/null | grep -E "\.lock$|package-lock\.json$|yarn\.lock$|pnpm-lock\.yaml$|poetry\.lock$|Pipfile\.lock$|uv\.lock$|go\.sum$|Cargo\.lock$" 2>/dev/null || true)
+LOCKFILES="${STAGED_LOCKFILES}${TRACKED_LOCKFILES}"
 
 # --- Node (npm audit) ---
 if echo "$LOCKFILES" | grep -qE "package-lock\.json$|yarn\.lock$|pnpm-lock\.yaml$"; then
@@ -29,7 +31,7 @@ if echo "$LOCKFILES" | grep -qE "package-lock\.json$|yarn\.lock$|pnpm-lock\.yaml
     RC=$?
     if [ "$RC" != "0" ]; then
       echo "$OUT" | tail -20
-      if [ "$FAIL_MODE" = "1" ] || echo "$OUT" | grep -q "severity: critical"; then
+      if [ "$FAIL_MODE" = "1" ] || echo "$OUT" | grep -qiE "severity: (critical|high)"; then
         echo "❌ npm audit found vulnerabilities"
         FAILED=1
       else
@@ -77,11 +79,11 @@ try:
 except Exception:
     pass
 " 2>/dev/null
-      if [ "$FAIL_MODE" = "1" ]; then
-        echo "❌ osv-scanner found vulnerabilities"
+      if [ "$FAIL_MODE" = "1" ] || echo "$OUT" | grep -qiE '"severity":\s*"(critical|high)"'; then
+        echo "❌ osv-scanner found critical/high vulnerabilities"
         FAILED=1
       else
-        echo "⚠ osv-scanner found vulnerabilities (review before merge)"
+        echo "⚠ osv-scanner found vulnerabilities (non-critical/high — review before merge)"
       fi
     fi
   fi

@@ -127,6 +127,13 @@ hdep = read("hermes", "skills", "dependency-audit", "SKILL.md")
 check(hdep is not None, "hermes/skills/dependency-audit/SKILL.md exists")
 check(hdep is not None and "osv-scanner" in hdep, "Hermes dependency-audit skill mentions osv-scanner")
 
+# Review hardening: the Hermes gate must NOT have the &&/|| precedence bug
+# (A || B || C && D parses as A || B || (C && D), so HAS_BACKEND never set)
+hgate = read("hermes", "agent-hooks", "tapway-pre-commit-gate.sh")
+check(hgate is not None and "if [ -d backend ] || [ -f pyproject.toml ] || [ -f requirements.txt ]; then" in hgate
+      or (hgate and "\nif [ -d backend ]" in hgate),
+      "Hermes gate uses separate if statements (no &&/|| precedence bug)")
+
 # --- 5. Skill gates wired -------------------------------------------------
 print("\n[5] Skill gates wired (Hermes verification + pr)")
 hver = read("hermes", "skills", "verification", "SKILL.md")

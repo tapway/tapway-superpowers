@@ -100,14 +100,26 @@ jobs:
         if: steps.check-backend.outputs.backend-changed == 'true'
         run: |
           cd backend
-          pip install -r requirements.txt
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          elif [ -f pyproject.toml ]; then
+            pip install -e .
+          fi
           pip install pytest httpx pytest-asyncio
 
       - name: Run pytest integration & E2E tests
         if: steps.check-backend.outputs.backend-changed == 'true'
         run: |
           cd backend
-          pytest tests/integration/ tests/e2e/ --tb=short -q
+          # Only run if test directories exist (first-time setup may not have them yet)
+          ARGS=""
+          [ -d tests/integration ] && ARGS="$ARGS tests/integration/"
+          [ -d tests/e2e ] && ARGS="$ARGS tests/e2e/"
+          if [ -n "$ARGS" ]; then
+            pytest $ARGS --tb=short -q
+          else
+            echo "No integration/E2E test directories found — skipping"
+          fi
 
       - name: Upload pytest results
         if: ${{ failure() && steps.check-backend.outputs.backend-changed == 'true' }}

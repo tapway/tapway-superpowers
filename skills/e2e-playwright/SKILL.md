@@ -1,28 +1,33 @@
 ---
 name: e2e-playwright
 description: >
-  Enforce frontend end-to-end testing with Playwright for any feature that
-  touches the UI. Scaffolds Playwright into the project, writes persistent
-  browser specs (golden path, edge cases, auth via storageState), runs them,
-  and debug-fixes failures from traces — never by weakening assertions.
-  Structurally required for Next.js/React frontend changes before a PR.
+  Enforce end-to-end testing for both frontend (Playwright browser tests) and
+  backend (pytest integration/E2E). Scaffolds Playwright + pytest, writes
+  persistent specs (golden path, edge cases, error states, auth via
+  storageState for frontend, httpx + ASGITransport + real test DB for backend),
+  runs them, and debug-fixes failures from traces — never by weakening
+  assertions. Conditionally mandated: frontend E2E when frontend files change,
+  backend E2E when backend files change, both skip for docs-only.
   Triggers include "e2e test", "playwright", "browser test", "test the UI",
-  "end-to-end", "frontend test", "verify the flow in a browser".
+  "end-to-end", "frontend test", "integration test", "backend test",
+  "verify the flow".
 ---
 
-# Skill: E2E Testing with Playwright (Structural Enforcement)
+# Skill: E2E Testing — Frontend (Playwright) + Backend (pytest)
 
-**When to invoke:** Any task that changes the frontend — new pages, components,
-routes, auth flows, or UI behavior. If the change surfaces in a browser, it
-needs a Playwright E2E test. This is not optional: the pipeline wires it into
-`tdd` (runs after unit GREEN), `autoship` (mandatory in the default path), and
-`verification` (a failing `npx playwright test` blocks "done"). A PR that
-touches the frontend without a green E2E run is not acceptable.
+**When to invoke:** Any task that changes the frontend or backend — new pages,
+components, routes, auth flows, API endpoints, services, or UI behavior. If the
+change surfaces in a browser or an API, it needs an E2E test. This is not
+optional: the pipeline wires it into `tdd` (runs after unit GREEN), `autoship`
+(mandatory in the default path), and `verification` (a failing E2E suite blocks
+"done"). A PR that touches frontend or backend without a green E2E run is not
+acceptable.
 
 > **Why structural?** Unit tests prove functions work in isolation. E2E tests
-> prove the *user's flow* works in a real browser. Both are required. A feature
-> is not verifiable until its golden path, edge cases, and error states pass in
-> an actual browser.
+> prove the *user's flow* works in a real browser (frontend) or through the full
+> API chain (backend). Both are required. A feature is not verifiable until its
+> golden path, edge cases, and error states pass in an actual browser or through
+> the real API stack.
 
 ---
 
@@ -31,13 +36,18 @@ touches the frontend without a green E2E run is not acceptable.
 > Unit tests = "does the function work?" E2E tests = "does the user's journey work?"
 
 E2E is modeled on the same agent-boundary discipline as `tdd`, but for the
-browser layer. The iron law: **no frontend feature ships without a green E2E
-run**, and the gate is enforced by the pipeline, not by self-discipline.
+browser and API layers. The iron law: **no frontend or backend feature ships
+without a green E2E run**, and the gate is enforced by the pipeline, not by
+self-discipline.
 
 ```
 For each frontend feature:
-  Scaffold (if needed) → E2E Generator → [write specs] → Run `npx playwright test`
+  Scaffold (if needed) → write e2e/*.spec.ts → Run `npx playwright test`
     → debug from traces on failure (never weaken assertions) → GREEN → PR
+
+For each backend feature:
+  Write tests/integration/ + tests/e2e/ → Run `pytest tests/integration/ tests/e2e/`
+    → fix failures (never weaken assertions) → GREEN → PR
 ```
 
 ---

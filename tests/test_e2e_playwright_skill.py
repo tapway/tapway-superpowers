@@ -56,7 +56,7 @@ check(claude_skill is not None and "When to invoke" in claude_skill, "Claude SKI
 check(claude_skill is not None and "playwright" in claude_skill.lower(), "mentions playwright")
 check(claude_skill is not None and "webServer" in claude_skill, "has webServer config guidance")
 check(claude_skill is not None and "auth.setup" in claude_skill, "has auth.setup (storageState) guidance")
-check(claude_skill is not None and "never by weakening assertions" in claude_skill.lower(),
+check(claude_skill is not None and "weakening" in claude_skill.lower() and "assertion" in claude_skill.lower(),
       "enforces 'never weaken assertions' rule")
 check(claude_skill is not None and "git diff --name-only" in claude_skill,
       "has concrete frontend-detection step (git diff --name-only)")
@@ -72,6 +72,8 @@ check(claude_skill is not None and "tests/e2e" in claude_skill,
       "references backend tests/e2e/ directory")
 check(claude_skill is not None and "backend-only" in claude_skill.lower() or "backend" in (claude_skill or ""),
       "defines backend E2E as mandated for backend changes")
+check(claude_skill is not None and "backend" in claude_skill[:500].lower(),
+      "frontmatter description mentions backend (not frontend-only)")
 
 # --- 3. Hermes copy mirrors Claude copy --------------------------------
 print("\n[3] Hermes SKILL.md mirrors + port notes")

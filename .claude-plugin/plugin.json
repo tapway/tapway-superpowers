@@ -35,9 +35,20 @@
     "./skills/interview",
     "./skills/doubt",
     "./skills/observe",
-    "./skills/deprecate"
+    "./skills/deprecate",
+    "./skills/e2e-playwright",
+    "./skills/quality-gates",
+    "./skills/api-contract-testing",
+    "./skills/db-migration-testing",
+    "./skills/incident-runbook"
   ],
-  "agents": [],
+  "agents": [
+    "./agents/code-reviewer",
+    "./agents/test-writer",
+    "./agents/security-auditor",
+    "./agents/devops-sre",
+    "./agents/db-reviewer"
+  ],
   "externalSkills": [
     {
       "name": "code-refactor",

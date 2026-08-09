@@ -6,6 +6,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- **Documentation overhaul (repo-docs skill)** — generated `docs/ARCHITECTURE.md` (system diagram, components, key design decisions), `docs/WORKFLOWS.md` (Mermaid sequence diagrams for feature build, autoship, legacy refactor, incident response, release), and `docs/DEPLOYMENT.md` (install/publish for Claude + Hermes, adopting in a project, rollback, common issues). `DB_SCHEMA.md` intentionally omitted (tooling repo, no app DB).
+- **`plugin.json` manifest fix** — `skills:` was missing 5 of 23 skills (e2e-playwright, quality-gates, api-contract-testing, db-migration-testing, incident-runbook) and `agents:` was empty despite 5 agent dirs. Now 23/23 skills + 5/5 agents in sync.
+- **README** — skill count 22 → 24 (incl. Hermes-only dependency-audit), hooks 5 → 8 (added pre-commit-gate, dependency-audit, git pre-commit backstop), agents 4 → 5, ToC fixed (was stale "13 Skills"), new Documentation index, Guardrails section updated.
+- **hermes/README** — "All 18 skills" → 24 (was stale since v1.5.0).
+
+---
 ## [1.7.0] — 2026-08-09
 
 ### Added

@@ -6,7 +6,7 @@ A port of the [Tapway Superpowers](https://github.com/tapway/tapway-superpowers)
 
 ## Install
 
-All **18** Tapway skills are installed through Hermes's **native skill hub** — one
+All **24** Tapway skills are installed through Hermes's **native skill hub** — one
 command scaffolds the whole skillpack, no local file copying. The installer also
 creates a **`/tapway` skill bundle** so the entire strict pipeline loads with a
 single slash command.
@@ -33,7 +33,7 @@ it works from anywhere and stays in sync with this repo. Authenticate GitHub
 
 Then verify:
 ```bash
-hermes skills list | grep tapway   # 18 tapway/* skills present
+hermes skills list | grep tapway   # 24 tapway/* skills present
 hermes bundles list                # "tapway" bundle present
 ```
 

@@ -50,6 +50,7 @@ and the skill-to-Hermes mapping are in [`hermes/README.md`](hermes/README.md).
 
 ## Table of Contents
 
+- [Documentation](#documentation)
 - [Modes](#modes)
   - [Individual — solo feature or bug fix](#individual--solo-feature-or-bug-fix)
   - [Team Collaboration — parallel work packages](#team-collaboration--parallel-work-packages)
@@ -57,9 +58,9 @@ and the skill-to-Hermes mapping are in [`hermes/README.md`](hermes/README.md).
 - [Code Review — Inside the Agent](#code-review--inside-the-agent)
 - [Release Convention — Semantic Versioning](#release-convention--semantic-versioning)
 - [What You Get](#what-you-get)
-  - [13 Skills](#13-skills)
-  - [5 Guardrail Hooks](#5-guardrail-hooks)
-  - [4 Specialized Agents](#4-specialized-agents)
+  - [24 Skills](#24-skills)
+  - [8 Guardrail Hooks](#8-guardrail-hooks)
+  - [5 Specialized Agents](#5-specialized-agents)
 - [Slash Commands Reference](#slash-commands-reference)
 - [Hermes Support](#hermes-support)
 - [Built-in Claude Code Skills](#built-in-claude-code-skills)
@@ -67,6 +68,21 @@ and the skill-to-Hermes mapping are in [`hermes/README.md`](hermes/README.md).
 - [Upgrading](#upgrading)
 - [For Template Users](#for-template-users)
 - [Uninstalling](#uninstalling)
+
+---
+
+## Documentation
+
+Standardized technical documentation (generated via the `repo-docs` skill):
+
+- **[Architecture](docs/ARCHITECTURE.md)** — system diagram, component breakdown, key design decisions
+- **[Workflows](docs/WORKFLOWS.md)** — sequence diagrams for feature build, autoship, legacy refactor, incident response, and release
+- **[Deployment](docs/DEPLOYMENT.md)** — install/publish for Claude Code + Hermes, adopting in a project, rollback, common issues
+- **Team guide** — [docs/team-guide.md](docs/team-guide.md)
+- **Legacy refactor guide** — [docs/legacy-refactor-guide.md](docs/legacy-refactor-guide.md)
+
+> `DB_SCHEMA.md` is intentionally omitted — this is a tooling/plugin repo with no
+> application database.
 
 ---
 
@@ -333,7 +349,7 @@ Set `staging` as your repo's default branch (GitHub → Settings → Branches �
 
 ## What You Get
 
-### 22 Skills
+### 24 Skills
 
 AI behaviors that activate automatically when you use relevant keywords. Also invokable explicitly with `/skill-name`.
 
@@ -368,15 +384,18 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 
 ---
 
-### 5 Guardrail Hooks
+### 8 Guardrail Hooks
 
 Automatic checks that fire on Claude Code lifecycle events.
 
 | Hook | Event | What it does |
 |---|---|---|
 | `pre-bash-safety` | PreToolUse (Bash) | Blocks force-push, hard-reset on `main`, direct commits to `main`. Blocks prod commands unless `ALLOW_PROD=1` is set. |
-| `post-write-lint` | PostToolUse (Write\|Edit) | Runs the project linter on changed files |
 | `pre-commit-secrets` | PreToolUse (git commit) | Scans staged files for secrets, keys, and credentials before allowing a commit |
+| `pre-commit-gate` | PreToolUse (git commit) | Blocks the commit (`exit 2`) when lint / format / typecheck / coverage fail — the progress quality gate |
+| `dependency-audit` | PreToolUse (git commit) | Blocks the commit (`exit 2`) when critical/high vulnerabilities are found (osv-scanner / npm audit / pip-audit) |
+| `pre-commit` (backstop) | Git `pre-commit` hook | Platform-agnostic backstop installed by setup-project; catches lint/format/typecheck failures from any agent or human |
+| `post-write-lint` | PostToolUse (Write\|Edit) | Runs the project linter on changed files |
 | `session-start` | SessionStart | Displays project info, git status, and environment summary when Claude Code opens |
 | `post-commit-release-note` | PostToolUse (git commit) | Parses conventional commits and appends formatted entries to `CHANGELOG.unreleased.md` |
 
@@ -443,6 +462,9 @@ These happen automatically — no commands needed:
 - **Can't commit to `main` directly** — the hook blocks it and tells you to create a branch
 - **Can't run prod commands accidentally** — blocked unless `ALLOW_PROD=1` is set
 - **Secrets caught before commit** — staged files scanned for keys and credentials on every `git commit`
+- **Commits blocked on quality failures** — `pre-commit-gate` blocks (`exit 2`) a commit whose lint/format/typecheck/coverage fails
+- **Commits blocked on vulnerable dependencies** — `dependency-audit` blocks a commit with critical/high CVEs (osv-scanner / npm audit / pip-audit)
+- **Every commit from any agent or human** — the git `pre-commit` backstop enforces lint/format/typecheck outside the agent
 - **Linting after every file edit** — runs the project linter automatically
 - **Release notes auto-generated** — every conventional commit appends to `CHANGELOG.unreleased.md`
 - **Docs updated on every PR** — `/pr` runs `/repo-docs` or updates affected doc sections before pushing

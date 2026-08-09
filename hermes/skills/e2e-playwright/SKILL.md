@@ -56,9 +56,40 @@ For each frontend feature:
 
 ### Before Starting
 
-- [ ] Detect the frontend stack from `package.json` — confirm Next.js version, React version, and whether `@playwright/test` is present. Never assume.
-- [ ] If Playwright is not installed, run the Scaffold step first (below).
 - [ ] You are on a **feature branch**, not `main`.
+
+### Step 0 — Frontend Change Detection (the conditional gate)
+
+This skill is **mandated when frontend files changed** and **skipped entirely when only backend files changed**. Detect this concretely — never guess:
+
+```bash
+# Get the list of changed files in this branch vs main
+git diff --name-only main...HEAD
+```
+
+Classify each changed file:
+
+| Pattern | Layer |
+|---|---|
+| `*.tsx`, `*.jsx`, `*.vue` | Frontend |
+| `**/pages/**`, `**/app/**`, `**/components/**`, `**/src/app/**` | Frontend |
+| `**/public/**`, `*.css`, `*.scss`, `*.module.css` | Frontend |
+| `playwright.config.*`, `e2e/**` | Frontend (E2E) |
+| `*.py`, `**/backend/**`, `**/api/**` | Backend |
+| `*.md`, `docs/**`, `.github/**`, `*.yml`, `*.json` (config) | Neither (docs/config) |
+
+**Decision:**
+- **Any frontend file changed** → this skill is **mandated**. Continue to Step A.
+- **Only backend / docs / config files changed** → this skill is **skipped**. The unit-test gate in `tdd` + `verification` is sufficient. Do NOT run `npx playwright test` — it wastes time and may fail if no Playwright suite exists yet.
+- **Mixed (frontend + backend)** → this skill is **mandated** (the frontend surface area changed).
+
+Record the decision explicitly: `"Frontend files changed: [list]. E2E gate: REQUIRED."` or `"No frontend files changed. E2E gate: SKIPPED (backend-only)."`
+
+### Step 1 — Detect Stack & Scaffold (only if E2E is mandated)
+
+- [ ] Detect the frontend stack from `package.json` (check root and `frontend/` subdirectory — Tapway projects use `frontend/package.json`). Confirm Next.js version, React version, and whether `@playwright/test` is present. Never assume.
+- [ ] If Playwright is not installed, run the Scaffold step (below).
+- [ ] If `playwright.config.ts` already exists, skip to Step B.
 
 ### Step A — Scaffold (one-time, only if `@playwright/test` is absent)
 
@@ -88,7 +119,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'setup', testMatch: /auth\.setup\.ts/, testIgnore: /.*/ },
+    { name: 'setup', testMatch: /.*auth\.setup\.ts/ },
     { name: 'chromium', use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/user.json' }, dependencies: ['setup'] },
     // add firefox/webkit projects as needed
   ],

@@ -3,13 +3,26 @@ name: Playwright E2E Tests
 on:
   push:
     branches: [staging, prod]
+    paths:
+      - 'frontend/**'
+      - 'e2e/**'
+      - 'playwright.config.*'
+      - '.github/workflows/playwright.yml'
   pull_request:
     branches: [staging, prod]
+    paths:
+      - 'frontend/**'
+      - 'e2e/**'
+      - 'playwright.config.*'
+      - '.github/workflows/playwright.yml'
 
 jobs:
   e2e:
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    # Skip if no frontend files in the diff (double-safety: path filter above
+    # already handles most cases, but this catches mixed PRs that touch both
+    # frontend and backend but where the frontend changes are trivial)
     env:
       E2E_BASE_URL: http://localhost:3000
       # Add your test credentials here (GitHub repo secrets):
@@ -22,28 +35,44 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Check for frontend changes
+        id: check-frontend
+        run: |
+          # Check if any frontend files changed in this PR/push
+          if git diff --name-only origin/${{ github.base_ref || 'staging' }}...HEAD | grep -qE '\.(tsx|jsx|vue|css|scss)$|/(pages|app|components|public)/|playwright\.config'; then
+            echo "frontend-changed=true" >> $GITHUB_OUTPUT
+            echo "Frontend files detected — running E2E tests"
+          else
+            echo "frontend-changed=false" >> $GITHUB_OUTPUT
+            echo "No frontend files detected — skipping E2E tests"
+          fi
 
       - name: Install dependencies
-        run: npm ci
+        if: steps.check-frontend.outputs.frontend-changed == 'true'
+        run: cd frontend && npm ci
 
       - name: Install Playwright browsers + OS deps
-        run: npx playwright install --with-deps
+        if: steps.check-frontend.outputs.frontend-changed == 'true'
+        run: cd frontend && npx playwright install --with-deps
 
       - name: Run Playwright tests
-        run: npx playwright test
+        if: steps.check-frontend.outputs.frontend-changed == 'true'
+        run: cd frontend && npx playwright test
 
       - name: Upload Playwright report
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.check-frontend.outputs.frontend-changed == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: playwright-report/
+          path: frontend/playwright-report/
           retention-days: 5
 
       - name: Upload test results (traces, videos, screenshots)
-        if: ${{ failure() }}
+        if: ${{ failure() && steps.check-frontend.outputs.frontend-changed == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-test-results
-          path: test-results/
+          path: frontend/test-results/
           retention-days: 5

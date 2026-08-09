@@ -226,23 +226,25 @@ git add docs/
 git commit -m "docs: update project docs for [feature]"
 ```
 
-**Step 4 — Frontend E2E Gate (mandatory, standard mode — not just deploy mode)**
+**Step 4 — Frontend E2E Gate (conditional — mandated for frontend, skipped for backend-only)**
 
-If the plan touched the **frontend** (Next.js/React UI, new pages, components, routes, auth flows, or any user-facing behavior), run the `e2e-playwright` skill now — before opening the PR. This is not optional and not deferred to deploy mode:
+Run `git diff --name-only main...HEAD` and classify the changed files. If **any frontend file** changed (`*.tsx`, `*.jsx`, `**/pages/**`, `**/app/**`, `**/components/**`, `*.css`, etc.), the `e2e-playwright` skill is **mandated** — run it now, before opening the PR. This is not optional and not deferred to deploy mode:
 
 ```text
 Use the e2e-playwright skill:
-  Scaffold @playwright/test if absent → write e2e/<feature>.spec.ts
+  Step 0: git diff --name-only main...HEAD → classify → frontend detected? REQUIRED : SKIPPED
+  If REQUIRED: Scaffold @playwright/test if absent → write e2e/<feature>.spec.ts
   (golden path + edge cases + error states, auth via auth.setup.ts storageState)
   → npx playwright test → debug failures from traces (never weaken assertions)
 ```
 
-- [ ] `npx playwright test` passes (full suite, no new failures)
-- [ ] Golden path, edge cases, and error states all covered
+- [ ] Frontend change detection run — decision recorded (REQUIRED or SKIPPED)
+- [ ] If REQUIRED: `npx playwright test` passes (full suite, no new failures)
+- [ ] If REQUIRED: Golden path, edge cases, and error states all covered
 
 If the E2E suite fails, fix the tests or the app and re-run. **Never open a frontend PR with a failing E2E suite.**
 
-**Step 5 — Open PR** *(see Phase 5 below)*
+If no frontend files changed, skip this step entirely — the E2E gate does not apply to backend-only changes.
 
 ---
 

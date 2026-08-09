@@ -58,6 +58,12 @@ check(claude_skill is not None and "webServer" in claude_skill, "has webServer c
 check(claude_skill is not None and "auth.setup" in claude_skill, "has auth.setup (storageState) guidance")
 check(claude_skill is not None and "never by weakening assertions" in claude_skill.lower(),
       "enforces 'never weaken assertions' rule")
+check(claude_skill is not None and "git diff --name-only" in claude_skill,
+      "has concrete frontend-detection step (git diff --name-only)")
+check(claude_skill is not None and "SKIPPED" in claude_skill,
+      "explicitly defines skip-for-backend-only behavior")
+check(claude_skill is not None and "testIgnore" not in claude_skill,
+      "no broken testIgnore: /.*/ in setup project config")
 
 # --- 3. Hermes copy mirrors Claude copy --------------------------------
 print("\n[3] Hermes SKILL.md mirrors + port notes")
@@ -79,6 +85,7 @@ claude_auto = read("skills", "autoship", "SKILL.md")
 hermes_auto = read("hermes", "skills", "autoship", "SKILL.md")
 check(claude_auto is not None and "e2e-playwright" in claude_auto, "Claude autoship references e2e-playwright")
 check(hermes_auto is not None and "e2e-playwright" in hermes_auto, "Hermes autoship references e2e-playwright")
+check(claude_auto is not None and "backend-only" in claude_auto, "Claude autoship defines backend-only skip behavior")
 # E2E must appear in the standard Phase 4 (Post-Implementation) — i.e. BEFORE the
 # deploy-only Phase 4D — proving it's a default-path gate, not just deploy mode.
 if claude_auto:
@@ -103,6 +110,10 @@ check(ci is not None and "ubuntu-latest" in ci, "CI uses ubuntu-latest")
 check(ci is not None and "npx playwright install --with-deps" in ci, "CI installs browser deps")
 check(ci is not None and "blob-report" in ci.lower() or (ci and "artifact" in ci.lower()),
       "CI uploads artifacts (traces/blob-report)")
+check(ci is not None and "paths:" in ci,
+      "CI has path filters (only runs on frontend changes)")
+check(ci is not None and "frontend" in ci,
+      "CI references frontend directory")
 
 # --- 8. Test-writer agent -------------------------------------------------
 print("\n[8] test-writer agent updated for E2E")
@@ -115,6 +126,14 @@ readme = read("README.md")
 changelog = read("CHANGELOG.md")
 check(readme is not None and "e2e-playwright" in readme, "README references e2e-playwright skill")
 check(changelog is not None and "e2e-playwright" in changelog, "CHANGELOG notes e2e-playwright addition")
+
+# --- 10. .gitignore ----------------------------------------------------
+print("\n[10] .gitignore covers Playwright artifacts")
+gitignore = read(".gitignore")
+check(gitignore is not None, ".gitignore exists")
+check(gitignore is not None and "playwright-report" in gitignore, ".gitignore excludes playwright-report/")
+check(gitignore is not None and "test-results" in gitignore, ".gitignore excludes test-results/")
+check(gitignore is not None and ".auth" in gitignore, ".gitignore excludes e2e/.auth/")
 
 print("\n" + "=" * 68)
 print(f"RESULT: {len(PASS)} passed, {len(FAIL)} failed")

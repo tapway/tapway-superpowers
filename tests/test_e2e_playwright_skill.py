@@ -64,6 +64,14 @@ check(claude_skill is not None and "SKIPPED" in claude_skill,
       "explicitly defines skip-for-backend-only behavior")
 check(claude_skill is not None and "testIgnore" not in claude_skill,
       "no broken testIgnore: /.*/ in setup project config")
+check(claude_skill is not None and "pytest" in claude_skill.lower(),
+      "covers backend E2E (pytest integration/e2e)")
+check(claude_skill is not None and "tests/integration" in claude_skill,
+      "references backend tests/integration/ directory")
+check(claude_skill is not None and "tests/e2e" in claude_skill,
+      "references backend tests/e2e/ directory")
+check(claude_skill is not None and "backend-only" in claude_skill.lower() or "backend" in (claude_skill or ""),
+      "defines backend E2E as mandated for backend changes")
 
 # --- 3. Hermes copy mirrors Claude copy --------------------------------
 print("\n[3] Hermes SKILL.md mirrors + port notes")
@@ -85,7 +93,7 @@ claude_auto = read("skills", "autoship", "SKILL.md")
 hermes_auto = read("hermes", "skills", "autoship", "SKILL.md")
 check(claude_auto is not None and "e2e-playwright" in claude_auto, "Claude autoship references e2e-playwright")
 check(hermes_auto is not None and "e2e-playwright" in hermes_auto, "Hermes autoship references e2e-playwright")
-check(claude_auto is not None and "backend-only" in claude_auto, "Claude autoship defines backend-only skip behavior")
+check(claude_auto is not None and "docs-only" in claude_auto, "Claude autoship defines docs-only skip behavior")
 # E2E must appear in the standard Phase 4 (Post-Implementation) — i.e. BEFORE the
 # deploy-only Phase 4D — proving it's a default-path gate, not just deploy mode.
 if claude_auto:
@@ -100,6 +108,10 @@ claude_ver = read("skills", "verification", "SKILL.md")
 hermes_ver = read("hermes", "skills", "verification", "SKILL.md")
 check(claude_ver is not None and "npx playwright test" in claude_ver, "Claude verification has 'npx playwright test'")
 check(hermes_ver is not None and "npx playwright test" in hermes_ver, "Hermes verification has 'npx playwright test'")
+check(claude_ver is not None and "pytest" in claude_ver and ("integration" in claude_ver.lower() or "e2e" in claude_ver.lower()),
+      "Claude verification has backend pytest integration/E2E check")
+check(hermes_ver is not None and "pytest" in hermes_ver and ("integration" in hermes_ver.lower() or "e2e" in hermes_ver.lower()),
+      "Hermes verification has backend pytest integration/E2E check")
 
 # --- 7. CI template ----------------------------------------------------
 print("\n[7] CI workflow template")
@@ -114,6 +126,10 @@ check(ci is not None and "paths:" in ci,
       "CI has path filters (only runs on frontend changes)")
 check(ci is not None and "frontend" in ci,
       "CI references frontend directory")
+check(ci is not None and "pytest" in ci,
+      "CI runs backend pytest integration/E2E tests")
+check(ci is not None and "backend" in ci,
+      "CI references backend directory")
 
 # --- 8. Test-writer agent -------------------------------------------------
 print("\n[8] test-writer agent updated for E2E")

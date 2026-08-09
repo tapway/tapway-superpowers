@@ -1,4 +1,4 @@
-name: Playwright E2E Tests
+name: E2E & Integration Tests
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
       - 'frontend/**'
       - 'e2e/**'
       - 'playwright.config.*'
+      - 'backend/**'
       - '.github/workflows/playwright.yml'
   pull_request:
     branches: [staging, prod]
@@ -14,18 +15,15 @@ on:
       - 'frontend/**'
       - 'e2e/**'
       - 'playwright.config.*'
+      - 'backend/**'
       - '.github/workflows/playwright.yml'
 
 jobs:
-  e2e:
+  frontend-e2e:
     timeout-minutes: 30
     runs-on: ubuntu-latest
-    # Skip if no frontend files in the diff (double-safety: path filter above
-    # already handles most cases, but this catches mixed PRs that touch both
-    # frontend and backend but where the frontend changes are trivial)
     env:
       E2E_BASE_URL: http://localhost:3000
-      # Add your test credentials here (GitHub repo secrets):
       E2E_USER: ${{ secrets.E2E_USER }}
       E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
     steps:
@@ -40,16 +38,15 @@ jobs:
       - name: Check for frontend changes
         id: check-frontend
         run: |
-          # Check if any frontend files changed in this PR/push
           if git diff --name-only origin/${{ github.base_ref || 'staging' }}...HEAD | grep -qE '\.(tsx|jsx|vue|css|scss)$|/(pages|app|components|public)/|playwright\.config'; then
             echo "frontend-changed=true" >> $GITHUB_OUTPUT
-            echo "Frontend files detected — running E2E tests"
+            echo "Frontend files detected — running Playwright E2E tests"
           else
             echo "frontend-changed=false" >> $GITHUB_OUTPUT
-            echo "No frontend files detected — skipping E2E tests"
+            echo "No frontend files detected — skipping Playwright E2E tests"
           fi
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         if: steps.check-frontend.outputs.frontend-changed == 'true'
         run: cd frontend && npm ci
 
@@ -75,4 +72,47 @@ jobs:
         with:
           name: playwright-test-results
           path: frontend/test-results/
+          retention-days: 5
+
+  backend-e2e:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for backend changes
+        id: check-backend
+        run: |
+          if git diff --name-only origin/${{ github.base_ref || 'staging' }}...HEAD | grep -qE '\.py$|/(backend|api)/'; then
+            echo "backend-changed=true" >> $GITHUB_OUTPUT
+            echo "Backend files detected — running pytest integration/E2E tests"
+          else
+            echo "backend-changed=false" >> $GITHUB_OUTPUT
+            echo "No backend files detected — skipping pytest integration/E2E tests"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.check-backend.outputs.backend-changed == 'true'
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        if: steps.check-backend.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install pytest httpx pytest-asyncio
+
+      - name: Run pytest integration & E2E tests
+        if: steps.check-backend.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          pytest tests/integration/ tests/e2e/ --tb=short -q
+
+      - name: Upload pytest results
+        if: ${{ failure() && steps.check-backend.outputs.backend-changed == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: backend/.pytest_cache/
           retention-days: 5

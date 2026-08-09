@@ -79,17 +79,24 @@ Classify each changed file:
 | `*.md`, `docs/**`, `.github/**`, `*.yml`, `*.json` (config) | Neither (docs/config) |
 
 **Decision:**
-- **Any frontend file changed** → this skill is **mandated**. Continue to Step A.
-- **Only backend / docs / config files changed** → this skill is **skipped**. The unit-test gate in `tdd` + `verification` is sufficient. Do NOT run `npx playwright test` — it wastes time and may fail if no Playwright suite exists yet.
-- **Mixed (frontend + backend)** → this skill is **mandated** (the frontend surface area changed).
+- **Any frontend file changed** → frontend E2E (Playwright) is **mandated**. Continue to Step A.
+- **Any backend file changed** → backend E2E (pytest integration) is **mandated**. Continue to Step F.
+- **Only docs / config files changed** → both E2E gates are **skipped**. The unit-test gate in `tdd` + `verification` is sufficient.
+- **Mixed (frontend + backend)** → both gates are **mandated**.
 
-Record the decision explicitly: `"Frontend files changed: [list]. E2E gate: REQUIRED."` or `"No frontend files changed. E2E gate: SKIPPED (backend-only)."`
+Record the decision explicitly: `"Frontend files changed: [list]. Frontend E2E: REQUIRED."` / `"Backend files changed: [list]. Backend E2E: REQUIRED."` / `"No frontend or backend files changed. E2E gates: SKIPPED."`
 
 ### Step 1 — Detect Stack & Scaffold (only if E2E is mandated)
 
-- [ ] Detect the frontend stack from `package.json` (check root and `frontend/` subdirectory — Tapway projects use `frontend/package.json`). Confirm Next.js version, React version, and whether `@playwright/test` is present. Never assume.
+**Frontend stack** (if frontend files changed):
+- [ ] Detect from `package.json` (check root and `frontend/` subdirectory — Tapway projects use `frontend/package.json`). Confirm Next.js version, React version, and whether `@playwright/test` is present. Never assume.
 - [ ] If Playwright is not installed, run the Scaffold step (below).
 - [ ] If `playwright.config.ts` already exists, skip to Step B.
+
+**Backend stack** (if backend files changed):
+- [ ] Detect from `pyproject.toml` / `requirements.txt` (check root and `backend/` subdirectory). Confirm FastAPI version, Python version, and whether `pytest` + `httpx` are installed.
+- [ ] If `pytest` is absent, install it: `pip install pytest httpx pytest-asyncio`
+- [ ] Check for existing test directories: `backend/tests/integration/`, `backend/tests/e2e/`. If absent, create them.
 
 ### Step A — Scaffold (one-time, only if `@playwright/test` is absent)
 
@@ -202,16 +209,127 @@ If a test fails, open the trace/video/screenshot that Playwright saved
 
 ---
 
+### Step F — Backend Integration & E2E Tests (pytest)
+
+For any backend change (`*.py`, `**/backend/**`, `**/api/**`), write integration/E2E tests that exercise the API through the FastAPI test client — not mocked internals. These prove the request → router → service → DB → response chain works end-to-end.
+
+**Test layers:**
+
+| Layer | Directory | What it tests | Tool |
+|---|---|---|---|
+| Integration | `backend/tests/integration/` | Single endpoint or service + real test DB | `pytest tests/integration/` |
+| E2E (backend) | `backend/tests/e2e/` | Full user flow across multiple endpoints (e.g. register → login → create resource → delete) | `pytest tests/e2e/` |
+
+**Setup — `conftest.py` fixtures (FastAPI + httpx + test DB):**
+
+```python
+import pytest
+from httpx import AsyncClient, ASGITransport
+from src.main import app  # adjust import path
+from test_db import test_engine, override_get_db  # your test DB session
+
+@pytest.fixture
+async def client():
+    app.dependency_overrides[get_db] = override_get_db
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+@pytest.fixture
+def auth_headers(client):
+    # Register + login a test user, return auth headers
+    ...
+```
+
+**Write integration tests (one per endpoint/behavior):**
+
+```python
+# backend/tests/integration/test_auth_endpoints.py
+import pytest
+
+@pytest.mark.asyncio
+async def test_login_returns_token(client):
+    response = await client.post("/auth/login", json={
+        "email": "test@example.com",
+        "password": "valid"
+    })
+    assert response.status_code == 200
+    assert "access_token" in response.json()
+
+@pytest.mark.asyncio
+async def test_login_rejects_invalid_credentials(client):
+    response = await client.post("/auth/login", json={
+        "email": "test@example.com",
+        "password": "wrong"
+    })
+    assert response.status_code == 401
+```
+
+**Write E2E tests (full user flows across endpoints):**
+
+```python
+# backend/tests/e2e/test_user_journey.py
+import pytest
+
+@pytest.mark.asyncio
+async def test_user_can_register_login_and_create_resource(client):
+    # Register
+    r = await client.post("/auth/register", json={"email": "new@test.com", "password": "Valid123!"})
+    assert r.status_code == 201
+    # Login
+    r = await client.post("/auth/login", json={"email": "new@test.com", "password": "Valid123!"})
+    token = r.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    # Create resource
+    r = await client.post("/resources", json={"name": "My Resource"}, headers=headers)
+    assert r.status_code == 201
+    assert r.json()["name"] == "My Resource"
+    # Verify it's persisted
+    r = await client.get("/resources", headers=headers)
+    assert r.status_code == 200
+    assert len(r.json()) == 1
+```
+
+**Rules:**
+- Use `httpx.AsyncClient` + `ASGITransport` — not `TestClient` (sync) or `async_asgi_testclient` (unmaintained).
+- Use a **real test database** (SQLite in-memory or test Postgres), not mocks for the DB layer. Integration tests must hit the DB.
+- Each test is independent — use fixtures for setup/teardown, never rely on test execution order.
+- Mock only external third-party services (payment gateways, email providers). Never mock your own DB or internal services in integration/E2E tests.
+
+### Step G — Run & Verify Backend (the gate)
+
+```bash
+cd backend
+pytest tests/integration/ tests/e2e/ --tb=short -q
+```
+
+- [ ] Integration tests pass (golden path + error states per endpoint)
+- [ ] E2E tests pass (full user flows across multiple endpoints)
+- [ ] No new failures vs. baseline
+
+If tests fail, fix the app or the test (correctly). **Never weaken assertions.** Same rule as frontend E2E.
+
+---
+
 ## Verification / Gate
 
-A frontend feature is **not done** until:
+A feature is **not done** until the relevant E2E gates pass:
 
+**Frontend E2E (if frontend files changed):**
 - [ ] `npx playwright test` passes (full suite, no new failures)
 - [ ] Golden path, edge cases, and error states all covered
 - [ ] No `test.only`/`test.skip` left behind (`forbidOnly` catches `.only` in CI)
+
+**Backend E2E (if backend files changed):**
+- [ ] `pytest tests/integration/ tests/e2e/ --tb=short -q` passes
+- [ ] Integration tests cover each changed endpoint (golden path + error states)
+- [ ] E2E tests cover full user flows across multiple endpoints
+- [ ] No new failures vs. baseline
+
+**Both gates:**
 - [ ] Traces/artifacts not required to be clean — but failures must be root-caused
 
-If the suite fails, do NOT declare the task complete. Fix tests or app, re-run,
+If any suite fails, do NOT declare the task complete. Fix tests or app, re-run,
 and only then mark done.
 
 ---
@@ -219,8 +337,10 @@ and only then mark done.
 ## Hard Rules
 
 - ❌ Never open a frontend PR without a green `npx playwright test` run
+- ❌ Never open a backend PR without green `pytest tests/integration/ tests/e2e/` (if backend files changed)
 - ❌ Never fix a failing test by weakening or removing assertions
 - ❌ Never use `page.waitForTimeout()` / manual sleeps — use web-first assertions
 - ❌ Never write E2E tests that depend on real network/flaky third-party state
 - ❌ Never log in per-test when `auth.setup.ts` + storageState is possible
-- ❌ Never commit `playwright-report/`, `test-results/`, or `.auth/` (add to `.gitignore`)
+- ❌ Never mock your own DB or internal services in integration/E2E tests — use a real test DB
+- ❌ Never commit `playwright-report/`, `test-results/`, `.pytest_cache/`, or `.auth/`

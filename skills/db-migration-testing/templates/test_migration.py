@@ -53,15 +53,17 @@ def test_column_rename_preserves_data(migrated_db):
     cfg = Config("alembic.ini")
     cfg.set_main_option("sqlalchemy.url", str(migrated_db.url))
 
-    # 1. Seed data at the PRE-migration revision (e.g. before the rename)
-    command.downgrade(cfg, "-2")  # or the revision before the rename
+    # 1. Downgrade ONE step to the rename migration's parent (users table still
+    #    exists with the OLD column name). Relative steps are measured from head:
+    #    -1 = parent of head. (Do NOT use -2 — it lands at base and drops the table.)
+    command.downgrade(cfg, "-1")
     with migrated_db.begin() as conn:
         conn.exec_driver_sql(
             "INSERT INTO users (id, email, display_name) VALUES (1, 'a@b.c', 'Alice')"
         )
 
-    # 2. Apply the migration under test (the rename)
-    command.upgrade(cfg, "-1")
+    # 2. Re-apply ONE step (the rename migration under test)
+    command.upgrade(cfg, "+1")
 
     # 3. Assert values survived into the new column shape
     with migrated_db.connect() as conn:

@@ -12,11 +12,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 - **`api-contract-testing`** — example code used removed `schemathesis.from_uri` API; fixed to `schemathesis.openapi.from_url` (both Claude + Hermes copies). Verified against Schemathesis v4.24.
 - **`db-migration-testing`** — `test_column_rename_preserves_data` was vacuous (empty table → `all([])` trivially passes). Now seeds data pre-migration, applies the rename, and asserts values survived (template + both SKILL.md copies).
+- **`db-migration-testing` (review round 2)** — the data-preservation test's relative migration steps were wrong: `downgrade -2` landed at base on a 2-migration chain (INSERT crashed with `OperationalError`), and `upgrade -1` after `downgrade -1` errored ("Relative revision -1 didn't produce 1 migrations"). Fixed to `downgrade -1` → seed → `upgrade +1`. **Verified by execution**: the fixed template passes 4/4 against a real alembic chain (create users with `display_name` → rename to `full_name`).
 - **Test suites** — all three validation scripts wrapped in `if __name__ == "__main__":` so pytest collection no longer crashes (was raising `SystemExit` during import). Added API-correctness assertions (rejects removed `schemathesis.from_uri`).
 
 ### Changed
 
-- **Test count** — 102 → 104 checks (phase2 suite 26 → 28).
+- **Test count** — 102 → 107 checks (phase2 suite 26 → 31: added API-correctness + migration-pattern assertions).
 
 ---
 

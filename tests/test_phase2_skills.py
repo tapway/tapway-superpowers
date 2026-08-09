@@ -87,6 +87,14 @@ def main() -> int:
 
     db_tpl = read("skills", "db-migration-testing", "templates", "test_migration.py")
     check(db_tpl is not None, "db-migration-testing test_migration.py template exists")
+    # Round-2 hardening: the data-preservation test must use the verified -1/+1
+    # relative-step pattern (downgrade -2 lands at base; upgrade -1 after downgrade -1 errors).
+    check(db_tpl is not None and 'downgrade(cfg, "-1")' in db_tpl,
+          "data-preservation test downgrades -1 (parent of head)")
+    check(db_tpl is not None and 'upgrade(cfg, "+1")' in db_tpl,
+          "data-preservation test re-applies with upgrade +1")
+    check(db_tpl is not None and 'downgrade(cfg, "-2")' not in db_tpl,
+          "no broken downgrade -2 (lands at base, drops table)")
 
     # --- 4. Wiring into pipeline ---------------------------------------------
     print("\n[4] Wired into pipeline")

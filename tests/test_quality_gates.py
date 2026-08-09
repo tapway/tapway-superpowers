@@ -83,6 +83,8 @@ check(ci is not None and "typecheck" in ci.lower() or (ci and "tsc" in ci.lower(
       "CI runs typecheck")
 check(ci is not None and "coverage" in ci.lower() or (ci and "fail-under" in ci.lower()),
       "CI runs coverage gate")
+check(ci is not None and "|| true" not in ci,
+      "CI gates are enforced (no '|| true' that would make them advisory-only)")
 
 # --- 5. Wiring into setup-project ---------------------------------------
 print("\n[5] setup-project references quality-gates")

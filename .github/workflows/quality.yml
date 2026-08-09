@@ -31,20 +31,21 @@ jobs:
           pip install pytest pytest-cov ruff mypy
 
       - name: Backend lint (ruff)
-        run: cd backend && ruff check . || true
+        run: cd backend && ruff check .
 
       - name: Backend format check (ruff format --check)
-        run: cd backend && ruff format --check . || true
+        run: cd backend && ruff format --check .
 
       - name: Backend typecheck (mypy)
-        run: cd backend && mypy src/ --ignore-missing-imports || true
+        run: cd backend && mypy src/ --ignore-missing-imports
 
       - name: Backend tests + coverage gate
         run: |
           cd backend
-          # Only enforce coverage if pytest-cov is configured; otherwise run tests
+          # pytest picks up addopts (including --cov-fail-under) from pyproject.toml
+          # if configured; otherwise run plain pytest.
           if grep -q "cov-fail-under" pyproject.toml 2>/dev/null; then
-            pytest --cov=src --cov-report=term-missing --cov-fail-under=80 -q
+            pytest -q
           else
             pytest -q
           fi
@@ -56,16 +57,17 @@ jobs:
 
       - name: Frontend lint
         if: ${{ hashFiles('frontend/package-lock.json') != '' }}
-        run: cd frontend && npm run lint || true
+        run: cd frontend && npm run lint
 
       - name: Frontend format check
         if: ${{ hashFiles('frontend/package-lock.json') != '' }}
-        run: cd frontend && npx prettier --check . || true
+        run: cd frontend && npx prettier --check .
 
       - name: Frontend typecheck (tsc strict)
         if: ${{ hashFiles('frontend/package-lock.json') != '' }}
-        run: cd frontend && npx tsc --noEmit || true
+        run: cd frontend && npx tsc --noEmit
 
       - name: Frontend tests + coverage gate
         if: ${{ hashFiles('frontend/package-lock.json') != '' }}
-        run: cd frontend && npm test -- --coverage || true
+        run: cd frontend && npm test -- --coverage
+

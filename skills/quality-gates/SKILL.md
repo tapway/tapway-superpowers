@@ -127,7 +127,7 @@ class Settings(BaseSettings):
 
     @property
     def is_production(self) -> bool:
-        return self.log_level == "info"
+        return self.log_level == "warning"
 
 # Fail fast at import if a required var is missing:
 settings = Settings()

@@ -74,6 +74,36 @@ metadata:
 
 ---
 
+## Auth-Design Review (beyond OWASP items)
+
+The OWASP checklist catches *checklist-level* auth mistakes. This section
+catches **auth-design flaws** — the highest-severity real-world vulnerabilities
+(IDOR, missing RBAC, weak OAuth flows) that a static checklist misses. Run this
+when the audit touches auth, sessions, tokens, or permission logic.
+
+### Design Questions
+
+- [ ] **RBAC/ABAC matrix exists** — for every user role (admin, member, viewer…), is there an explicit matrix of which resources/actions each role can access? If the answer is "we don't have roles yet", that's a finding.
+- [ ] **IDOR check** — every endpoint that takes an object ID must verify the user can access *that object* (not just "is logged in"). `GET /users/{id}` and `GET /projects/{id}` are classic IDOR sites.
+- [ ] **Object-level vs function-level auth** — admin-only functions exist (*function-level*), but does a regular user's request to `POST /admin/...` get rejected? Every function-level check must also be enforced server-side, never hidden in the UI.
+- [ ] **OAuth flow correctness** — state parameter on the auth-code flow (CSRF), PKCE required for public clients, redirect URIs validated against an allowlist, auth-code exchanged server-side only.
+- [ ] **JWT design** — algorithm pinned (`alg: HS256` etc., `jwt.sign` with explicit algorithm, never `"alg": "none"`), expiry short (access 15min), refresh rotation, no sensitive claims in the payload.
+- [ ] **Session design** — session ID entropy ≥ 128 bits, httpOnly + Secure cookies, SameSite policy, session fixation protection (new session ID after login), server-side invalidation on logout.
+- [ ] **Permission re-check on nested resources** — can a user access `/projects/{pid}/tasks/{tid}` where the task belongs to a project the user can't see?
+- [ ] **Default-deny** — is the default posture "deny unless explicitly allowed"? Missing annotations/attributes should fail closed, not open.
+
+### Design-Flaw Finding Template
+
+```markdown
+[IDOR|Missing-RBAC|Weak-OAuth|JWT|Session|Default-Deny]
+Path: [endpoint / file]
+Flaw: [what a malicious user can do]
+Severity: Critical/High/Med
+Fix: [concrete fix — e.g. "add owner check in Service layer", "enforce PKCE"]
+```
+
+---
+
 ## Quick Scan Commands
 
 ```bash

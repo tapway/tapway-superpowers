@@ -1,4 +1,5 @@
 {
+  "description": "Tapway Superpowers hooks — enforceable quality gates",
   "hooks": {
     "PreToolUse": [
       {
@@ -6,23 +7,38 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre-bash-safety/pre-bash-safety.sh"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-bash-safety/pre-bash-safety.sh\"",
+            "timeout": 10
           },
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre-commit-secrets/pre-commit-secrets.sh",
-            "if": "Bash(git commit *)"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-commit-secrets/pre-commit-secrets.sh\"",
+            "if": "Bash(git commit:*)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-commit-gate/pre-commit-gate.sh\"",
+            "if": "Bash(git commit:*)",
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/dependency-audit/dependency-audit.sh\"",
+            "if": "Bash(git commit:*)",
+            "timeout": 120
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/post-write-lint/post-write-lint.sh"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/post-write-lint/post-write-lint.sh\"",
+            "timeout": 30
           }
         ]
       },
@@ -31,8 +47,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/post-commit-release-note/post-commit-release-note.sh",
-            "if": "Bash(git commit *)"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/post-commit-release-note/post-commit-release-note.sh\"",
+            "if": "Bash(git commit:*)",
+            "timeout": 10
           }
         ]
       }
@@ -42,7 +59,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start/session-start.sh"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start/session-start.sh\"",
+            "timeout": 10
           }
         ]
       }

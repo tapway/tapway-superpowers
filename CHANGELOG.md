@@ -6,6 +6,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Enforceable hooks (Phase 3)** — repaired the broken hook system and added two commit-time quality gates:
+  - **Root-cause fixes:** `plugin.json` no longer carries a stale empty `hooks` array; `hooks/hooks.json` uses the official auto-discovery + `Bash(git commit:*)` colon matcher form (the legacy space form never matched); blocking hooks now `exit 2` (exit 1 is treated as non-blocking by Claude Code — this was why hooks never fired/blocked).
+  - **`pre-commit-gate` hook** (NEW) — lint + format + typecheck + coverage at commit time, blocks via exit 2 (Claude) / JSON `{"decision":"block"}` (Hermes shell hooks).
+  - **`dependency-audit` hook + skill** (NEW) — osv-scanner / npm audit / pip-audit scan at commit time + CI; remediation skill for vulnerable deps.
+  - **git `pre-commit` backstop** (NEW) — platform-agnostic `.git/hooks/pre-commit` hook installed by `setup-project`, catches commits from any agent or human.
+  - **Hermes enforcement** — `hermes/config.hooks.yaml` shell-hook config (pre_tool_call blocking JSON protocol) + `hermes/agent-hooks/tapway-pre-commit-gate.sh` + `tapway-dependency-audit.sh`; `verification` + `pr` skills gained commit-gate + dep-audit checkpoints.
+
+### Changed
+
+- **Hermes skill count** — 22 → 23 (`dependency-audit`). Claude plugin count unchanged (22; hook-based enforcement).
+- **CI quality gate** — added blocking `pip-audit` + `npm audit` steps (osv-scanner best-effort).
+
+---
 ## [1.4.1] — 2026-08-09
 
 ### Fixed

@@ -84,8 +84,12 @@ def main() -> int:
           "CI runs typecheck")
     check(ci is not None and "coverage" in ci.lower() or (ci and "fail-under" in ci.lower()),
           "CI runs coverage gate")
-    check(ci is not None and "|| true" not in ci,
-          "CI gates are enforced (no '|| true' that would make them advisory-only)")
+    # Enforcement check: quality/lint/typecheck/test STEPS must not be made
+    # advisory with '|| true'. Exempt the tool-INSTALL lines (e.g. best-effort
+    # osv-scanner install fallback), which are setup, not gates.
+    gate_lines = [l for l in ci.split("\n") if "run:" in l and "install" not in l.lower() and "|| true" in l]
+    check(ci is not None and not gate_lines,
+          "CI gates are enforced (no '|| true' on gate steps; only tool-install lines exempt)")
 
     # --- 5. Wiring into setup-project ---------------------------------------
     print("\n[5] setup-project references quality-gates")

@@ -44,7 +44,7 @@ jobs:
           cd backend
           # pytest picks up addopts (including --cov-fail-under) from pyproject.toml
           # if configured; otherwise run plain pytest.
-          if grep -q "cov-fail-under" pyproject.toml 2>/dev/null; then
+          if grep -qE "cov-fail-under|fail_under" pyproject.toml 2>/dev/null; then
             pytest -q
           else
             pytest -q
@@ -70,4 +70,38 @@ jobs:
       - name: Frontend tests + coverage gate
         if: ${{ hashFiles('frontend/package-lock.json') != '' }}
         run: cd frontend && npm test -- --coverage
+
+      # --- Dependency audit (supply-chain, BLOCKING) ---
+      - name: Install dependency scanners
+        run: |
+          pip install pip-audit
+          # osv-scanner is best-effort (requires Go); pip-audit + npm-audit are the blocking gates.
+          if ! command -v osv-scanner >/dev/null 2>&1; then
+            (command -v go >/dev/null 2>&1 && go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest 2>/dev/null) || true
+          fi
+
+      - name: Dependency audit — Python (BLOCKING)
+        run: |
+          # Target the project's lockfile/requirements, not the runner env
+          if [ -f requirements.txt ]; then
+            pip-audit -r requirements.txt
+          elif [ -f backend/requirements.txt ]; then
+            pip-audit -r backend/requirements.txt
+          elif [ -f pyproject.toml ]; then
+            pip-audit -r pyproject.toml
+          else
+            echo "No Python dependency files found — skipping pip-audit"
+          fi
+
+      - name: Dependency audit — Node (BLOCKING)
+        if: ${{ hashFiles('frontend/package-lock.json') != '' }}
+        run: cd frontend && npm audit --audit-level=high
+
+      - name: Dependency audit — osv-scanner (best-effort)
+        run: |
+          if command -v osv-scanner >/dev/null 2>&1; then
+            osv-scanner .
+          else
+            echo "osv-scanner not available — skipping (pip/npm audits still gate)"
+          fi
 

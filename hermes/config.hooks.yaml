@@ -1,0 +1,36 @@
+# Hermes Agent shell hooks — enforceable quality gates for CLI + Gateway.
+#
+# HOW IT WORKS (see Hermes docs, "Shell Hooks"):
+#   - Merged into ~/.hermes/config.yaml under the top-level `hooks:` key.
+#   - Each event spawns the script as a subprocess, pipes a JSON payload on
+#     stdin, and reads a JSON decision on stdout.
+#   - BLOCKING protocol for pre_tool_call:
+#       {"decision": "block", "reason": "..."}   (Claude-Code style)
+#       {"action":   "block", "message": "..."}  (Hermes-canonical)
+#   - Empty stdout `{}` = allow.
+#
+# To ENABLE, copy this block into ~/.hermes/config.yaml:
+#
+#   hooks:
+#     pre_tool_call:
+#       - matcher: "terminal"
+#         command: "~/.hermes/agent-hooks/tapway-pre-commit-gate.sh"
+#         timeout: 120
+#       - matcher: "terminal"
+#         command: "~/.hermes/agent-hooks/tapway-dependency-audit.sh"
+#         timeout: 120
+
+# --- Reference config (this is what goes under `hooks:` in config.yaml) ---
+hooks:
+  # Block `git commit *` that fails the quality gate (terminal tool matches git)
+  pre_tool_call:
+    - matcher: "terminal"
+      command: "~/.hermes/agent-hooks/tapway-pre-commit-gate.sh"
+      timeout: 120
+    - matcher: "terminal"
+      command: "~/.hermes/agent-hooks/tapway-dependency-audit.sh"
+      timeout: 120
+
+# Optional: auto-accept the consent prompt for these (event, command) pairs.
+# The first-use prompt is shown per pair unless this is set.
+hooks_auto_accept: true

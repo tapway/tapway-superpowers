@@ -23,9 +23,10 @@ metadata:
 
 1. Creates `.github/workflows/release.yml` — semver auto-release (`vX.Y.Z-stg` / `vX.Y.Z-prod`) on merge to `staging` / `prod`
 2. Creates `CLAUDE.md` (if missing) with `TARGET_BRANCH: staging` pre-filled
-3. Creates `.github/workflows/quality.yml` — the CI quality gate (lint/format/typecheck/coverage) — see the `quality-gates` skill
-4. Commits all files and pushes
-5. Prints a manual-steps checklist (default branch, filling in CLAUDE.md, branch protection, CODEOWNERS)
+3. Creates `.github/workflows/quality.yml` — the CI quality gate (lint/format/typecheck/coverage + dependency audit) — see the `quality-gates` skill
+4. Installs the git `pre-commit` backstop (`hooks/pre-commit/git-pre-commit.sh`) into `.git/hooks/pre-commit`
+5. Commits all files and pushes
+6. Prints a manual-steps checklist (default branch, filling in CLAUDE.md, branch protection, CODEOWNERS)
 
 > **Note:** The previous `setup-project` created a `.github/workflows/claude.yml` GitHub
 > Actions PR-review workflow (`auto-review` + `@claude`). That was removed — Tapway now
@@ -167,7 +168,24 @@ jobs:
             --notes-file /tmp/release-notes.md
 ```
 
-### Step 3 — Verify CLAUDE.md
+### Step 3 — Install the Git Pre-Commit Backstop
+
+Install the platform-agnostic quality gate so every commit (from any agent or human) is guarded:
+
+```bash
+mkdir -p .git/hooks
+ln -sf ../../hooks/pre-commit/git-pre-commit.sh .git/hooks/pre-commit
+chmod +x hooks/pre-commit/git-pre-commit.sh
+```
+
+If the repo already has a `.git/hooks/pre-commit`, append a call to the backstop rather than replacing it:
+
+```bash
+echo 'bash "$(git rev-parse --show-toplevel)/hooks/pre-commit/git-pre-commit.sh" || exit $?' >> .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+### Step 4 — Verify CLAUDE.md
 
 If `CLAUDE.md` does not exist at the project root, create a minimal one:
 

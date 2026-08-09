@@ -73,7 +73,7 @@ changes (missing/renamed fields, wrong types) before consumers break.
 # backend/tests/integration/test_api_contract.py
 import pytest
 from openapi_spec_validator import validate_spec
-from schemathesis import from_uri
+from schemathesis.openapi import from_url
 
 def test_openapi_schema_is_valid(client):
     """The auto-generated OpenAPI schema itself must be valid."""
@@ -122,10 +122,10 @@ schemathesis run --base-url http://localhost:8000 http://localhost:8000/openapi.
 
 ```python
 # backend/tests/e2e/test_api_fuzz.py
-import schemathesis
+from schemathesis.openapi import from_url
 
 # Load the schema once; generates property-based tests from it
-schema = schemathesis.from_uri("http://localhost:8000/openapi.json")
+schema = from_url("http://localhost:8000/openapi.json")
 
 @schema.parametrize()
 def test_api_contract_holds(case):

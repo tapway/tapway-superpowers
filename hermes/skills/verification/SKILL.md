@@ -36,6 +36,8 @@ metadata:
 - [ ] All tests pass: `cd backend && pytest -q` / `cd frontend && npm test -- --watchAll=false`
 - [ ] **Frontend E2E tests pass (if frontend files changed):** Run `git diff --name-only main...HEAD` — if any frontend file changed (`*.tsx`, `*.jsx`, `**/pages/**`, `**/app/**`, `**/components/**`, `*.css`, etc.), run `npx playwright test` (part of the `e2e-playwright` skill). Golden path + edge cases + error states must pass in a real browser. **If no frontend files changed, skip this check.**
 - [ ] **Backend integration/E2E tests pass (if backend files changed):** If any backend file changed (`*.py`, `**/backend/**`, `**/api/**`), run `pytest tests/integration/ tests/e2e/ --tb=short -q` (part of the `e2e-playwright` skill). Integration tests must cover each changed endpoint (golden path + error states). E2E tests must cover full user flows. **If no backend files changed, skip this check.**
+- [ ] **API contract holds (if endpoints/response models changed):** Run the `api-contract-testing` skill — validate the OpenAPI schema and run Schemathesis. No response-schema violations, no unexpected 5xx.
+- [ ] **Migrations tested (if DB schema changed):** Run the `db-migration-testing` skill — `alembic upgrade head` + `downgrade base` round-trip on a fresh test DB, data preservation, zero-downtime for large tables.
 - [ ] No regressions — full test suite passes, not just new tests
 - [ ] TypeScript compiles: `npx tsc --noEmit`
 - [ ] Python type checks: `mypy src/`

@@ -309,6 +309,32 @@ pytest tests/integration/ tests/e2e/ --tb=short -q
 
 If tests fail, fix the app or the test (correctly). **Never weaken assertions.** Same rule as frontend E2E.
 
+### Step H — Contract & Migration Safety (backend changes only)
+
+If the change touched an **API endpoint or response model**, run the `api-contract-testing` skill before PR:
+
+```bash
+openapi-spec-validator openapi.yaml          # or: npx @stoplight/spectral-cli lint openapi.yaml
+schemathesis run --base-url http://localhost:8000 http://localhost:8000/openapi.json --checks all
+```
+
+- [ ] OpenAPI schema validates
+- [ ] Every changed endpoint's responses match the documented schema
+- [ ] Schemathesis fuzzing passes (no response-schema violations, no unexpected 5xx)
+
+If the change touched the **database schema** (new/renamed/dropped columns, new tables, backfills), run the `db-migration-testing` skill before PR:
+
+```bash
+cd backend && pytest tests/integration/test_migrations.py -v
+```
+
+- [ ] `alembic upgrade head` applies cleanly to a fresh test DB
+- [ ] `alembic downgrade base` rolls back cleanly (round-trip)
+- [ ] Data-preservation test passes for renames/drops/backfills
+- [ ] Large-table changes use the zero-downtime expand-contract pattern
+
+**Never merge a backend PR with contract drift or an untested migration.** These are the two most common prod-outage classes.
+
 ---
 
 ## Verification / Gate

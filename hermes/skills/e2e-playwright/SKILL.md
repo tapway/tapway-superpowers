@@ -207,6 +207,60 @@ npx playwright test
 - [ ] Error states pass
 - [ ] Full suite has **no new failures** (no regressions in other specs)
 
+### Step D2 — Accessibility (a11y) Check (axe-core, mandatory for frontend)
+
+Every frontend E2E feature must pass an **accessibility audit** — accessibility
+failures are the #1 reason client-facing products (dashboards, portals) fail
+government/enterprise procurement on WCAG, and a legal liability when disabled
+users are affected. Test with the `axe` core engine woven into the same
+Playwright suite.
+
+**Install:**
+
+```bash
+npm i -D @axe-core/playwright
+```
+
+**Write an a11y spec covering the changed routes:**
+
+```ts
+// e2e/<feature>.a11y.spec.ts
+import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+
+test('page has no WCAG A/AA violations', async ({ page }) => {
+  await page.goto('/<changed-route>');
+  // auth-dependent routes: reuse the storageState from auth.setup.ts
+
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+
+  expect(results.violations).toEqual([]);
+});
+```
+
+**Rules:**
+- Run against the **golden path AND key error states** of each changed route — a
+  missing label or un-focusable element in a form is an a11y violation even when
+  the happy path passes.
+- Scope audits sensibly: `.include()` / `.exclude()` third-party iframes, and
+  use `.disableRules(['...'])` only for documented, pre-existing exceptions —
+  **never** to hide a real violation.
+- Severity: **any** WCAG A/AA violation blocks the PR. `critical`/`serious`
+  violations must be fixed, not waived. Note: the tag filter above covers WCAG
+  A/AA success criteria (color-contrast, label, image-alt, etc.) but excludes
+  axe `best-practice`/`minor` rules — add `best-practice` to `.withTags()`
+  if you want those too.
+
+In CI, the `@axe-core/playwright` audit runs as part of `npx playwright test`
+(Step D) — a violation is a test failure, so the existing E2E CI gate enforces
+a11y with no extra pipeline.
+
+- [ ] a11y audit passes on every changed frontend route (WCAG A/AA)
+- [ ] No violations waived except documented pre-existing exceptions
+- [ ] Form fields have labels, images have alt text, focus is visible
+
 ### Step E — Debug Failures from Artifacts (never weaken assertions)
 
 If a test fails, open the trace/video/screenshot that Playwright saved

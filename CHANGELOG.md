@@ -6,6 +6,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **`e2e-playwright` — accessibility (a11y) step** — mandatory `@axe-core/playwright` audit (WCAG A/AA tags) on every changed frontend route, woven into the same Playwright suite. Verified by a real E2E test: axe catches image-alt / label / button-name / color-contrast violations in a live browser and passes clean pages. Enforced automatically by the existing E2E CI gate (a violation = a test failure).
+- **`verification` — performance/benchmark check** — hot-path perf gate: p95 latency baseline, SQLAlchemy query-count assertions (N+1 detection, `lazy="raiseload"` guidance), Lighthouse performance budget for frontend routes.
+- **`security-audit` — auth-design review section** — beyond-OWASP design review: RBAC/ABAC matrix, IDOR checks, object-level vs function-level auth, OAuth state/PKCE, JWT algorithm pinning, session design, nested-resource re-checks, default-deny posture. Includes a finding template.
+
+### Changed
+
+- Both Claude (`skills/`) and Hermes (`hermes/skills/`) copies of all three skills extended.
+
+---
 ## [1.5.0] — 2026-08-09
 
 ### Added

@@ -84,6 +84,24 @@ Run the test suite for every discipline that was touched:
 
 All tests must be green before pushing. If a test fails that was passing before your changes, fix it before continuing.
 
+### Step 4b: Database Review (if the PR touches the DB layer)
+
+If the PR changes SQLAlchemy models, queries, migrations, or endpoints that hit
+the database, run the `db-reviewer` subagent:
+
+```text
+Run the db-reviewer agent over this branch's diff.
+Checks: N+1 query detection, index coverage on WHERE/JOIN columns,
+        migration up/down safety, EXPLAIN ANALYZE on hot queries.
+```
+
+- [ ] No N+1 queries in hot paths (relationships inside loops flagged and fixed)
+- [ ] WHERE/JOIN columns indexed; composite index order is high-cardinality first
+- [ ] New migrations are reversible and safe on large tables (expand-contract)
+- [ ] List endpoints paginated (no unbounded queries)
+
+Fix any Critical/Warning findings the db-reviewer raises before opening the PR.
+
 ---
 
 ### Step 5: Update Docs

@@ -6,6 +6,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **`incident-runbook` skill** (Claude + Hermes) — closes the alert→action gap: SEV1-4 severity triage, symptom → suspected causes → check → mitigate → escalate → rollback runbook playbook, blameless 5-Whys postmortems with owned action items. Ships `runbook.md` + `postmortem.md` templates. Wired into `observe` (every alert must link to a runbook).
+- **`db-reviewer` subagent** — database-layer review: N+1 query detection, index coverage on WHERE/JOIN columns, migration up/down safety, EXPLAIN ANALYZE on hot queries. Wired into `pr` (Step 4b) and `code-review` (Database Layers section).
+
+### Changed
+
+- **Hermes skill count** — 23 → 24 (`incident-runbook`).
+- **Agents** — 4 → 5 (`db-reviewer`).
+
+---
 ## [1.6.0] — 2026-08-09
 
 ### Added

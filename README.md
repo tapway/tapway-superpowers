@@ -35,7 +35,7 @@ Prefer **Hermes Agent** over Claude Code? A port of these skills ships in this r
 ```bash
 # From inside the cloned repo:
 cd hermes
-bash install.sh        # macOS / Linux — installs all 23 skills + the /tapway bundle
+bash install.sh        # macOS / Linux — installs all 24 skills + the /tapway bundle
 # or, on Windows (PowerShell):
 .\install.ps1
 ```
@@ -348,6 +348,7 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `api-contract-testing` | Prevent API contract drift. Validates every response against the OpenAPI schema, fuzzes the API with Schemathesis (property-based testing), and uses Pact contracts where services deploy independently. Catches the highest-severity backend gap: an API that changes shape without breaking its contract. | "contract test", "schemathesis", "openapi", "api contract", "pact", "schema validation", "fuzz the api", "api drift" |
 | `db-migration-testing` | Make database migrations safe to ship: test every migration up AND down (round-trip), verify zero-downtime expand-contract for large tables, confirm rollback and data preservation before touching prod. Prevents the second most common prod-outage class. | "migration", "alembic", "schema change", "migrate", "add column", "backfill", "zero-downtime migration", "rollback migration", "db migration test" |
 | `dependency-audit` | Audit and remediate supply-chain vulnerabilities in dependencies. Scans with osv-scanner (multi-ecosystem), npm audit (Node), pip-audit (Python); upgrades vulnerable packages in the lockfile and verifies the fix. Enforced at commit time + CI, and on demand for remediation. | "dependency audit", "osv-scanner", "npm audit", "pip-audit", "vulnerable package", "supply chain", "update dependencies", "fix vulnerabilities" |
+| `incident-runbook` | Create SEV1-4 incident runbooks and blameless postmortems that close the alert→action gap. Every observe alert links to a runbook this skill writes: symptom → suspected causes → check → mitigate → escalate → rollback, plus 5-Whys postmortems with owned action items. | "runbook", "incident", "postmortem", "on-call", "create a runbook", "write a postmortem", "SEV" |
 | `verification` | Confirm a task is done — tests, lint, type-checks, spec coverage | "Is this done?", "Verify...", "Final check..." |
 | `refactor` | **Protocol A** (active codebase): surgical incremental refactoring. **Protocol B** (legacy): characterization-test-first sequence | "Refactor...", "Clean up...", "Legacy refactor..." |
 | `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |
@@ -381,7 +382,7 @@ Automatic checks that fire on Claude Code lifecycle events.
 
 ---
 
-### 4 Specialized Agents
+### 5 Specialized Agents
 
 Subagent definitions for use with the TDD and autoship skills:
 
@@ -389,6 +390,7 @@ Subagent definitions for use with the TDD and autoship skills:
 |---|---|
 | `code-reviewer` | Systematic review with security, performance, and type-safety checks |
 | `test-writer` | Write tests following project conventions (pytest / Jest) |
+| `db-reviewer` | Database-layer review: N+1 detection, index coverage, migration safety, EXPLAIN ANALYZE |
 | `security-auditor` | OWASP Top 10 audit for auth, payments, and user data paths |
 | `devops-sre` | Docker, CI/CD, and infrastructure configuration review |
 

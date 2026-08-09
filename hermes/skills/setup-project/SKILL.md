@@ -23,8 +23,9 @@ metadata:
 
 1. Creates `.github/workflows/release.yml` — semver auto-release (`vX.Y.Z-stg` / `vX.Y.Z-prod`) on merge to `staging` / `prod`
 2. Creates `CLAUDE.md` (if missing) with `TARGET_BRANCH: staging` pre-filled
-3. Commits all files and pushes
-4. Prints a manual-steps checklist (default branch, filling in CLAUDE.md)
+3. Creates `.github/workflows/quality.yml` — the CI quality gate (lint/format/typecheck/coverage) — see the `quality-gates` skill
+4. Commits all files and pushes
+5. Prints a manual-steps checklist (default branch, filling in CLAUDE.md, branch protection, CODEOWNERS)
 
 > **Note:** The previous `setup-project` created a `.github/workflows/claude.yml` GitHub
 > Actions PR-review workflow (`auto-review` + `@claude`). That was removed — Tapway now

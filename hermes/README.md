@@ -13,7 +13,7 @@ single slash command.
 
 **macOS / Linux:**
 ```bash
-bash install.sh            # installs all 19 skills + the /tapway bundle
+bash install.sh            # installs all 20 skills + the /tapway bundle
 bash install.sh <category> # optional: custom skills category (default: tapway)
 
 # Preview without installing anything:
@@ -43,11 +43,11 @@ hermes bundles list                # "tapway" bundle present
 > hermes skills install tapway/tapway-superpowers/hermes/skills/tdd --category tapway
 > ```
 
-### What you get: 19 skills
+### What you get: 20 skills
 
 discovery/planning | implementation | quality/gates | process/infra
 ---|---|---|---
-`interview`, `brainstorming`, `writing-plans` | `tdd`, `e2e-playwright`, `autoship`, `refactor`, `systematic-debugging` | `code-review`, `pre-review-cleanup`, `security-audit`, `verification`, `doubt`, `observe`, `deprecate` | `pr`, `repo-docs`, `git-worktrees`, `setup-project`
+`interview`, `brainstorming`, `writing-plans` | `tdd`, `e2e-playwright`, `quality-gates`, `autoship`, `refactor`, `systematic-debugging` | `code-review`, `pre-review-cleanup`, `security-audit`, `verification`, `doubt`, `observe`, `deprecate` | `pr`, `repo-docs`, `git-worktrees`, `setup-project`
 
 ## The Strict Pipeline
 

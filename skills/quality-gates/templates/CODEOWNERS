@@ -1,0 +1,12 @@
+# Default owner for all files
+*            @team/backend
+
+# Backend owns backend code
+/backend/    @team/backend
+
+# Frontend owns frontend code
+/frontend/   @team/frontend
+
+# Infra/config changes need infrastructure review
+/.github/    @team/platform
+Dockerfile*  @team/platform

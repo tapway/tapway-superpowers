@@ -129,11 +129,29 @@ corrupted:
 
 ```python
 def test_column_rename_preserves_data(migrated_db):
-    """Renaming display_name -> full_name keeps existing values."""
-    # Seed in the pre-migration shape is done via raw SQL before upgrade in this test
+    """Renaming display_name -> full_name keeps existing values.
+
+    Seeds data BEFORE the migration under test, applies it, then asserts
+    the data survived. Without the seed step this test is vacuous
+    (an empty table makes `all([])` trivially True).
+    """
+    cfg = Config("alembic.ini")
+    cfg.set_main_option("sqlalchemy.url", str(migrated_db.url))
+
+    # 1. Seed data at the PRE-migration revision (e.g. before the rename)
+    command.downgrade(cfg, "-2")  # or the revision before the rename
+    with migrated_db.begin() as conn:
+        conn.exec_driver_sql(
+            "INSERT INTO users (id, email, display_name) VALUES (1, 'a@b.c', 'Alice')"
+        )
+
+    # 2. Apply the migration under test (the rename)
+    command.upgrade(cfg, "-1")
+
+    # 3. Assert values survived into the new column shape
     with migrated_db.connect() as conn:
-        rows = conn.exec_driver_sql("SELECT full_name FROM users")
-        assert all(r[0] for r in rows)  # no NULLs from a botched rename
+        values = [r[0] for r in conn.exec_driver_sql("SELECT full_name FROM users")]
+    assert values == ["Alice"]  # not empty, not NULL
 ```
 
 ### Step 4 — Zero-Downtime Strategy (large tables / prod)

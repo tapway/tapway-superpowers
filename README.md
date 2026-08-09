@@ -35,7 +35,7 @@ Prefer **Hermes Agent** over Claude Code? A port of these skills ships in this r
 ```bash
 # From inside the cloned repo:
 cd hermes
-bash install.sh        # macOS / Linux — installs all 20 skills + the /tapway bundle
+bash install.sh        # macOS / Linux — installs all 22 skills + the /tapway bundle
 # or, on Windows (PowerShell):
 .\install.ps1
 ```
@@ -333,7 +333,7 @@ Set `staging` as your repo's default branch (GitHub → Settings → Branches �
 
 ## What You Get
 
-### 20 Skills
+### 22 Skills
 
 AI behaviors that activate automatically when you use relevant keywords. Also invokable explicitly with `/skill-name`.
 
@@ -345,6 +345,8 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `tdd` | Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR). Structurally enforces TDD. | "Start implementing...", "implement", any new feature or bug fix |
 | `e2e-playwright` | Enforce end-to-end testing for both frontend (Playwright browser tests) and backend (pytest integration/E2E). Scaffolds Playwright + pytest, writes persistent specs (golden path + edge cases + error states), runs them, and debug-fixes failures from traces — never by weakening assertions. Conditionally mandated: frontend E2E runs when frontend files change, backend E2E when backend files change, both skip for docs-only. Gates PRs in the TDD pipeline. | "e2e test", "playwright", "browser test", "test the UI", "end-to-end", "frontend test", "integration test", "backend test", "verify the flow" |
 | `quality-gates` | Lay down the config-layer quality gates: coverage thresholds (pytest-cov `--fail-under`), TypeScript strict mode, env validation (pydantic-settings/zod), CODEOWNERS + branch protection, and a CI lint/format/typecheck/coverage gate. Declarative enforcements that run on every PR automatically. | "coverage gate", "strict mode", "tsconfig strict", "env validation", "CODEOWNERS", "branch protection", "quality gate", "add coverage", "enforce type safety" |
+| `api-contract-testing` | Prevent API contract drift. Validates every response against the OpenAPI schema, fuzzes the API with Schemathesis (property-based testing), and uses Pact contracts where services deploy independently. Catches the highest-severity backend gap: an API that changes shape without breaking its contract. | "contract test", "schemathesis", "openapi", "api contract", "pact", "schema validation", "fuzz the api", "api drift" |
+| `db-migration-testing` | Make database migrations safe to ship: test every migration up AND down (round-trip), verify zero-downtime expand-contract for large tables, confirm rollback and data preservation before touching prod. Prevents the second most common prod-outage class. | "migration", "alembic", "schema change", "migrate", "add column", "backfill", "zero-downtime migration", "rollback migration", "db migration test" |
 | `verification` | Confirm a task is done — tests, lint, type-checks, spec coverage | "Is this done?", "Verify...", "Final check..." |
 | `refactor` | **Protocol A** (active codebase): surgical incremental refactoring. **Protocol B** (legacy): characterization-test-first sequence | "Refactor...", "Clean up...", "Legacy refactor..." |
 | `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |

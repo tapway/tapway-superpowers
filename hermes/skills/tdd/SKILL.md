@@ -141,7 +141,8 @@ When every task in your work package is complete, run these in order before open
 
 1. **`simplify-code`** — reviews changed code for reuse, simplification, and efficiency improvements and applies them. Always run this.
 2. **`requesting-code-review`** — self code-review (three-tier: Critical / Warnings / Suggestions); fix any Critical findings before continuing.
-3. **`pr`** (this skill set's PR workflow) — rebase, full test run, push, open PR, update checklist.
+3. **Frontend E2E gate** — *if the work touched the frontend* (Next.js/React UI, pages, components, routes, auth flows, or any user-facing behavior), run the `e2e-playwright` skill now. Write `e2e/<feature>.spec.ts` (golden path + edge cases + error states, auth via `auth.setup.ts` storageState), run `npx playwright test`, and debug failures from traces — never by weakening assertions. **A frontend PR is not ready without a green E2E run.**
+4. **`pr`** (this skill set's PR workflow) — rebase, full test run, push, open PR, update checklist.
 
 The PR that teammates see should already be simplified and self-reviewed before it's opened.
 

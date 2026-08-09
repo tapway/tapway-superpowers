@@ -21,6 +21,7 @@ for this project's code.
 Stack:
 - Backend: Python + pytest. Test files go in backend/tests/{unit,integration,e2e}/
 - Frontend: TypeScript + Jest + React Testing Library. Tests co-located in __tests__/
+- Frontend E2E: Playwright (@playwright/test) for browser-level journeys. Specs go in e2e/*.spec.ts
 
 Always:
 1. Invoke the tdd skill at the start
@@ -29,6 +30,7 @@ Always:
 4. Mock external services (DB, HTTP calls) in unit tests
 5. Leave integration tests to call real services (test DB)
 6. Run the tests and confirm they pass before finishing
+7. For any frontend/UI change, also invoke the e2e-playwright skill: write e2e/<feature>.spec.ts covering golden path, edge cases, and error states (use role/semantic locators, auth via auth.setup.ts storageState). Run `npx playwright test` and confirm it passes.
 
 Never write tests that only verify implementation details (testing internals).
 Test behavior, not code.

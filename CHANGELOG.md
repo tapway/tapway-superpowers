@@ -6,6 +6,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **`e2e-playwright` skill** — structural frontend end-to-end testing with Playwright for Next.js/React UI changes. Scaffolds `@playwright/test`, writes persistent `e2e/*.spec.ts` specs (golden path + edge cases + error states, auth via `auth.setup.ts` storageState), runs `npx playwright test`, and debug-fixes failures from traces — never by weakening assertions.
+- **`.github/workflows/playwright.yml`** — CI workflow that installs browsers, runs the E2E suite, and uploads the report + traces as artifacts. Add `E2E_USER` / `E2E_PASSWORD` repo secrets for auth-dependent suites.
+- **Structural enforcement** — `e2e-playwright` is wired into the pipeline so it's not optional: `tdd` runs it after unit GREEN for frontend work, `autoship` makes it a **mandatory standard-mode gate** (not just deploy mode), and `verification` adds `npx playwright test` to the checklist. The `test-writer` agent now emits E2E specs for UI changes.
+
+### Changed
+
+- **Skill count** — 18 → 19 (`install.sh` / `install.ps1` / README counts updated).
+
+---
+
 ## [1.1.0] — 2026-08-05
 
 ### Added

@@ -34,6 +34,7 @@ metadata:
 ### 1. Static Verification (always run first)
 
 - [ ] All tests pass: `cd backend && pytest -q` / `cd frontend && npm test -- --watchAll=false`
+- [ ] **Frontend E2E tests pass (if the change touches the UI):** `npx playwright test` — part of the `e2e-playwright` skill. Golden path + edge cases + error states must pass in a real browser. A UI change is not verified by unit tests alone.
 - [ ] No regressions — full test suite passes, not just new tests
 - [ ] TypeScript compiles: `npx tsc --noEmit`
 - [ ] Python type checks: `mypy src/`

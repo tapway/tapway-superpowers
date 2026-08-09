@@ -54,6 +54,14 @@ description: >
 - [ ] Missing docstring on public function?
 - [ ] Would a type alias make this more readable?
 
+### Database Layers (if the diff touches SQLAlchemy/DB code)
+For diffs that touch models, queries, migrations, or DB-backed endpoints, run the
+`db-reviewer` subagent in addition to this checklist — it covers N+1 detection,
+index coverage, migration safety, and EXPLAIN ANALYZE in depth:
+```text
+Run the db-reviewer agent over this diff (N+1, indexes, migrations, query plans).
+```
+
 ---
 
 ## Output Format

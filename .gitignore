@@ -5,6 +5,9 @@ e2e/.auth/
 
 # pytest artifacts
 .pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
 
 # Dependencies
 node_modules/

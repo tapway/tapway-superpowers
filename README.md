@@ -35,7 +35,7 @@ Prefer **Hermes Agent** over Claude Code? A port of these skills ships in this r
 ```bash
 # From inside the cloned repo:
 cd hermes
-bash install.sh        # macOS / Linux — installs all 19 skills + the /tapway bundle
+bash install.sh        # macOS / Linux — installs all 20 skills + the /tapway bundle
 # or, on Windows (PowerShell):
 .\install.ps1
 ```
@@ -333,7 +333,7 @@ Set `staging` as your repo's default branch (GitHub → Settings → Branches �
 
 ## What You Get
 
-### 19 Skills
+### 20 Skills
 
 AI behaviors that activate automatically when you use relevant keywords. Also invokable explicitly with `/skill-name`.
 
@@ -344,6 +344,7 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `autoship` | Fully automated plan-to-PR: validates plan, runs TDD subagents per task, then simplify → review → docs → PR. **Deploy mode** (on staging server): also deploys, health-checks, and runs integration/E2E tests before PR | "implement it with autopilot", "autoship" / "implement and deploy", "ship and deploy" |
 | `tdd` | Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR). Structurally enforces TDD. | "Start implementing...", "implement", any new feature or bug fix |
 | `e2e-playwright` | Enforce end-to-end testing for both frontend (Playwright browser tests) and backend (pytest integration/E2E). Scaffolds Playwright + pytest, writes persistent specs (golden path + edge cases + error states), runs them, and debug-fixes failures from traces — never by weakening assertions. Conditionally mandated: frontend E2E runs when frontend files change, backend E2E when backend files change, both skip for docs-only. Gates PRs in the TDD pipeline. | "e2e test", "playwright", "browser test", "test the UI", "end-to-end", "frontend test", "integration test", "backend test", "verify the flow" |
+| `quality-gates` | Lay down the config-layer quality gates: coverage thresholds (pytest-cov `--fail-under`), TypeScript strict mode, env validation (pydantic-settings/zod), CODEOWNERS + branch protection, and a CI lint/format/typecheck/coverage gate. Declarative enforcements that run on every PR automatically. | "coverage gate", "strict mode", "tsconfig strict", "env validation", "CODEOWNERS", "branch protection", "quality gate", "add coverage", "enforce type safety" |
 | `verification` | Confirm a task is done — tests, lint, type-checks, spec coverage | "Is this done?", "Verify...", "Final check..." |
 | `refactor` | **Protocol A** (active codebase): surgical incremental refactoring. **Protocol B** (legacy): characterization-test-first sequence | "Refactor...", "Clean up...", "Legacy refactor..." |
 | `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |

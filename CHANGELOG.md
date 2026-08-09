@@ -6,6 +6,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **`quality-gates` skill** — config-layer hardening (Phase 1 of the gap analysis): lays down coverage thresholds (`pytest-cov --fail-under`), TypeScript strict mode (`tsconfig.strict.json` template), env validation (pydantic-settings/zod, `.env.example` template), CODEOWNERS + branch protection, and a CI lint/format/typecheck/coverage gate. Five declarative gates that block bad code at merge time, not after.
+- **`.github/workflows/quality.yml`** — CI quality-gate workflow: backend lint (ruff) + format + typecheck (mypy) + tests/coverage gate; frontend lint + prettier check + tsc strict + tests/coverage.
+- **`quality-gates` templates** — `coverage-pyproject.toml`, `tsconfig.strict.json`, `.env.example`, `CODEOWNERS`.
+- **Wiring** — `setup-project` now also creates `.github/workflows/quality.yml`; `.gitignore` excludes `.coverage`, `htmlcov/`, `coverage.xml`.
+
+### Changed
+
+- **Skill count** — 19 → 20 (`install.sh` / `install.ps1` / READMEs updated).
+
+---
+
 ## [1.2.0] — 2026-08-09
 
 ### Added

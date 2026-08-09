@@ -1,4 +1,4 @@
-# install.ps1 — Install all 19 Tapway Superpowers skills into Hermes Agent
+# install.ps1 — Install all 20 Tapway Superpowers skills into Hermes Agent
 #              (gbrain-style: one command scaffolds the whole skillpack).
 #
 # Uses Hermes's native skill hub (hermes skills install) with GitHub
@@ -33,6 +33,7 @@ $Skills = @(
   "writing-plans",
   "tdd",
   "e2e-playwright",
+  "quality-gates",
   "autoship",
   "refactor",
   "systematic-debugging",

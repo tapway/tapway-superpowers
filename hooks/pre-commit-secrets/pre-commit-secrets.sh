@@ -17,7 +17,7 @@ for FILE in $STAGED; do
     if git show ":$FILE" 2>/dev/null | grep -qiE "$PATTERN"; then
       echo "❌ BLOCKED: Possible secret detected in $FILE (pattern: $PATTERN)" >&2
       echo "   Use environment variables instead. See .env.example" >&2
-      exit 1
+      exit 2
     fi
   done
 done

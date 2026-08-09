@@ -1,0 +1,102 @@
+#!/bin/bash
+# Dependency audit — scans lockfiles for known vulnerabilities before commit.
+# Uses exit 2 to BLOCK the commit if critical/high vulnerabilities are found
+# (Claude Code: exit 2 blocks the PreToolUse tool call).
+#
+# Tools (installed separately or by setup-project):
+#   - osv-scanner  (Google, multi-ecosystem)  https://google.github.io/osv-scanner/
+#   - npm audit    (Node)                     built into npm
+#   - pip-audit    (Python)                   pip install pip-audit
+#
+# FAIL_MODE: fail only on CRITICAL/HIGH by default. Set DEP_AUDIT_STRICT=1 to
+# fail on any finding.
+
+FAIL_MODE="${DEP_AUDIT_STRICT:-0}"
+FAILED=0
+SCANNED=0
+
+echo "→ Running dependency audit..."
+
+# --- Lockfile detection (no assumptions about repo layout) ---
+LOCKFILES=$(git diff --cached --name-only 2>/dev/null; ls 2>/dev/null)
+
+# --- Node (npm audit) ---
+if echo "$LOCKFILES" | grep -qE "package-lock\.json$|yarn\.lock$|pnpm-lock\.yaml$"; then
+  if [ -f package-lock.json ] && command -v npm >/dev/null 2>&1; then
+    echo "→ npm audit"
+    SCANNED=1
+    OUT=$(npm audit --audit-level=high 2>&1)
+    RC=$?
+    if [ "$RC" != "0" ]; then
+      echo "$OUT" | tail -20
+      if [ "$FAIL_MODE" = "1" ] || echo "$OUT" | grep -q "severity: critical"; then
+        echo "❌ npm audit found vulnerabilities"
+        FAILED=1
+      else
+        echo "⚠ npm audit found issues (high/critical-level blocking enabled)"
+      fi
+    fi
+  fi
+fi
+
+# --- Python (pip-audit) ---
+if echo "$LOCKFILES" | grep -qE "requirements.*\.txt$|pyproject\.toml$|poetry\.lock$|Pipfile\.lock$|uv\.lock$"; then
+  if command -v pip-audit >/dev/null 2>&1; then
+    echo "→ pip-audit"
+    SCANNED=1
+    OUT=$(pip-audit 2>&1)
+    RC=$?
+    if [ "$RC" != "0" ]; then
+      echo "$OUT" | tail -20
+      if [ "$FAIL_MODE" = "1" ] || echo "$OUT" | grep -qiE "critical|high"; then
+        echo "❌ pip-audit found vulnerabilities"
+        FAILED=1
+      else
+        echo "⚠ pip-audit found issues (critical/high-level blocking enabled)"
+      fi
+    fi
+  fi
+fi
+
+# --- Multi-ecosystem (osv-scanner) ---
+if command -v osv-scanner >/dev/null 2>&1; then
+  if echo "$LOCKFILES" | grep -qE "\.lock$|package-lock\.json$|yarn\.lock$|pnpm-lock\.yaml$|poetry\.lock$|Pipfile\.lock$|uv\.lock$|go\.sum$|Cargo\.lock$"; then
+    echo "→ osv-scanner"
+    SCANNED=1
+    OUT=$(osv-scanner --format json . 2>&1 || true)
+    if echo "$OUT" | grep -q '"isVulnerable": true'; then
+      echo "$OUT" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    for r in d.get('results', []):
+        for p in r.get('packages', []):
+            for v in p.get('vulnerabilities', []):
+                sev = (v.get('database_specific', {}) or {}).get('severity', 'UNKNOWN')
+                print(f\"  {p.get('package', {}).get('name', '?')} — {v.get('id', '?')} [{sev}]\")
+except Exception:
+    pass
+" 2>/dev/null
+      if [ "$FAIL_MODE" = "1" ]; then
+        echo "❌ osv-scanner found vulnerabilities"
+        FAILED=1
+      else
+        echo "⚠ osv-scanner found vulnerabilities (review before merge)"
+      fi
+    fi
+  fi
+fi
+
+if [ "$SCANNED" = "0" ]; then
+  echo "→ No lockfiles or scanners detected — dependency audit skipped (nothing to scan)."
+fi
+
+# --- Result ---
+if [ "$FAILED" = "1" ]; then
+  echo "❌ Dependency audit FAILED — commit blocked." >&2
+  echo "   Run: osv-scanner . / npm audit fix / pip-audit fix ; then re-commit." >&2
+  exit 2   # BLOCK
+fi
+
+echo "✅ Dependency audit passed."
+exit 0

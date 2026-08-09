@@ -42,6 +42,8 @@ metadata:
 - [ ] TypeScript compiles: `npx tsc --noEmit`
 - [ ] Python type checks: `mypy src/`
 - [ ] Linting passes: `ruff check src/` / `npm run lint`
+- [ ] **Pre-commit quality gate passed:** if the change touches code files, the commit-time gate (lint + format + typecheck + coverage) must pass. The git pre-commit backstop (`hooks/pre-commit/git-pre-commit.sh`, installed by `setup-project`) enforces this on every commit; verify accordingly before declaring done.
+- [ ] **Dependency audit clean:** run `osv-scanner .`, `npm audit`, and `pip-audit` (part of the `dependency-audit` skill). No critical/high vulnerabilities in changed or existing dependencies.
 - [ ] No dead code (commented-out blocks, unused imports)
 
 ### 2. Functional Verification (run the feature)

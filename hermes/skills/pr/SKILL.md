@@ -71,6 +71,31 @@ Run the test suite for every discipline that was touched:
 
 All tests must be green before pushing. If a test that passed before your changes now fails, fix it before continuing.
 
+### Step 4b: Verification-Before-Commit Gate
+
+Before creating the PR, run the verification gates so every commit and the final PR are clean:
+
+```bash
+# 1. Quality gate: lint + format + typecheck + coverage (same as the git pre-commit backstop)
+ruff check . && ruff format --check . 2>/dev/null   # backend, if ruff installed
+npx prettier --check . && npx tsc --noEmit          # frontend, if node present
+
+# 2. Dependency audit: supply-chain scan
+osv-scanner . ; npm audit --audit-level=high ; pip-audit
+
+# 3. Full test suite (Step 4)
+pytest --tb=short -q      # backend
+npm test -- --watchAll=false  # frontend
+```
+
+- [ ] All quality-gate checks pass (complete the `verification` skill's checklist)
+- [ ] Dependency audit reports no critical/high vulnerabilities (see `dependency-audit` skill)
+- [ ] Every `git commit` in this branch passed the pre-commit gate (lint/format/typecheck)
+
+The git `pre-commit` backstop (`hooks/pre-commit/git-pre-commit.sh`, installed by
+`setup-project`) enforces the quality gate on every commit. If it's not installed, install
+it via `setup-project` before opening the PR.
+
 ### Step 5: Update Docs (mandatory)
 Run the `repo-docs` skill — this is mandatory on every PR, no exceptions:
 ```

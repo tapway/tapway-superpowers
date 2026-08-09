@@ -35,7 +35,7 @@ Prefer **Hermes Agent** over Claude Code? A port of these skills ships in this r
 ```bash
 # From inside the cloned repo:
 cd hermes
-bash install.sh        # macOS / Linux — installs all 22 skills + the /tapway bundle
+bash install.sh        # macOS / Linux — installs all 23 skills + the /tapway bundle
 # or, on Windows (PowerShell):
 .\install.ps1
 ```
@@ -347,6 +347,7 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `quality-gates` | Lay down the config-layer quality gates: coverage thresholds (pytest-cov `--fail-under`), TypeScript strict mode, env validation (pydantic-settings/zod), CODEOWNERS + branch protection, and a CI lint/format/typecheck/coverage gate. Declarative enforcements that run on every PR automatically. | "coverage gate", "strict mode", "tsconfig strict", "env validation", "CODEOWNERS", "branch protection", "quality gate", "add coverage", "enforce type safety" |
 | `api-contract-testing` | Prevent API contract drift. Validates every response against the OpenAPI schema, fuzzes the API with Schemathesis (property-based testing), and uses Pact contracts where services deploy independently. Catches the highest-severity backend gap: an API that changes shape without breaking its contract. | "contract test", "schemathesis", "openapi", "api contract", "pact", "schema validation", "fuzz the api", "api drift" |
 | `db-migration-testing` | Make database migrations safe to ship: test every migration up AND down (round-trip), verify zero-downtime expand-contract for large tables, confirm rollback and data preservation before touching prod. Prevents the second most common prod-outage class. | "migration", "alembic", "schema change", "migrate", "add column", "backfill", "zero-downtime migration", "rollback migration", "db migration test" |
+| `dependency-audit` | Audit and remediate supply-chain vulnerabilities in dependencies. Scans with osv-scanner (multi-ecosystem), npm audit (Node), pip-audit (Python); upgrades vulnerable packages in the lockfile and verifies the fix. Enforced at commit time + CI, and on demand for remediation. | "dependency audit", "osv-scanner", "npm audit", "pip-audit", "vulnerable package", "supply chain", "update dependencies", "fix vulnerabilities" |
 | `verification` | Confirm a task is done — tests, lint, type-checks, spec coverage | "Is this done?", "Verify...", "Final check..." |
 | `refactor` | **Protocol A** (active codebase): surgical incremental refactoring. **Protocol B** (legacy): characterization-test-first sequence | "Refactor...", "Clean up...", "Legacy refactor..." |
 | `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |

@@ -74,11 +74,17 @@ for copy, label in [("skills", "Claude"), ("hermes/skills", "Hermes")]:
     check(s is not None and "idor" in s.lower(), f"{label} covers IDOR")
     check(s is not None and "pkce" in s.lower(), f"{label} covers OAuth PKCE")
 
-# --- 4. Wiring: e2e-playwright a11y wired into verification/E2E gates ----
+# --- 4. Wiring: a11y wired into the E2E playbook (as a STEP, not a mention) ---
 print("\n[4] a11y wired into the E2E playbook")
 claude_e2e = read("skills", "e2e-playwright", "SKILL.md")
-check(claude_e2e is not None and "a11y" in claude_e2e.lower() or (claude_e2e and "axe" in claude_e2e.lower()),
-      "a11y is a step in the e2e playbook (not just a mention)")
+hermes_e2e = read("hermes/skills", "e2e-playwright", "SKILL.md")
+# The a11y step must be a real numbered step (### Step D2), which proves it's
+# part of the playbook — not just a keyword mention somewhere.
+for label, s in [("Claude", claude_e2e), ("Hermes", hermes_e2e)]:
+    check(s is not None and "### Step D2" in s,
+          f"{label} a11y is a numbered playbook step (### Step D2), not just a mention")
+    check(s is not None and "axe" in s.lower(),
+          f"{label} a11y step mentions axe")
 
 print("\n" + "=" * 68)
 print(f"RESULT: {len(PASS)} passed, {len(FAIL)} failed")

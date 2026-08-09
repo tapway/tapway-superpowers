@@ -89,7 +89,7 @@ on every page, a list endpoint, a query that hits a large table), verify it here
 # 1. Response latency baseline (hit the endpoint repeatedly, take the p95)
 curl -s -o /dev/null -w "total=%{time_total}s\n" \
   -H "Authorization: Bearer $TOKEN" \
-  http://localhost:8000/api/resources?limit=50   # run 10x, take p95
+  "http://localhost:8000/api/resources?limit=50"   # run 10x, take p95 (discard warm-up)
 
 # 2. N+1 / query-count check (SQLAlchemy)
 #    In tests: assert the query count with a counter, or set
@@ -99,22 +99,25 @@ curl -s -o /dev/null -w "total=%{time_total}s\n" \
 
 ```python
 # backend/tests/e2e/test_query_count.py — fail if an endpoint exceeds N queries
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
+import pytest
+from sqlalchemy import create_engine, event, inspect
+from sqlalchemy.orm import Session
 
-count = 0
-def _before_cursor_execute(*args, **kwargs):
-    global count
-    count += 1
+@pytest.fixture()
+def query_counter(engine):   # use the fixture-scoped engine so the counter
+    """Count queries against the test engine only (no cross-test pollution)."""
+    counts = {"n": 0}
+    def _before_cursor_execute(*args, **kwargs):
+        counts["n"] += 1
+    event.listen(engine, "before_cursor_execute", _before_cursor_execute)
+    yield counts
+    event.remove(engine, "before_cursor_execute", _before_cursor_execute)
 
-event.listen(Engine, "before_cursor_execute", _before_cursor_execute)
-
-def test_list_endpoint_query_count(client):
-    global count
-    count = 0
+def test_list_endpoint_query_count(client, query_counter):
+    query_counter["n"] = 0
     r = client.get("/api/resources?limit=50")
     assert r.status_code == 200
-    assert count <= 10, f"endpoint fired {count} queries (possible N+1)"
+    assert query_counter["n"] <= 10, f"endpoint fired {query_counter['n']} queries (possible N+1)"
 ```
 
 **Frontend — load-time sanity (Lighthouse / browser timing):**

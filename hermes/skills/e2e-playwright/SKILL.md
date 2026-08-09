@@ -248,7 +248,10 @@ test('page has no WCAG A/AA violations', async ({ page }) => {
   use `.disableRules(['...'])` only for documented, pre-existing exceptions —
   **never** to hide a real violation.
 - Severity: **any** WCAG A/AA violation blocks the PR. `critical`/`serious`
-  violations must be fixed, not waived.
+  violations must be fixed, not waived. Note: the tag filter above covers WCAG
+  A/AA success criteria (color-contrast, label, image-alt, etc.) but excludes
+  axe `best-practice`/`minor` rules — add `best-practice` to `.withTags()`
+  if you want those too.
 
 In CI, the `@axe-core/playwright` audit runs as part of `npx playwright test`
 (Step D) — a violation is a test failure, so the existing E2E CI gate enforces

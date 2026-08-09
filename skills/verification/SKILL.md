@@ -93,8 +93,8 @@ curl -s -o /dev/null -w "total=%{time_total}s\n" \
 
 # 2. N+1 / query-count check (SQLAlchemy)
 #    In tests: assert the query count with a counter, or set
-#    lazy="raiseload" on relationships so accidental attribute access crashes:
-#      <relationship> = relationship("X", lazy="raiseload")
+#    lazy="raise" on relationships so accidental attribute access crashes:
+#      <relationship> = relationship("X", lazy="raise")
 ```
 
 ```python

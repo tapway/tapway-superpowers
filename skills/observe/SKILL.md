@@ -173,7 +173,7 @@ Alert on **symptoms users experience**, not infrastructure causes:
 Every alert requires:
 1. **Threshold** — derived from SLOs or historical baseline, not guessed
 2. **Runbook** — linked in the alert body: `See: docs/runbooks/payment-failures.md`. If the runbook doesn't exist yet, create it with the `incident-runbook` skill before shipping the alert — an alert without a runbook is a page with no procedure.
-3. **Severity** — `page` (wake someone up now) vs `ticket` (fix next business day)
+3. **Severity** — SEV1–4 per the `incident-runbook` skill: `SEV1`/`SEV2` = page (wake someone now), `SEV3`/`SEV4` = ticket (fix next business day)
 
 ### Step 7 — Verify in Staging
 

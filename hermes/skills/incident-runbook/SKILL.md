@@ -131,7 +131,7 @@ Severity: SEV2 | Duration: 42min | Detect→Mitigate (MTTD/MTTR)
 2. Why? → Webhook retry storm after Stripe latency spike
 3. Why? → No backpressure on webhook queue
 4. Why? → No load test for webhook burst
-5. Why? → Load-test skill not applied to async workers
+5. Why? → no load-testing step in the async worker pipeline
 
 ## Action Items
 - [ ] Add backpressure to webhook queue (owner: payments, due: +1wk)

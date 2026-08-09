@@ -29,7 +29,7 @@ Stack: FastAPI + SQLAlchemy 2.0 (backend), PostgreSQL (production DB).
    comprehensions, `for` loops, serializers) on ORM objects — each is a
    potential lazy-load query
 4. Check for `lazy="select"` (default) on relationships used in loops; flag
-   where `lazy="raiseload"` or `selectinload`/`joinedload` should be used
+   where `lazy="raise"` or `selectinload`/`joinedload` should be used
 5. Check every new query's WHERE/JOIN columns against the model indexes
 6. For new migrations: verify `up` AND `down` are safe, no blocking ALTER on
    large tables, and that the schema change matches the models
@@ -40,7 +40,7 @@ Stack: FastAPI + SQLAlchemy 2.0 (backend), PostgreSQL (production DB).
 - [ ] No ORM relationship access inside loops → if found, flag the loop, the
       relationship, and the fix (`selectinload`, `joinedload`, or a join query)
 - [ ] List endpoints don't trigger per-row queries
-- [ ] `lazy="raiseload"` set on relationships that must not lazy-load
+- [ ] `lazy="raise"` set on relationships that must not lazy-load
 
 ### Index Review
 - [ ] Every column used in `WHERE` has an index
@@ -56,10 +56,13 @@ Stack: FastAPI + SQLAlchemy 2.0 (backend), PostgreSQL (production DB).
 - [ ] Schema in migration matches the SQLAlchemy models
 
 ### EXPLAIN ANALYZE (for hot queries)
-Run and report:
+Run and report — but beware ANALYZE **executes** the query, so it has real
+side effects (runs the query, can warm cache / take locks). Run against a
+**read replica** where possible, or wrap in a rolled-back transaction:
 ```bash
-# For any query touching a large table, show the plan:
+BEGIN;
 EXPLAIN (ANALYZE, BUFFERS) <query>;
+ROLLBACK;
 ```
 Flag: seq scans on large tables (needs index), missing indexes, row estimates
 far off actuals (stale stats).

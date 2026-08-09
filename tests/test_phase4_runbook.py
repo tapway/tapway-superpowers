@@ -46,11 +46,15 @@ print("\n[1] incident-runbook skill present (both copies)")
 for copy, label in [("skills", "Claude"), ("hermes/skills", "Hermes")]:
     s = read(copy, "incident-runbook", "SKILL.md")
     check(s is not None, f"{label} incident-runbook exists")
-    check(s is not None and "sev" in s.lower() or (s and "severity" in s.lower()),
+    check(s is not None and ("sev" in s.lower() or "severity" in s.lower()),
           f"{label} covers severity levels")
     check(s is not None and "runbook" in s.lower(), f"{label} is a runbook skill")
     check(s is not None and "postmortem" in s.lower(), f"{label} covers postmortem")
     check(s is not None and "blameless" in s.lower(), f"{label} is blameless")
+    # C1 hardening: the Hermes copy, like the Claude copy, must SHIP its templates
+    # (the skill references them; a missing templates dir is a real gap)
+    tpl_dir = read(copy, "incident-runbook", "templates", "runbook.md")
+    check(tpl_dir is not None, f"{label} runbook template SHIPPED in templates dir")
 
 # --- 2. runbook templates -------------------------------------------------
 print("\n[2] Runbook + postmortem templates")

@@ -20,11 +20,11 @@ fi
 LABEL_STATUS="status:${STATUS}"
 
 # Remove any existing status label, add the new one
-gh issue edit "$ISSUE_NUMBER" \
-    --repo "$REPO" \
-    --add-label "$LABEL_STATUS" \
-    --remove-label "status:todo,status:in_progress,status:review,status:done" \
-    2>/dev/null || true
+# (gh --remove-label accepts a single label or comma list; remove each status label)
+for OLD in status:todo status:in_progress status:review status:done; do
+    gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --remove-label "$OLD" 2>/dev/null || true
+done
+gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --add-label "$LABEL_STATUS" 2>/dev/null || true
 
 # Add a comment with the step update
 COMMENT_BODY="**Progress update:** ${STATUS}

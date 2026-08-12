@@ -93,6 +93,23 @@ git commit -m "docs: add plan and work package checklist for [feature-name]"
 git push
 ```
 
+### 7b. Create the GitHub Issue (after plan, before execution)
+Now that the task is understood and the plan exists, create the GitHub issue — **this is what feeds the CodeMAX kanban**. Do this *after* brainstorming/planning and *before* executing, not at session start (an empty issue from a bare branch name is worthless).
+
+If the tapway-superpowers hook is available (repo has `hooks/pre-execute-github-issue/`):
+```bash
+bash hooks/pre-execute-github-issue/create-issue.sh docs/plans/[feature-name].md
+```
+This creates (or reuses) a `codemax`-labeled issue with the full plan as the body, and sets `GITHUB_ISSUE_NUMBER` / `GITHUB_REPO`.
+
+If the hook is not present, create it directly (conversational — just do it):
+```
+Create a GitHub issue titled "⚙ [Feature Name]" labeled codemax in the current repo,
+with the plan from docs/plans/[feature-name].md as the body, and note the branch.
+```
+
+The resulting issue auto-syncs to the kanban via the CodeMAX webhook. Push incremental progress to it as you work (in_progress → review → done).
+
 ### 8. Execution
 After committing, say:
 > "Plan and checklist committed and pushed. Teammates can pick up a work package from `docs/checklists/[feature-name]-checklist.md`. When ready to implement your package: create a branch, run `tdd`, then open a PR when done."

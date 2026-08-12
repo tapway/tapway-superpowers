@@ -31,8 +31,12 @@ EXISTING_ISSUE=$(gh issue list --repo "$REPO" --search "label:codemax in:body ${
 
 if [ -n "$EXISTING_ISSUE" ]; then
     echo "→ Existing GitHub issue #${EXISTING_ISSUE} found for branch ${BRANCH}"
-    echo "GITHUB_ISSUE_NUMBER=$EXISTING_ISSUE" >> "$GITHUB_ENV"
-    echo "GITHUB_REPO=$REPO" >> "$GITHUB_ENV"
+    if [ -n "${GITHUB_ENV:-}" ]; then
+        echo "GITHUB_ISSUE_NUMBER=$EXISTING_ISSUE" >> "$GITHUB_ENV"
+        echo "GITHUB_REPO=$REPO" >> "$GITHUB_ENV"
+    else
+        echo "  GITHUB_ISSUE_NUMBER=$EXISTING_ISSUE (GITHUB_ENV unset)"
+    fi
 else
     echo "→ No GitHub issue yet for branch ${BRANCH}."
     echo "  It will be auto-created after the brainstorming/plan step (Writing Plans skill)."

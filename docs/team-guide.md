@@ -31,7 +31,7 @@ When you open Claude Code (or start a Hermes session) in a repo, the **SessionSt
 1. Prints the current branch, last commits, and git status
 2. Checks for open TODOs in `CLAUDE.md`
 3. **If `CODEMAX_ENABLED=1`:** detects the work order (WO-*) from the branch or `CLAUDE.md` and tells you gbrain context is available
-4. **If you're on a feature branch (with `gh` installed):** auto-creates a GitHub issue for that branch, or reuses the existing one — this is what feeds the CodeMAX kanban
+4. **If you're on a feature branch (with `gh` installed):** checks for a GitHub issue for that branch, and reports the number if one exists. The actual issue is created later — after the brainstorming/plan step, hydrated with the plan content (see the Writing Plans skill).
 
 So the flow is: **open the repo → the hook does the bookkeeping → just start talking about your task.** No special incantation needed.
 

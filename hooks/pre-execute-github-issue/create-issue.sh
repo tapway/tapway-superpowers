@@ -26,8 +26,10 @@ TASK_TITLE="$(echo "$TASK_TITLE" | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i
 EXISTING=$(gh issue list --repo "$REPO" --search "label:codemax in:body ${BRANCH}" --json number --jq '.[0].number // ""' 2>/dev/null)
 if [ -n "$EXISTING" ]; then
     echo "→ Reusing existing issue #${EXISTING}: https://github.com/${REPO}/issues/${EXISTING}"
-    echo "GITHUB_ISSUE_NUMBER=$EXISTING" >> "$GITHUB_ENV"
-    echo "GITHUB_REPO=$REPO" >> "$GITHUB_ENV"
+    if [ -n "${GITHUB_ENV:-}" ]; then
+        echo "GITHUB_ISSUE_NUMBER=$EXISTING" >> "$GITHUB_ENV"
+        echo "GITHUB_REPO=$REPO" >> "$GITHUB_ENV"
+    fi
     exit 0
 fi
 
@@ -79,5 +81,7 @@ if [ -z "$ISSUE_NUMBER" ]; then
 fi
 
 echo "→ Created issue #${ISSUE_NUMBER}: https://github.com/${REPO}/issues/${ISSUE_NUMBER}"
-echo "GITHUB_ISSUE_NUMBER=$ISSUE_NUMBER" >> "$GITHUB_ENV"
-echo "GITHUB_REPO=$REPO" >> "$GITHUB_ENV"
+if [ -n "${GITHUB_ENV:-}" ]; then
+    echo "GITHUB_ISSUE_NUMBER=$ISSUE_NUMBER" >> "$GITHUB_ENV"
+    echo "GITHUB_REPO=$REPO" >> "$GITHUB_ENV"
+fi

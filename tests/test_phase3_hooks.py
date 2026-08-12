@@ -118,13 +118,20 @@ for kw in ["osv-scanner", "npm audit", "pip-audit"]:
 check(git_script is not None and "exit 1" in git_script, "git-pre-commit backstop blocks (exit 1 is correct for git hooks)")
 
 # --- 3b. GitHub issue enforcement gate hooks ------------------------------
-print("\\n[3b] GitHub issue enforcement gate hooks exist")
+print("\n[3b] GitHub issue enforcement gate hooks exist")
 gh_check = read("hooks", "pre-execute-github-issue", "check.sh")
+gh_create = read("hooks", "pre-execute-github-issue", "create-issue.sh")
 gh_update = read("hooks", "pre-execute-github-issue", "update.sh")
 check(gh_check is not None, "hooks/pre-execute-github-issue/check.sh exists")
+check(gh_create is not None, "hooks/pre-execute-github-issue/create-issue.sh exists")
 check(gh_update is not None, "hooks/pre-execute-github-issue/update.sh exists")
 check(gh_check is not None and "gh issue" in gh_check, "check.sh uses gh CLI to find issues")
 check(gh_check is not None and "GITHUB_ISSUE_NUMBER" in gh_check, "check.sh exports GITHUB_ISSUE_NUMBER")
+# check.sh must NOT create issues at session start — only detect them
+check(gh_check is not None and "gh issue create" not in gh_check,
+      "check.sh does NOT create issues (detect-only, post-plan creation)")
+check(gh_create is not None and "gh issue create" in gh_create, "create-issue.sh creates issues via gh CLI")
+check(gh_create is not None and "docs/plans" in gh_create, "create-issue.sh hydrates issue from plan doc")
 check(gh_update is not None and "gh issue comment" in gh_update, "update.sh pushes comments via gh CLI")
 check(gh_update is not None and "gh issue edit" in gh_update, "update.sh updates issue status via gh CLI")
 

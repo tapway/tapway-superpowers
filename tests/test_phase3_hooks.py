@@ -70,7 +70,8 @@ check(hjson is not None and isinstance(hjson.get("hooks"), dict), "hooks/hooks.j
 
 hook_scripts = read("hooks", "hooks.json") or ""
 for name in ["pre-bash-safety", "pre-commit-secrets", "pre-commit-gate",
-             "post-write-lint", "post-commit-release-note", "session-start"]:
+             "post-write-lint", "post-commit-release-note", "session-start",
+             "pre-execute-github-issue"]:
     check(name in hook_scripts, f"hooks.json references {name} script")
 
 # The commit-related hooks must use the official colon matcher form
@@ -115,6 +116,17 @@ for kw in ["osv-scanner", "npm audit", "pip-audit"]:
     check(dep_script is not None and kw in dep_script, f"dependency-audit uses {kw}")
 # Git pre-commit backstop is executable-installable and blocks
 check(git_script is not None and "exit 1" in git_script, "git-pre-commit backstop blocks (exit 1 is correct for git hooks)")
+
+# --- 3b. GitHub issue enforcement gate hooks ------------------------------
+print("\\n[3b] GitHub issue enforcement gate hooks exist")
+gh_check = read("hooks", "pre-execute-github-issue", "check.sh")
+gh_update = read("hooks", "pre-execute-github-issue", "update.sh")
+check(gh_check is not None, "hooks/pre-execute-github-issue/check.sh exists")
+check(gh_update is not None, "hooks/pre-execute-github-issue/update.sh exists")
+check(gh_check is not None and "gh issue" in gh_check, "check.sh uses gh CLI to find issues")
+check(gh_check is not None and "GITHUB_ISSUE_NUMBER" in gh_check, "check.sh exports GITHUB_ISSUE_NUMBER")
+check(gh_update is not None and "gh issue comment" in gh_update, "update.sh pushes comments via gh CLI")
+check(gh_update is not None and "gh issue edit" in gh_update, "update.sh updates issue status via gh CLI")
 
 # --- 4. Hermes shell-hook config ----------------------------------------
 print("\n[4] Hermes shell-hook config + dependency-audit skill")

@@ -61,6 +61,12 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start/session-start.sh\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-execute-github-issue/check.sh\"",
+            "timeout": 30,
+            "description": "Ensure a GitHub issue exists for this task (auto-creates if missing)"
           }
         ]
       }

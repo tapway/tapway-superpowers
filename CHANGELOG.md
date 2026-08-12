@@ -6,10 +6,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [1.8.1] — 2026-08-12
 
 ### Changed
 
+- **Plugin manifest ↔ git tag sync (release.yml)** — the release workflow now writes the plain `MAJOR.MINOR.PATCH` (env suffix stripped) into `.claude-plugin/marketplace.json` and `.claude-plugin/plugin.json` before tagging, committed with `[skip ci]`. This prevents `claude plugin update` from resolving a stale/downgraded version when manifest versions drift from actual releases. Both manifest files bumped to `1.8.1` to match the current tag.
 - **Documentation overhaul (repo-docs skill)** — generated `docs/ARCHITECTURE.md` (system diagram, components, key design decisions), `docs/WORKFLOWS.md` (Mermaid sequence diagrams for feature build, autoship, legacy refactor, incident response, release), and `docs/DEPLOYMENT.md` (install/publish for Claude + Hermes, adopting in a project, rollback, common issues). `DB_SCHEMA.md` intentionally omitted (tooling repo, no app DB).
 - **`plugin.json` manifest fix** — `skills:` was missing 5 of 23 skills (e2e-playwright, quality-gates, api-contract-testing, db-migration-testing, incident-runbook) and `agents:` was empty despite 5 agent dirs. Now 23/23 skills + 5/5 agents in sync.
 - **README** — skill count 22 → 24 (incl. Hermes-only dependency-audit), hooks 5 → 8 (added pre-commit-gate, dependency-audit, git pre-commit backstop), agents 4 → 5, ToC fixed (was stale "13 Skills"), new Documentation index, Guardrails section updated.

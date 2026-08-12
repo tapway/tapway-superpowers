@@ -6,6 +6,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.2] — 2026-08-12
+
+### Changed
+
+- **`plugin.json` agents manifest fix** — the `agents:` array listed directory paths (`./agents/code-reviewer`) instead of the agent `.md` files. Claude Code's plugin schema requires each entry to resolve to the file itself, which broke the plugin entirely on install/update (`claude plugin validate` failed with `agents: Invalid input`; plugin showed `✘ failed to load`). All 5 entries (code-reviewer, test-writer, security-auditor, devops-sre, db-reviewer) now point to their `AGENT.md` files. Verified with `claude plugin validate` and `claude plugin list` (shows `✔ enabled`).
+
+---
 ## [1.8.1] — 2026-08-12
 
 ### Changed

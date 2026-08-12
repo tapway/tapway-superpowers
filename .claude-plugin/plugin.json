@@ -47,11 +47,11 @@
   ],
   "hooks": [],
   "agents": [
-    "./agents/code-reviewer",
-    "./agents/test-writer",
-    "./agents/security-auditor",
-    "./agents/devops-sre",
-    "./agents/db-reviewer"
+    "./agents/code-reviewer/AGENT.md",
+    "./agents/test-writer/AGENT.md",
+    "./agents/security-auditor/AGENT.md",
+    "./agents/devops-sre/AGENT.md",
+    "./agents/db-reviewer/AGENT.md"
   ],
   "externalSkills": [
     {

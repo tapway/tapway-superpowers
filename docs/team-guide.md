@@ -37,6 +37,62 @@ So the flow is: **open the repo → the hook does the bookkeeping → just start
 
 ---
 
+## 🚀 The Direct Workflow (start here)
+
+This is the day-to-day flow for a single engineer turning a feature idea into a merged PR. It's fully **conversational** — you tell the agent what you want, and it drives the plan → GitHub issue → execution pipeline for you.
+
+```
+Start (hook detects)
+   │
+   ▼
+Brainstorm / Interview  →  plan written (docs/plans/*.md)
+   │
+   ▼
+Create GitHub issue from plan   ←  the key step (after plan, before code)
+   │                         mirrors to CodeMAX kanban via webhook
+   ▼
+Execute (tdd / autoship)  →  progress updates pushed to issue
+   │
+   ▼
+/pr  →  PR merged, issue marked done, kanban card = done
+```
+
+### Step-by-step
+
+1. **Open the repo and start a session** (Claude Code or Hermes). The hook prints your branch and tells you if a GitHub issue already exists. Nothing to do — just start talking.
+
+2. **Brainstorm / get interviewed.** Talk it out conversationally:
+   > "I want to add JWT auth. Let me brainstorm the approach."
+   
+   The agent explores options and saves the output to `docs/brainstorming/[topic].md`.
+
+3. **Write the plan.** The agent produces `docs/plans/[feature].md` (+ checklist) and commits it. **This is the key step** — the plan is what becomes the GitHub issue.
+
+4. **Create the GitHub issue (automatic, after the plan).** Right after the plan is committed and *before* any code runs, the agent creates the GitHub issue — with the full plan as the body. This is what the CodeMAX kanban mirrors. You don't need to ask; the writing-plans skill does it automatically (or via `create-issue.sh`).
+
+5. **Execute.** `tdd` / `autoship` implement the plan. Every step pushes a progress update to the GitHub issue (`in_progress → review`), which the webhook mirrors to the kanban board.
+
+6. **Open the PR.** `/pr` builds the PR, updates the issue to `done`, and the kanban card reflects `done`.
+
+### The two key timing rules
+
+| Rule | Why |
+|---|---|
+| **Issue is created AFTER the plan, BEFORE execution** | An issue created at session start (from just the branch name) is an empty, worthless ticket. Wait until the plan has real content. |
+| **The hook never creates issues on its own** | The SessionStart hook only *detects* existing issues. Creation is always driven by the plan step. |
+
+### What you actually say (zero ceremony)
+
+```text
+# Just be conversational:
+"Let's build JWT auth for next-app. Start with brainstorming."
+# → agent brainstorms, writes plan, creates the GitHub issue, then implements
+```
+
+No special commands, no remembering to "create the issue." The agent handles it at the right time.
+
+---
+
 ## The Mental Model
 
 Each feature is split into **work packages by discipline** (Backend, Frontend, DevOps, QA). Each engineer:

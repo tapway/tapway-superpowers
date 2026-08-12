@@ -1,6 +1,6 @@
 {
   "name": "tapway-superpowers",
-  "description": "Tapway's collection of Claude Code skills, agents, and hooks for full-stack development with Next.js 14 + Python FastAPI. Includes brainstorming, TDD, code review, systematic debugging, security audit, and more.",
+  "description": "Tapway's collection of Claude Code skills, agents, and hooks for full-stack development with Next.js 14 + Python FastAPI. Includes brainstorming, TDD, code review, systematic debugging, security audit, gbrain/CodeMAX workflow, and more.",
   "version": "1.2.0",
   "author": {
     "name": "Tapway",
@@ -15,7 +15,9 @@
     "code-review",
     "full-stack",
     "nextjs",
-    "fastapi"
+    "fastapi",
+    "gbrain",
+    "codemax"
   ],
   "skills": [
     "./skills/brainstorming",
@@ -40,8 +42,10 @@
     "./skills/quality-gates",
     "./skills/api-contract-testing",
     "./skills/db-migration-testing",
-    "./skills/incident-runbook"
+    "./skills/incident-runbook",
+    "./skills/codemax-gbrain"
   ],
+  "hooks": [],
   "agents": [
     "./agents/code-reviewer",
     "./agents/test-writer",

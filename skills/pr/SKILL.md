@@ -126,6 +126,31 @@ If `/repo-docs` made no changes (output says "no sections affected"), skip the c
 
 ---
 
+### Step 5b: Sync Living-Docs to gbrain (CodeMAX — optional)
+
+**Optional.** Only run this if your team uses CodeMAX/gbrain. If you don't, or
+`CODEMAX_ENABLED` is not set, skip straight to Step 6 — nothing breaks.
+
+If this PR touched product requirements, blueprints, work orders, or ADRs
+(Layer B living-docs) and you use CodeMAX, sync them into gbrain so the brain
+stays current. See the `codemax-gbrain` skill.
+
+```bash
+# Only if CODEMAX_ENABLED=1 and codemax is installed
+codemax sync run --wiki-dir "$CODEMAX_WIKI_DIR" --gbrain-dir "$CODEMAX_GBRAIN_DIR"
+```
+
+Verify the sync landed (idempotent — safe to re-run):
+```bash
+gbrain list -n 5   # confirm recent pages appear
+```
+
+**Skip this step** if: you don't use CodeMAX, the PR made no living-doc changes
+(pure code), or `codemax` is unavailable. It is never required for the PR to
+proceed.
+
+---
+
 ### Step 6: Push the Branch
 
 ```bash

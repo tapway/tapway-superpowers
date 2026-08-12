@@ -11,6 +11,12 @@ description: >-
 
 # Skill: CodeMAX / gbrain Workflow
 
+> **Optional.** This skill only applies if your team runs a CodeMAX instance /
+> exposes a shared gbrain brain. If you don't use CodeMAX, skip it entirely —
+> it changes nothing and nothing breaks. Enable the session-start integration
+> by setting `CODEMAX_ENABLED=1` and the `CODEMAX_WIKI_DIR` / `CODEMAX_GBRAIN_DIR`
+> paths to your own deployment.
+
 **When to invoke:** At the start of a task that references a work order
 (`WO-*`), requirement, or blueprint — to pull the traced context into the
 session. And at the end of a task, before `/pr`, to push updated living-docs
@@ -67,14 +73,14 @@ to gbrain so the brain stays current:
 
 ```bash
 # Update the living-doc status (work order → done, etc.) in the repo
-# then sync the wiki ↔ gbrain lockstep:
-codemax sync run --wiki-dir ~/brain/wiki --gbrain-dir ~/brain
+# then sync the wiki ↔ gbrain lockstep (use your deployed wiki dirs):
+codemax sync run --wiki-dir "$CODEMAX_WIKI_DIR" --gbrain-dir "$CODEMAX_GBRAIN_DIR"
 ```
 
 Verify the sync landed:
 
 ```bash
-codemax sync run --wiki-dir ~/brain/wiki --gbrain-dir ~/brain   # re-run, idempotent
+codemax sync run --wiki-dir "$CODEMAX_WIKI_DIR" --gbrain-dir "$CODEMAX_GBRAIN_DIR"   # re-run, idempotent
 gbrain list -n 5   # confirm recent pages appear
 ```
 

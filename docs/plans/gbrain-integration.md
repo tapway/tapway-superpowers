@@ -10,8 +10,8 @@ so the team uses superpowers + CodeMAX/gbrain hand-in-hand without manual queryi
 
 ## Assumptions
 
-- The gbrain MCP server is reachable at `http://47.250.116.35:8100` (public proxy)
-  — devs register it via `claude mcp add` (see `docs/DEVELOPER_GUIDE.md` §2.1)
+- The gbrain MCP server is reachable at a configurable URL — devs register
+  it via `claude mcp add` (see `docs/DEVELOPER_GUIDE.md` §2.1)
 - `codemax` CLI is installed on the dev machine (or run via the defined path)
 - gbrain is a *source of truth*, not a workflow tool — it is pulled/written at
   defined points, never queried continuously

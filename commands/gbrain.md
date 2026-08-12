@@ -23,14 +23,15 @@ The brain is exposed via the `gbrain` MCP server (registered with
 claude mcp get gbrain   # confirm connected
 # Then ask Claude to search gbrain via its tools (search / list_pages / get_page)
 
-# Or via the codemax CLI-driven search through the panel API:
-curl -s "http://47.250.116.35:8125/api/v1/brain/search?q=<terms>&limit=10" \
-  -H "Authorization: Bearer <your-gbrain-token>"
+# Or via the codemax panel API (set CODEMAX_URL to your instance, e.g. http://localhost:8125):
+curl -s "${CODEMAX_URL:-http://localhost:8125}/api/v1/brain/search?q=<terms>&limit=10" \
+  -H "Authorization: Bearer $CODEMAX_TOKEN"
 ```
 
 ### Sync (push living-docs → gbrain)
 ```bash
-codemax sync run --wiki-dir ~/brain/wiki --gbrain-dir ~/brain
+# Use your deployed wiki/living-docs paths (example defaults shown):
+codemax sync run --wiki-dir "$CODEMAX_WIKI_DIR" --gbrain-dir "$CODEMAX_GBRAIN_DIR"
 gbrain list -n 5   # verify recent pages
 ```
 
@@ -41,6 +42,7 @@ requirement — if it's missing, say so.
 
 ## Notes
 
+- **Optional:** CodeMAX/gbrain is off by default. Set `CODEMAX_ENABLED=1` in your environment to activate the hooks and brain context pull.
 - **Pull once, push once.** Don't query gbrain continuously mid-task.
 - **Structural changes** (new requirements/blueprints/ADRs) land on a feature
   branch as a PR — not directly on `main`.

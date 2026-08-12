@@ -112,9 +112,20 @@ Not sure which mode applies? Use this table:
 
 `/interview` is optional but recommended any time the request is underspecified. `/observe` runs before `/pr` on any new endpoint. `/doubt` is called on demand for high-stakes decisions.
 
-The **codemax-gbrain** skill integrates the team's shared brain at two points:
+> The gbrain arrows in the diagram above only apply if your team runs CodeMAX
+> and has set `CODEMAX_ENABLED=1`. Otherwise they're invisible — no hooks, no
+> errors, no change to the normal flow.
+
+The optional **codemax-gbrain** skill integrates a shared brain at two points:
 - **At task start** (after `/plan`): pull the requirement/blueprint/ADR the work order traces to, so you have the real context in-flow — no manual gbrain queries.
 - **Before `/pr`**: sync updated living-docs back to gbrain via `codemax sync run`, so the brain reflects what was actually built.
+
+To enable, set these in your environment (e.g. `~/.zshrc`, `~/.bashrc`):
+```bash
+export CODEMAX_ENABLED=1
+export CODEMAX_WIKI_DIR="$HOME/path/to/wiki"
+export CODEMAX_GBRAIN_DIR="$HOME/path/to/gbrain"
+```
 
 **Step 0 — Clarify** (when the request is fuzzy)
 ```

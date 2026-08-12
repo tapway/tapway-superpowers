@@ -166,7 +166,7 @@ GREEN: minimum code to make test pass — no gold-plating.
 REFACTOR: only if code is unclear — run tests after every step.
 
 SURGICAL CHANGES: production files only.
-CONVENTIONS: [key items from CLAUDE.md]
+CONVENTIONS: [key items from project agent guide / repo conventions]
 
 Commit: git commit -m "feat/fix/refactor: [behavior]"
 Report: test output, files changed, commit hash.
@@ -303,8 +303,8 @@ Retry every 5 seconds for up to 60 seconds (12 attempts). Record which endpoint 
 # Docker compose — restart with previous image
 docker compose down && git stash && docker compose up -d
 
-# Systemd service
-sudo systemctl restart [service-name]
+# systemd unit (use whatever privilege model your host already uses)
+systemctl restart [service-name]
 
 # PM2
 pm2 restart all

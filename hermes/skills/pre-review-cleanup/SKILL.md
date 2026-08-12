@@ -24,7 +24,7 @@ files before opening a PR. **Nothing is deleted without confirmation.**
 
 ### 1. Placeholder Patterns in Documents
 
-Search all markdown files (CLAUDE.md, README.md, docs/*.md) for:
+Search all markdown files (project agent guide, README.md, docs/*.md) for:
 
 | Pattern | Example |
 |---|---|
@@ -68,11 +68,11 @@ replace, or delete.
 
 ### 4. Environment Configuration
 
-- `.env.example` exists but no `.env` — suggest copying
-- `.env` is checked into git — warn (should be in `.gitignore`)
+- Sample env template exists but no local env file — suggest copying the template
+- Local env file is checked into git — warn (should be in `.gitignore`)
 - Missing required env vars defined in configs/*.yaml
 
-**Action:** Present findings, suggest fixes.
+**Action:** Present findings, suggest fixes. Do not print secret values.
 
 ### 5. Stale Configuration
 
@@ -92,9 +92,9 @@ At the end, produce a summary:
 ## Pre-Review Cleanup Summary
 
 ### Items Resolved
-- [x] Replaced `[PROJECT_NAME]` with "My Service" in CLAUDE.md
+- [x] Replaced `[PROJECT_NAME]` with "My Service" in the project agent guide
 - [x] Deleted unused `docker/Dockerfile.cuda124` (CPU-only project)
-- [x] Created `.env` from `.env.example`
+- [x] Created local env file from the sample env template
 
 ### Needs Follow-Up
 - [ ] `backend/src/core/engine.py` — `Engine.run()` body is still template text

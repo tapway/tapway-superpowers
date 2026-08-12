@@ -6,42 +6,74 @@ A port of the [Tapway Superpowers](https://github.com/tapway/tapway-superpowers)
 
 ## Install
 
-All **24** Tapway skills are installed through Hermes's **native skill hub** — one
-command scaffolds the whole skillpack, no local file copying. The installer also
-creates a **`/tapway` skill bundle** so the entire strict pipeline loads with a
-single slash command.
+All **24** Tapway skills install into Hermes via `install.sh` / `install.ps1`.
+The installer also creates a **`/tapway` skill bundle** so the entire strict
+pipeline loads with a single slash command.
 
-**macOS / Linux:**
+**Preferred (from a git checkout — pin-able, offline-safe):**
 ```bash
-bash install.sh            # installs all 24 skills + the /tapway bundle
-bash install.sh <category> # optional: custom skills category (default: tapway)
+git fetch --tags && git checkout vX.Y.Z   # optional pin
+cd hermes
+bash install.sh                           # category default: tapway
+bash install.sh tapway-superpowers        # keep an existing category name
+```
 
-# Preview without installing anything:
-HERMES_DRY_RUN=1 bash install.sh
+When `hermes/skills/` is present beside the installer (normal checkout),
+**auto mode copies locally** into `$HERMES_HOME/skills/<category>/`. That
+avoids Hermes skill-hub `skills-guard` false positives on first-party docs
+and pins exactly to the commit/tag you checked out.
+
+**Modes:**
+```bash
+HERMES_INSTALL_MODE=auto  bash install.sh   # default: local if available, else hub
+HERMES_INSTALL_MODE=local bash install.sh   # force copy from this checkout
+HERMES_INSTALL_MODE=hub   bash install.sh   # force hermes skills install (GitHub)
+HERMES_DRY_RUN=1          bash install.sh   # preview only
 ```
 
 **Windows (PowerShell):**
 ```powershell
+cd hermes
 .\install.ps1
-# Preview: $env:HERMES_DRY_RUN = "1"; .\install.ps1
+.\install.ps1 tapway-superpowers
+$env:HERMES_INSTALL_MODE = "local"; .\install.ps1
+$env:HERMES_DRY_RUN = "1"; .\install.ps1
 ```
 
-The installer resolves each skill by its GitHub identifier
-(`tapway/tapway-superpowers/hermes/skills/<name>`) via `hermes skills install`, so
-it works from anywhere and stays in sync with this repo. Authenticate GitHub
-(`gh auth login` or a `GITHUB_TOKEN`) to avoid unauthenticated API rate limits.
+**Hub-only (no checkout):** the installer can still call
+`hermes skills install tapway/tapway-superpowers/hermes/skills/<name>`.
+Authenticate GitHub (`gh auth login` or `GITHUB_TOKEN`) to avoid rate limits.
+If the hub scanner blocks a skill, re-run from a checkout with
+`HERMES_INSTALL_MODE=local` — see [INSTALL_ISSUES.md](./INSTALL_ISSUES.md).
 
 Then verify:
 ```bash
-hermes skills list | grep tapway   # 24 tapway/* skills present
-hermes bundles list                # "tapway" bundle present
+ls "$HERMES_HOME/skills/tapway" | wc -l    # expect 24 (or your category path)
+hermes skills list | grep -E 'tapway'
+hermes bundles list                        # "tapway" bundle present
 ```
 
-> **No installer needed?** Because Hermes auto-derives a `/skill-name` command
-> from every installed skill, you can also install an individual skill directly:
+> **Individual skill:** Hermes auto-derives a `/skill-name` command from every
+> installed skill. You can also install one skill directly:
 > ```bash
 > hermes skills install tapway/tapway-superpowers/hermes/skills/tdd --category tapway
 > ```
+> If hub install is blocked, copy `hermes/skills/tdd` into
+> `$HERMES_HOME/skills/tapway/tdd` instead.
+
+### Known caveats
+
+- **Name collisions:** Hermes also ships `writing-plans` and
+  `systematic-debugging` under other categories. Both copies can exist on
+  disk; list UIs may show one bare name. Prefer `/tapway` or the category
+  path when disambiguating.
+- **Category drift:** older installs used category `tapway-superpowers`; the
+  installer default is `tapway`. Pass your existing category name to avoid a
+  second tree.
+- **Claude plugin ≠ Hermes skills:** updating the Claude Code plugin does
+  **not** refresh Hermes skills — run this installer separately.
+
+Field report from the v1.8.2 update: [INSTALL_ISSUES.md](./INSTALL_ISSUES.md).
 
 ### What you get: 24 skills
 

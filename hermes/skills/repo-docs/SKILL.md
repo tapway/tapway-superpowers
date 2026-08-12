@@ -37,7 +37,8 @@ find . -maxdepth 3 \
 cat package.json 2>/dev/null || cat pyproject.toml 2>/dev/null || \
   cat requirements.txt 2>/dev/null || cat go.mod 2>/dev/null || true
 cat docker-compose.yml 2>/dev/null || cat Dockerfile 2>/dev/null || true
-cat .env.example 2>/dev/null || cat .env.sample 2>/dev/null || true
+# Note presence of a sample env template only — do not dump secret-bearing files
+ls .env.example .env.sample 2>/dev/null || true
 ```
 
 Read all major source files to understand:

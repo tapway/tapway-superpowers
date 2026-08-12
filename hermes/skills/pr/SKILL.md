@@ -21,7 +21,7 @@ metadata:
 
 **When to invoke:** When a work package or feature is complete and ready for review. Always run from a feature branch, never from the integration branch.
 
-> **Hermes note:** This uses the `github` skill's `gh`/git+curl commands. The `gh` CLI is preferred; fall back to `git` + `curl` with a `GITHUB_TOKEN` if `gh` isn't authenticated.
+> **Hermes note:** Prefer the `gh` CLI (`gh auth login`). Do not embed API tokens in shell examples.
 
 ## Core Principle
 > One branch = one PR. Never work directly on `staging` (or your project's integration branch).
@@ -38,13 +38,17 @@ git checkout -b feat/[feature-name]
 ```
 
 ### Step 2: Determine Target Branch
-Read the project's integration branch from a project context file (`CLAUDE.md`,
-`AGENTS.md`, or `.hermes.md`) or a `TARGET_BRANCH` entry. Default to `staging` if unset
-(Hermes projects that don't create `CLAUDE.md` will pick up `AGENTS.md` / `.hermes.md`
-instead):
+Read the project's integration branch from agent context files at the repo root
+(`AGENTS.md`, `.hermes.md`) looking for a `TARGET_BRANCH` entry. Default to
+`staging` if unset. If the repo also keeps a Claude Code project guide, read
+`TARGET_BRANCH` from that file the same way (first non-empty wins):
 ```bash
-# Check CLAUDE.md, then AGENTS.md, then .hermes.md (first hit wins)
-TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md AGENTS.md .hermes.md 2>/dev/null | head -1 | awk '{print $2}')
+TARGET=""
+for f in AGENTS.md .hermes.md; do
+  [ -f "$f" ] || continue
+  TARGET=$(grep "^TARGET_BRANCH:" "$f" 2>/dev/null | head -1 | awk '{print $2}')
+  [ -n "$TARGET" ] && break
+done
 TARGET=${TARGET:-staging}
 echo "Targeting: $TARGET"
 ```
@@ -160,12 +164,9 @@ EOF
 )"
 ```
 
-If `gh` is unavailable, create via API:
-```bash
-curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" \
-  https://api.github.com/repos/$OWNER/$REPO/pulls \
-  -d "{\"base\":\"$TARGET\",\"head\":\"$(git branch --show-current)\",\"title\":\"feat(scope): description\",\"body\":\"...\"}"
-```
+If `gh` is unavailable, authenticate it first (`gh auth login`) or use the
+Hermes `github` skill's REST helper. **Do not** paste personal access tokens
+into one-off shell one-liners.
 
 ### Step 8: Update the Work Package Checklist (teams)
 After the PR is open:
@@ -191,8 +192,13 @@ git push
 
 ## Quick Reference
 ```bash
-# Read target branch (CLAUDE.md / AGENTS.md / .hermes.md, default staging)
-TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md AGENTS.md .hermes.md 2>/dev/null | head -1 | awk '{print $2}')
+# Read target branch (AGENTS.md / .hermes.md, default staging)
+TARGET=""
+for f in AGENTS.md .hermes.md; do
+  [ -f "$f" ] || continue
+  TARGET=$(grep "^TARGET_BRANCH:" "$f" 2>/dev/null | head -1 | awk '{print $2}')
+  [ -n "$TARGET" ] && break
+done
 TARGET=${TARGET:-staging}
 
 # Sync

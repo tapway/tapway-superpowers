@@ -6,6 +6,27 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Hermes installer false success** — `hermes skills install` exits 0 even when skills-guard blocks a community package (`Installation blocked`). Old `hermes/install.sh` / `install.ps1` treated exit 0 as success and always printed `24/24`. Installers now parse hub output, count hub/local/failed separately, and exit non-zero if anything failed.
+- **Hermes hub skills-guard false positives** — seven first-party Hermes ports (`tdd`, `autoship`, `systematic-debugging`, `pre-review-cleanup`, `pr`, `repo-docs`, `setup-project`) were blocked as DANGEROUS for benign doc text (`CLAUDE.md` mentions, example `curl` Authorization headers, `sudo systemctl`, `cat .env.example`). Wording updated for Hermes ports; installer prefers **local copy from the git checkout** so a pin like `v1.8.2` installs offline without the hub scanner.
+
+### Added
+
+- **`HERMES_INSTALL_MODE=auto|local|hub`** on `hermes/install.sh` and `hermes/install.ps1` (default `auto` = local when `hermes/skills/` exists beside the installer).
+- **`hermes/INSTALL_ISSUES.md`** — field report from the v1.8.2 Windows/Hermes update (scanner table, exit-code lie, category drift, name collisions, Claude vs Hermes surfaces).
+- **Installer tests** — `tests/test_hermes_install.py` covers skill list completeness, blocked-output detection, local-mode preference, and guard-trigger scrub on Hermes ports.
+
+### Changed
+
+- **`hermes/README.md`** — documents local-first install, modes, category drift, name collisions, and that Claude plugin update does not refresh Hermes skills.
+- **Hermes `setup-project`** — creates/updates `AGENTS.md` (not a Claude-only guide) and installs the pre-commit backstop via copy instead of a relative symlink.
+- **Hermes `pr`** — reads `TARGET_BRANCH` from `AGENTS.md` / `.hermes.md`; drops raw token `curl` API example.
+
+---
+
 ## [1.8.2] — 2026-08-12
 
 ### Changed

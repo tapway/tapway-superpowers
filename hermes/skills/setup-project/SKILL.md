@@ -1,7 +1,7 @@
 ---
 name: setup-project
 description: >-
-  One-time project setup: release workflow + CLAUDE.md (Hermes port of tapway-superpowers setup-project skill).
+  One-time project setup: release workflow + AGENTS.md agent guide (Hermes port of tapway-superpowers setup-project skill).
 version: 1.3.0
 author: Tapway (ported to Hermes by limcheehow)
 license: MIT
@@ -22,11 +22,11 @@ metadata:
 ## What It Does
 
 1. Creates `.github/workflows/release.yml` — semver auto-release (`vX.Y.Z-stg` / `vX.Y.Z-prod`) on merge to `staging` / `prod`
-2. Creates `CLAUDE.md` (if missing) with `TARGET_BRANCH: staging` pre-filled
+2. Creates `AGENTS.md` (if missing) with `TARGET_BRANCH: staging` pre-filled
 3. Creates `.github/workflows/quality.yml` — the CI quality gate (lint/format/typecheck/coverage + dependency audit) — see the `quality-gates` skill
 4. Installs the git `pre-commit` backstop (`hooks/pre-commit/git-pre-commit.sh`) into `.git/hooks/pre-commit`
 5. Commits all files and pushes
-6. Prints a manual-steps checklist (default branch, filling in CLAUDE.md, branch protection, CODEOWNERS)
+6. Prints a manual-steps checklist (default branch, filling in AGENTS.md, branch protection, CODEOWNERS)
 
 > **Note:** The previous `setup-project` created a `.github/workflows/claude.yml` GitHub
 > Actions PR-review workflow (`auto-review` + `@claude`). That was removed — Tapway now
@@ -41,7 +41,7 @@ metadata:
 
 ```bash
 ls .github/workflows/release.yml  2>/dev/null && echo "EXISTS" || echo "MISSING"
-ls CLAUDE.md 2>/dev/null && echo "EXISTS" || echo "MISSING"
+ls AGENTS.md 2>/dev/null && echo "EXISTS" || echo "MISSING"
 git branch --show-current
 ```
 
@@ -174,8 +174,11 @@ Install the platform-agnostic quality gate so every commit (from any agent or hu
 
 ```bash
 mkdir -p .git/hooks
-ln -sf ../../hooks/pre-commit/git-pre-commit.sh .git/hooks/pre-commit
-chmod +x hooks/pre-commit/git-pre-commit.sh
+HOOK_SRC="hooks/pre-commit/git-pre-commit.sh"
+chmod +x "$HOOK_SRC"
+# Install as a copy (not a relative symlink) so the hook is self-contained
+cp "$HOOK_SRC" .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
 ```
 
 If the repo already has a `.git/hooks/pre-commit`, append a call to the backstop rather than replacing it:
@@ -185,9 +188,9 @@ echo 'bash "$(git rev-parse --show-toplevel)/hooks/pre-commit/git-pre-commit.sh"
 chmod +x .git/hooks/pre-commit
 ```
 
-### Step 4 — Verify CLAUDE.md
+### Step 4 — Verify AGENTS.md
 
-If `CLAUDE.md` does not exist at the project root, create a minimal one:
+If `AGENTS.md` does not exist at the project root, create a minimal one:
 
 ```markdown
 # [Project Name]
@@ -216,7 +219,7 @@ TARGET_BRANCH: staging
 - [Things the agent should never do in this repo]
 ```
 
-If `CLAUDE.md` already exists, check whether it has a `TARGET_BRANCH:` line. If not, add it near the top:
+If `AGENTS.md` already exists, check whether it has a `TARGET_BRANCH:` line. If not, add it near the top:
 ```
 TARGET_BRANCH: staging
 ```
@@ -227,8 +230,8 @@ Tell the user: "I've set TARGET_BRANCH: staging — this tells the /pr skill whi
 
 ```bash
 git add .github/workflows/release.yml  # only if newly created
-git add CLAUDE.md  # only if newly created or modified
-git commit -m "chore: add auto-release workflow and CLAUDE.md"
+git add AGENTS.md  # only if newly created or modified
+git commit -m "chore: add auto-release workflow and AGENTS.md"
 git push
 ```
 
@@ -250,7 +253,7 @@ After committing, print this checklist for the user:
 
 Automated:
   ✅ .github/workflows/release.yml — semver auto-release (vX.Y.Z-stg/prod) on merge
-  ✅ CLAUDE.md with TARGET_BRANCH: staging
+  ✅ AGENTS.md with TARGET_BRANCH: staging
   ✅ Changes committed and pushed
 
 Manual steps still required:
@@ -258,7 +261,7 @@ Manual steps still required:
       → GitHub repo → Settings → Branches → Default branch → staging
       This ensures gh pr create targets staging by default.
 
-  ☐ Fill in CLAUDE.md (stack, commands, conventions)
+  ☐ Fill in AGENTS.md (stack, commands, conventions)
       → The agent reads this every session to understand your project
 
   ☐ Verify: merge any PR to staging — a vX.Y.Z-stg release should appear automatically
@@ -269,6 +272,6 @@ Manual steps still required:
 ## Hard Rules
 
 - ❌ Never overwrite an existing `.github/workflows/release.yml` — skip and say "already set up"
-- ❌ Never overwrite an existing `CLAUDE.md` — add `TARGET_BRANCH` if missing, otherwise skip
+- ❌ Never overwrite an existing `AGENTS.md` — add `TARGET_BRANCH` if missing, otherwise skip
 - ❌ Never push directly to `staging` or `main` — if the hook blocks it, create a setup branch instead
 - ❌ Do NOT create a `.github/workflows/claude.yml` — Tapway reviews code inside the AI agent, not in GitHub CI

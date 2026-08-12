@@ -112,7 +112,7 @@ REFACTOR phase — only if the green code is unclear:
 - Stop the moment tests are green and code is readable.
 
 SURGICAL CHANGES: Touch only the production files listed above.
-CONVENTIONS: [paste relevant items from CLAUDE.md / project conventions]
+CONVENTIONS: [paste relevant items from project agent guide / repo conventions]
 
 Commit with: git commit -m "feat/fix/refactor: [behavior added/fixed/refactored]"
 Report: exact test output showing pass, list of files changed, commit hash.

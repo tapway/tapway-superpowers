@@ -4,6 +4,39 @@ This guide walks through how a team of engineers uses tapway-superpowers to work
 
 ---
 
+## ⚙️ One-Time Setup (do this ONCE per machine)
+
+Set these environment variables **once** in your shell profile (`~/.bashrc` or `~/.zshrc`). They persist across all repos and all sessions — you never re-export them per project.
+
+```bash
+# --- CodeMAX connection (one-time, persistent) ---
+export CODEMAX_ENABLED=1                     # Turns on the CodeMAX/session hooks
+export CODEMAX_API_URL="http://47.250.116.35:8125"   # CodeMAX panel
+export CODEMAX_GBRAIN_MCP="http://47.250.116.35:8100" # gbrain wiki/knowledge
+export CODEMAX_ADMIN_TOKEN="<admin-token>"   # kanban/admin auth
+export GBRAIN_TOKEN="<gbrain-token>"         # brain/auth
+export GITHUB_TOKEN="<github-token>"         # issue sync + poller
+
+source ~/.bashrc   # (or ~/.zshrc)
+```
+
+> **Why once?** Exported environment variables are process-wide, not directory-scoped. They apply to every repo you open in that shell. A new terminal inherits them from the profile, so you never set them per-project unless you specifically want a different endpoint per repo.
+
+> **Hermes users:** put the same values in `~/.hermes/.env` instead of the shell profile.
+
+### What the session-start hook does automatically
+
+When you open Claude Code (or start a Hermes session) in a repo, the **SessionStart hook fires automatically** — you don't invoke it and you don't say anything special. It:
+
+1. Prints the current branch, last commits, and git status
+2. Checks for open TODOs in `CLAUDE.md`
+3. **If `CODEMAX_ENABLED=1`:** detects the work order (WO-*) from the branch or `CLAUDE.md` and tells you gbrain context is available
+4. **If you're on a feature branch (with `gh` installed):** auto-creates a GitHub issue for that branch, or reuses the existing one — this is what feeds the CodeMAX kanban
+
+So the flow is: **open the repo → the hook does the bookkeeping → just start talking about your task.** No special incantation needed.
+
+---
+
 ## The Mental Model
 
 Each feature is split into **work packages by discipline** (Backend, Frontend, DevOps, QA). Each engineer:

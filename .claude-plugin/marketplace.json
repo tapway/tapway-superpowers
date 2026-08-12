@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Tapway's Claude Code superpowers \u2014 skills, agents, and hooks for full-stack development",
-    "version": "1.3.0"
+    "version": "1.8.0"
   },
   "plugins": [
     {
       "name": "tapway-superpowers",
       "source": "./",
       "description": "19 skills, 4 agents, and 5 hooks for full-stack development with Next.js 14 + Python FastAPI. Covers brainstorming, TDD, code review, systematic debugging, security audit, refactoring, and the gbrain/CodeMAX shared-brain workflow.",
-      "version": "1.3.0",
+      "version": "1.8.0",
       "author": {
         "name": "Tapway",
         "email": "cheehow@gotapway.com"

@@ -15,6 +15,10 @@ name: Auto Release
 #   anything else            →  PATCH
 #
 # Each environment keeps its own independent version stream.
+#
+# Before tagging, the plain MAJOR.MINOR.PATCH (no env suffix) is also written
+# into .claude-plugin/marketplace.json and .claude-plugin/plugin.json, since
+# `claude plugin update` resolves versions from those manifests, not git tags.
 
 on:
   push:
@@ -100,6 +104,39 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "bump=${BUMP}"        >> "$GITHUB_OUTPUT"
           echo "Computed version: ${VERSION} (${BUMP} bump)"
+
+      - name: Sync plugin manifest versions
+        id: sync
+        run: |
+          set -e
+
+          # Manifest "version" fields must never carry the -stg/-prod suffix —
+          # Claude Code's marketplace resolver reads these as plain SemVer.
+          VERSION="${{ steps.ver.outputs.version }}"
+          PLAIN_VERSION="${VERSION#v}"
+          PLAIN_VERSION="${PLAIN_VERSION%-*}"
+
+          jq --arg v "$PLAIN_VERSION" \
+            '.metadata.version = $v | .plugins[0].version = $v' \
+            .claude-plugin/marketplace.json > /tmp/marketplace.json
+          mv /tmp/marketplace.json .claude-plugin/marketplace.json
+
+          jq --arg v "$PLAIN_VERSION" '.version = $v' \
+            .claude-plugin/plugin.json > /tmp/plugin.json
+          mv /tmp/plugin.json .claude-plugin/plugin.json
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- .claude-plugin/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git add .claude-plugin/marketplace.json .claude-plugin/plugin.json
+            # [skip ci] prevents this push from re-triggering this workflow.
+            git commit -m "chore: sync plugin manifest version to ${PLAIN_VERSION} [skip ci]"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Tag and publish release
         env:

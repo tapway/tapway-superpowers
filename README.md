@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Claude Code plugin (and now a Hermes Agent port) with 17 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development (Next.js 14 + Python FastAPI). The plugin enforces best practices structurally — TDD via agent boundaries, mandatory PR gates, docs on every push — so good habits happen automatically.
+A Claude Code plugin (and now a Hermes Agent port) with 24 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development (Next.js 14 + Python FastAPI). The plugin enforces best practices structurally — TDD via agent boundaries, mandatory PR gates, docs on every push — so good habits happen automatically. The optional **codemax-gbrain** skill also folds a shared gbrain brain into the dev loop — pull context at task start, sync docs back at task end — so context never drifts. **CodeMAX is fully optional:** it's off by default and only activates if your team runs a CodeMAX instance (set `CODEMAX_ENABLED=1`).
 
 **Pick your tool:**
 - **Claude Code users** → install the plugin below (slash commands + hooks).
@@ -106,9 +106,15 @@ Not sure which mode applies? Use this table:
 
 ```
 /interview → /brainstorming → /plan → [implement] → /simplify → /review → /pr
+                              ↑ pull context from gbrain if WO-* traced
+                                                         ↓ sync docs to gbrain before pr
 ```
 
 `/interview` is optional but recommended any time the request is underspecified. `/observe` runs before `/pr` on any new endpoint. `/doubt` is called on demand for high-stakes decisions.
+
+The **codemax-gbrain** skill integrates the team's shared brain at two points:
+- **At task start** (after `/plan`): pull the requirement/blueprint/ADR the work order traces to, so you have the real context in-flow — no manual gbrain queries.
+- **Before `/pr`**: sync updated living-docs back to gbrain via `codemax sync run`, so the brain reflects what was actually built.
 
 **Step 0 — Clarify** (when the request is fuzzy)
 ```
@@ -369,7 +375,7 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `refactor` | **Protocol A** (active codebase): surgical incremental refactoring. **Protocol B** (legacy): characterization-test-first sequence | "Refactor...", "Clean up...", "Legacy refactor..." |
 | `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |
 | `systematic-debugging` | Repro → Isolate → Hypothesize → Test → Fix → Post-mortem saved to `docs/post-mortems/` | "Why is X failing?", "Debug...", "Works locally but not in prod..." |
-| `pr` | Rebase, conflict resolution, test gate, **update docs**, push, open PR, update checklist | "Create a PR...", "I'm done...", "Push and PR..." |
+| `pr` | Rebase, conflict resolution, test gate, **update docs**, sync living-docs to gbrain, push, open PR, update checklist | "Create a PR...", "I'm done...", "Push and PR..." |
 | `git-worktrees` | Manage parallel git worktrees for concurrent feature work | "Worktree...", "Parallel branches..." |
 | `repo-docs` | Generate `ARCHITECTURE.md`, `WORKFLOWS.md`, `DB_SCHEMA.md`, `DEPLOYMENT.md` | "Document this repo...", "Write architecture docs..." |
 | `security-audit` | Full-codebase OWASP Top 10 audit — for pre-launch or major refactors | "Security audit...", "Audit the whole codebase..." |
@@ -379,6 +385,7 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `doubt` | Adversarial in-flight decision review. Fresh-context subagent gets only artifact + contract (never your reasoning). Finds problems, doesn't approve. Max 3 cycles. | "second opinion", "double-check this decision", "stress-test this design" |
 | `observe` | Structured observability shipped with the feature: on-call questions first → structured logs + correlation IDs → RED metrics → OTel → symptom-based alerts → staging verification | "add observability", "add logging", "add metrics", "add tracing", "instrument this" |
 | `deprecate` | Safe removal of APIs, modules, or features: decision gate → replacement first → advisory/compulsory type → migration guide → Strangler/Adapter/Feature-flag → zero-usage gate → remove | "deprecate this", "remove this API", "sunset this feature", "migrate away from X" |
+| `codemax-gbrain` | Fold the shared gbrain brain into the dev loop: pull the requirement/blueprint/ADR a work order traces to at task start, and sync living-docs back to gbrain at task end (via `codemax sync run`). Never manually query the brain — it's part of the workflow. | "pick up a work order", "start this task", "sync docs to gbrain", "what context exists for WO-*", "codemax", "gbrain" |
 
 > All skills apply Andrej Karpathy's coding principles: Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution.
 

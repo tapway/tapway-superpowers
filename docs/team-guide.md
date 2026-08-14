@@ -26,7 +26,7 @@ source ~/.bashrc   # (or ~/.zshrc)
 
 ### How the coding agent pulls context from the shared brain (CodeMAX/gbrain)
 
-When CodeMAX is enabled, the coding agent pulls task context by **connecting to the gbrain MCP server** (the `CODEMAX_GBRAIN_MCP` URL) and querying it. It uses the brain tools (`search`, `get_page`, `list_pages`) to load the requirement / blueprint / ADR that your work order traces to — so it knows *what* it's building and *why*, not just the repo-local code. Nothing to install per-project: connect your tool once.
+When CodeMAX is enabled, the coding agent pulls task context by **connecting to the gbrain MCP server** (the `CODEMAX_GBRAIN_MCP` URL) and querying it. It uses the brain tools (`search`, `get_page`, `list_pages`) to load the requirement / blueprint / ADR traced from the GitHub issue for your branch — so it knows *what* it's building and *why*, not just the repo-local code. Nothing to install per-project: connect your tool once.
 
 > **Canonical connect steps live in the CodeMAX side** — `DEVELOPER_ONBOARDING.md`, Step 2 (get your `GBRAIN_TOKEN`, then register the gbrain MCP server: `claude mcp add` for Claude Code, `mcp_servers` in `config.yaml` for Hermes, `.vscode/mcp.json` for Cline/Roo), and Step 3 to verify. ℹ️ **CodeMAX is a private repo for ITMAX teams only (at the moment)** — CodeMAX users, follow `https://github.com/tapway/codemax/blob/master/docs/DEVELOPER_ONBOARDING.md`. For a quick reference, registering is one MCP server named `gbrain` pointed at `$CODEMAX_GBRAIN_MCP/mcp` with a bearer token, then `curl -s "$CODEMAX_API_URL/api/v1/brain/search?q=<topic>&limit=5" -H "Authorization: Bearer $GBRAIN_TOKEN"` should return matching pages.
 
@@ -38,7 +38,7 @@ The `codemax-gbrain` skill tells the agent to pull context, and the session-star
 
 Whatever tool you use, the simplest and always-available fallback is to prompt it directly. If you notice the agent hasn't called the gbrain MCP tool and is working from repo-local context alone, say:
 
-> **"Search the brain for `<topic>` / the requirement that `<WO-xx>` traces to."**
+> **"Search the brain for `<topic>` / the requirement that issue `#<n>` traces to."**
 > e.g. *"Search the brain for the VSS behavior-analytics data flow."* · *"Search the brain for what requirements city-guard satisfies."*
 
 This forces a need-to-know lookup even when automatic context pull is off or skipped.
@@ -47,16 +47,16 @@ This forces a need-to-know lookup even when automatic context pull is off or ski
 
 Claude Code's hook system (`hooks/hooks.json`: `SessionStart`, `PreToolUse`) can **detect** context and **block** tool calls, but it has **no equivalent of Hermes' pre-prompt context injection** — it cannot inject the search results into the model's prompt for you.
 
-- **At session start** the `SessionStart` hook prints the active work order and *hints* to pull brain context (advisory).
-- **To block** work until the brain is searched: a `PreToolUse` gate on code-editing tools can `exit 2` (block) when a `WO-*` is present and the brain wasn't queried this session.
+- **At session start** the `SessionStart` hook prints the GitHub issue found for this branch and *hints* to pull brain context (advisory).
+- **To block** work until the brain is searched: a `PreToolUse` gate on code-editing tools can `exit 2` (block) when a GitHub issue is found for this branch and the brain wasn't queried this session.
 - Otherwise rely on the **`codemax-gbrain` skill** and — when it skips — the manual **"search the brain for …"** prompt above.
 
 #### Hermes — native binding enforcement (injection + blocking)
 
 Hermes' shell-hook system in `~/.hermes/config.yaml` supports genuine **contextual enforcement** that the agent cannot skip:
 
-1. **`pre_llm_call` — inject the search results directly into the prompt.** The strongest guarantee: a shell hook queries gbrain for the WO-* context and returns `{"context": "<brain snippet>"}` on stdin→stdout, so the search results are *physically in front of the model* on every turn — it cannot omit them.
-2. **`pre_tool_call` (with `fail_closed: true`) — block work until the brain was searched.** When a `WO-*` is present, the gate refuses the first code-editing tool call unless the session already pulled brain context, forcing the lookup first.
+1. **`pre_llm_call` — inject the search results directly into the prompt.** The strongest guarantee: a shell hook queries gbrain for the context traced from the branch's GitHub issue and returns `{"context": "<brain snippet>"}` on stdin→stdout, so the search results are *physically in front of the model* on every turn — it cannot omit them.
+2. **`pre_tool_call` (with `fail_closed: true`) — block work until the brain was searched.** When a GitHub issue is found for the branch, the gate refuses the first code-editing tool call unless the session already pulled brain context, forcing the lookup first.
 
 Either way the agent is instructed to **"search the brain"** before implementing — via the injected context (Hermes) or the blocking gate / skill / manual prompt (Claude Code).
 
@@ -69,7 +69,7 @@ The session start is wired differently on each tool, but the behaviour is the sa
 Fires automatically when you open `claude` in the repo. It:
 1. Prints the current branch, last commits, and git status
 2. Checks for open TODOs in `CLAUDE.md`
-3. **If `CODEMAX_ENABLED=1`:** detects the work order (WO-*) from the branch or `CLAUDE.md` and tells you gbrain context is available
+3. **If `CODEMAX_ENABLED=1`:** looks up the GitHub issue for this branch and tells you gbrain context is available if one is found (same issue lookup as the next step)
 4. **If you're on a feature branch (with `gh` installed):** checks for a GitHub issue for that branch, and reports the number if one exists. The actual issue is created later — after the brainstorming/plan step, hydrated with the plan content (see the Writing Plans skill).
 
 #### Hermes — `on_session_start` shell hook (`~/.hermes/config.yaml`)
@@ -81,7 +81,7 @@ hooks:
     - command: "~/.hermes/agent-hooks/codemax-brain-gate.sh"
       timeout: 30
 ```
-Same intent as Claude's SessionStart — it runs once when a new Hermes session starts in the repo, detects the WO-* / gbrain context, and (optionally) enforces the brain lookup as described above. Note it fires **once on a brand-new session** (not on every resumed message).
+Same intent as Claude's SessionStart — it runs once when a new Hermes session starts in the repo, detects the GitHub issue / gbrain context, and (optionally) enforces the brain lookup as described above. Note it fires **once on a brand-new session** (not on every resumed message).
 
 > **So the flow is the same in both tools:** open the repo → the hook does the bookkeeping → just start talking about your task. No special incantation needed.
 

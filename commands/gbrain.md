@@ -7,9 +7,9 @@ task boundaries, not continuously.
 ## Usage
 
 ```
-/gbrain query <terms>    # search gbrain for context on a topic
-/gbrain sync             # push living-docs (wiki) into gbrain
-/gbrain context <WO-xx>  # pull the traced requirement/blueprint/ADR for a work order
+/gbrain query <terms>     # search gbrain for context on a topic
+/gbrain sync              # push living-docs (wiki) into gbrain
+/gbrain context           # pull the traced requirement/blueprint/ADR for the branch's GitHub issue
 ```
 
 ## Implementation
@@ -35,9 +35,11 @@ codemax sync run --wiki-dir "$CODEMAX_WIKI_DIR" --gbrain-dir "$CODEMAX_GBRAIN_DI
 gbrain list -n 5   # verify recent pages
 ```
 
-### Context for a work order
-Follow the `codemax-gbrain` skill: find the WO's "Traces to:" line, read the
-linked requirement/blueprint/ADR, and load that context. Never fabricate a
+### Context for a task
+Follow the `codemax-gbrain` skill: the branch's GitHub issue body holds the plan
+that traces to requirement/blueprint/ADR pages. Read the issue (same lookup as
+the session-start hook), find its "Traces to:" lines, read the linked
+requirement/blueprint/ADR, and load that context. Never fabricate a
 requirement — if it's missing, say so.
 
 ## Notes

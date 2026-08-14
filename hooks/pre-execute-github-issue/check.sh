@@ -18,7 +18,7 @@ if ! command -v gh &>/dev/null; then
 fi
 
 # Resolve repo from current git remote
-REPO=$(git remote get-url origin 2>/dev/null | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')
+REPO=$(git remote get-url origin 2>/dev/null | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|' | sed -E 's|\.git$||')
 if [ -z "$REPO" ]; then
     echo "ℹ️  No GitHub remote found — skipping issue detection."
     exit 0

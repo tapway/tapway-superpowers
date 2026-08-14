@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-REPO=$(git remote get-url origin 2>/dev/null | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')
+REPO=$(git remote get-url origin 2>/dev/null | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|' | sed -E 's|\.git$||')
 if [ -z "$REPO" ]; then
     echo "ERROR: No GitHub remote found." >&2
     exit 2

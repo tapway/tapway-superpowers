@@ -71,8 +71,8 @@ during the task.
 
 **Route before you sync.** Before pushing docs to gbrain, decide which of the
 docs this task produced belong in the wiki/brain vs. the repo's own docs (see
-the `writing-plans` **7c. Route the docs the plan produces** step and the brain
-wiki's `CONTRIBUTING.md` "Wiki vs. repo docs" section). Sync only the
+the `writing-plans` **7c. Route the docs the plan produces** step and CodeMAX's
+`docs/CONSUMING_A_CODEMAX_INSTANCE.md` "Wiki vs. repo docs" section). Sync only the
 wiki-worthy ones; repo-locked docs (README/ARCHITECTURE/API) stay in the repo
 and are not pushed here.
 

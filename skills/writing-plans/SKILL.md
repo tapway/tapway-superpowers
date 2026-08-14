@@ -204,7 +204,9 @@ For each artifact the plan produces, ask: "wiki or repo?" — and route it:
 | User manual for an app UI | **wiki** → `general/user-manuals/<app>.md` |
 | Runnable artifact (config, script) | **repo / config repo** (keep spec inline in wiki) |
 
-The authoritative routing table lives once in the brain wiki's `CONTRIBUTING.md` ("Wiki vs. repo docs") and the `wiki-maintainer` skill — reference it, don't duplicate it.
+The authoritative routing table lives once in CodeMAX's
+`docs/CONSUMING_A_CODEMAX_INSTANCE.md` → "Wiki vs. repo docs" — reference it,
+don't duplicate it.
 
 **Read-only / no wiki write access:** still decide the routing, but do **not** push to wiki `master`. Either record the decision in the plan/repo-docs only, or (where supported) submit wiki pages as a **draft** for approval. A failed or blocked wiki write must **never block the pipeline** — proceed to the next step either way.
 

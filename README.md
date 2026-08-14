@@ -106,7 +106,7 @@ Not sure which mode applies? Use this table:
 
 ```
 /interview → /brainstorming → /plan → [implement] → /simplify → /review → /pr
-                              ↑ pull context from gbrain if WO-* traced
+                              ↑ pull context from gbrain if a GitHub issue exists
                                                          ↓ sync docs to gbrain before pr
 ```
 

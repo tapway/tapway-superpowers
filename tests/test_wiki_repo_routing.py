@@ -113,6 +113,37 @@ def main() -> int:
         check("sync" in txt.lower(),
               f"codemax-gbrain {which}: references gbrain sync")
 
+    # --- [6] guardrail parity: key phrases must exist in BOTH copies ----------
+    # W3 from review: the per-copy substring checks above hide silent drift — if
+    # someone edits ONE copy's guardrails and not the other, each copy still
+    # satisfies its own check. These union checks fail if either copy drops a
+    # guardrail phrase, keeping the two copies semantically in lockstep.
+    print("\n[6] guardrail parity (both writing-plans + both codemax-gbrain in lockstep)")
+    WPI = [("claude", wp["claude"]), ("hermes", wp["hermes"])]
+    CGI = [("claude", cg["claude"]), ("hermes", cg["hermes"])]
+    wp_phrases = [("skip guard", 1), ("codemax_enabled", 1), ("repo docs", 1)]
+    cg_phrases = [("route before you sync", 1), ("never block", 1)]
+
+    def copies_having(phrases, copies):
+        """Count of copies containing each phrase. Requires BOTH copies."""
+        hits = {}
+        for phrase, _ in phrases:
+            hits[phrase] = sum(
+                1 for _, txt in copies if txt and phrase in txt.lower()
+            )
+        return hits
+
+    wp_hits = copies_having(wp_phrases, WPI)
+    for phrase, _ in wp_phrases:
+        check(wp_hits[phrase] == len([c for c in WPI if c[1]]),
+              f"'{phrase}' in BOTH writing-plans copies (got {wp_hits[phrase]} of "
+              f"{len([c for c in WPI if c[1]])})")
+    cg_hits = copies_having(cg_phrases, CGI)
+    for phrase, _ in cg_phrases:
+        check(cg_hits[phrase] == len([c for c in CGI if c[1]]),
+              f"'{phrase}' in BOTH codemax-gbrain copies (got {cg_hits[phrase]} of "
+              f"{len([c for c in CGI if c[1]])})")
+
     print("\n" + "=" * 68)
     print(f"RESULT: {len(PASS)} passed, {len(FAIL)} failed")
     print("=" * 68)

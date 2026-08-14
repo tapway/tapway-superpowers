@@ -7,6 +7,35 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ---
 ---
 
+## [2.0.0] — 2026-08-14
+
+### Major — Canonical doc-routing + issue-driven session-start
+
+This major release consolidates the CodeMAX living-docs workflow around a
+single canonical source of truth and makes the session-start hint real.
+
+### Changed
+
+- **Wiki-vs-repo doc routing now lives in CodeMAX, not the brain wiki.** The
+  canonical routing table moved to
+  `tapway/codemax` → `docs/CONSUMING_A_CODEMAX_INSTANCE.md` → "Wiki vs. repo
+  docs". `writing-plans` 7c (both copies) and `codemax-gbrain`'s "Route before
+  you sync" pointer now reference that doc instead of the brain wiki's
+  `CONTRIBUTING.md`. Link, don't copy.
+
+### Fixed
+
+- **Session-start gbrain hint now detects the branch's GitHub issue, not a dead
+  WO-\*.** Nothing in the real dev flow writes a `WO-*` into a branch/`CLAUDE.md`
+  (work orders live on the CodeMAX panel); every branch gets a GitHub issue via
+  the plan step. The `session-start.sh` hook now looks up `label:codemax
+  in:body <branch>` (the same query as `create-issue.sh`) and hints to pull the
+  traced requirement/blueprint/ADR from the issue.
+  - Fixed the `git remote ... .git` swallowing bug so `gh issue list` actually
+    succeeds on HTTPS remotes (the hint was always showing "no issue" before).
+  - Hardened `tests/e2e-session-hook.sh` so it fails RED if the `.git` strip
+    regresses.
+
 ## [1.8.9] — 2026-08-14
 
 ### Added

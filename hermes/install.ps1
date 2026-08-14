@@ -53,7 +53,8 @@ $Skills = @(
   "pr",
   "repo-docs",
   "git-worktrees",
-  "setup-project"
+  "setup-project",
+  "codemax-gbrain"
 )
 
 $NameCollisions = @("writing-plans", "systematic-debugging")

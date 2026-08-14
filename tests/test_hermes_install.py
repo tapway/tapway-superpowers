@@ -48,6 +48,7 @@ EXPECTED = [
     "repo-docs",
     "git-worktrees",
     "setup-project",
+    "codemax-gbrain",
 ]
 
 # Substrings that previously tripped Hermes skills-guard on community installs.

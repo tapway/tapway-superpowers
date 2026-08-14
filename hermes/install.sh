@@ -63,8 +63,10 @@ SKILLS=(
   repo-docs
   git-worktrees
   setup-project
+  codemax-gbrain
 )
 
+# 24 ported skills in pipeline order (plus codemax-gbrain = 25).
 # Skills known to collide with Hermes builtin / other hub names.
 # Tapway copies still install under the category folder; `hermes skills list`
 # may show only one row per bare name.

@@ -98,6 +98,7 @@ def main() -> int:
         "pr",
         "repo-docs",
         "setup-project",
+        "codemax-gbrain",
     ]
     for name in blocked:
         text = (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")

@@ -49,7 +49,7 @@ continuously. You touch it at exactly two points:
 2. **Push** — at task end, update the living-doc status and run `codemax sync`
    so the brain reflects what was actually built.
 
-Everything in between is normal dev work in the repo (AGENTS.md / CLAUDE.md
+Everything in between is normal dev work in the repo (AGENTS.md / .hermes.md
 carry the standing contract; living-docs carry the product state).
 
 ---
@@ -159,7 +159,7 @@ from repo-local context alone. How far you can enforce it depends on the tool:
   blueprints, ADRs) land on a feature branch as a PR, not directly on `master`.
 - **The work order status moves** `todo → in_progress → review → done` as you
   progress, and this is reflected in the living doc before sync.
-- **Static docs live in AGENTS.md / CLAUDE.md**; only *product state* lives in
+- **Static docs live in AGENTS.md / .hermes.md**; only *product state* lives in
   living-docs → gbrain. Don't sync the standing contract.
 
 ---

@@ -100,6 +100,17 @@ skipped.
 
 ## Push — at task end (before /pr)
 
+**Route before you sync.** Before pushing docs to gbrain, decide which of the
+docs this task produced belong in the wiki/brain vs. the repo's own docs (see
+the `writing-plans` **7c. Route the docs the plan produces** step and the brain
+wiki's `CONTRIBUTING.md` "Wiki vs. repo docs" section). Sync only the
+wiki-worthy ones; repo-locked docs (README/ARCHITECTURE/API) stay in the repo
+and are not pushed here.
+
+**Read-only / no CodeMAX?** If the wiki isn't writable (or CodeMAX is off),
+still route the docs but do **not** push to gbrain — update the repo docs and
+move on; a blocked wiki write must never block the pipeline.
+
 When the work is done and you're about to open a PR, sync the living docs back
 to gbrain so the brain stays current:
 

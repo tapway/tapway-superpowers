@@ -32,23 +32,58 @@ When CodeMAX is enabled, the coding agent pulls task context by **connecting to 
 
 ### Enforcement: making the agent actually search the brain
 
-The `codemax-gbrain` skill tells the agent to pull context, and the session-start hook *hints* at it — but both are advisory. An agent can skip the brain and work from repo-local context alone. If you want context-pull **enforced** rather than requested, there are two binding hooks (both available in Hermes' shell-hook system in `~/.hermes/config.yaml`):
+The `codemax-gbrain` skill tells the agent to pull context, and the session-start behaviour *hints* at it — both are advisory. An agent can skip the brain and work from repo-local context alone. How far you can *enforce* it depends on your tool, so this section is split per-tool.
 
-1. **`pre_llm_call` — inject the search results directly into the prompt.** This is the strongest guarantee: the hook queries gbrain for the WO-* context and returns `{"context": "<brain snippet>"}`, so the search results are *physically in front of the model* on every turn — it cannot omit them.
-2. **`pre_tool_call` — block work until the brain was searched.** When a `WO-*` is present, a `pre_tool_call` gate refuses the first code-editing tool call unless the session already pulled brain context, forcing the agent to do the lookup first.
+#### If the agent isn't querying the brain automatically — just ask it
 
-Either way the agent is instructed to **"search the brain"** before implementing — via the injected context (enforced) or via the `codemax-gbrain` skill (advisory fallback when no hook wiring exists).
+Whatever tool you use, the simplest and always-available fallback is to prompt it directly. If you notice the agent hasn't called the gbrain MCP tool and is working from repo-local context alone, say:
 
-### What the session-start hook does automatically
+> **"Search the brain for `<topic>` / the requirement that `<WO-xx>` traces to."**
+> e.g. *"Search the brain for the VSS behavior-analytics data flow."* · *"Search the brain for what requirements city-guard satisfies."*
 
-When you open Claude Code (or start a Hermes session) in a repo, the **SessionStart hook fires automatically** — you don't invoke it and you don't say anything special. It:
+This forces a need-to-know lookup even when automatic context pull is off or skipped.
 
+#### Claude Code — enforcement is via hooks + the skill (blocking only)
+
+Claude Code's hook system (`hooks/hooks.json`: `SessionStart`, `PreToolUse`) can **detect** context and **block** tool calls, but it has **no equivalent of Hermes' pre-prompt context injection** — it cannot inject the search results into the model's prompt for you.
+
+- **At session start** the `SessionStart` hook prints the active work order and *hints* to pull brain context (advisory).
+- **To block** work until the brain is searched: a `PreToolUse` gate on code-editing tools can `exit 2` (block) when a `WO-*` is present and the brain wasn't queried this session.
+- Otherwise rely on the **`codemax-gbrain` skill** and — when it skips — the manual **"search the brain for …"** prompt above.
+
+#### Hermes — native binding enforcement (injection + blocking)
+
+Hermes' shell-hook system in `~/.hermes/config.yaml` supports genuine **contextual enforcement** that the agent cannot skip:
+
+1. **`pre_llm_call` — inject the search results directly into the prompt.** The strongest guarantee: a shell hook queries gbrain for the WO-* context and returns `{"context": "<brain snippet>"}` on stdin→stdout, so the search results are *physically in front of the model* on every turn — it cannot omit them.
+2. **`pre_tool_call` (with `fail_closed: true`) — block work until the brain was searched.** When a `WO-*` is present, the gate refuses the first code-editing tool call unless the session already pulled brain context, forcing the lookup first.
+
+Either way the agent is instructed to **"search the brain"** before implementing — via the injected context (Hermes) or the blocking gate / skill / manual prompt (Claude Code).
+
+### What the session-start hook does — per tool
+
+The session start is wired differently on each tool, but the behaviour is the same: bookkeeping fires, then you just start talking.
+
+#### Claude Code — `SessionStart` hook (`hooks/hooks.json`)
+
+Fires automatically when you open `claude` in the repo. It:
 1. Prints the current branch, last commits, and git status
 2. Checks for open TODOs in `CLAUDE.md`
 3. **If `CODEMAX_ENABLED=1`:** detects the work order (WO-*) from the branch or `CLAUDE.md` and tells you gbrain context is available
 4. **If you're on a feature branch (with `gh` installed):** checks for a GitHub issue for that branch, and reports the number if one exists. The actual issue is created later — after the brainstorming/plan step, hydrated with the plan content (see the Writing Plans skill).
 
-So the flow is: **open the repo → the hook does the bookkeeping → just start talking about your task.** No special incantation needed.
+#### Hermes — `on_session_start` shell hook (`~/.hermes/config.yaml`)
+
+Registered under a `hooks:` block in `~/.hermes/config.yaml`:
+```yaml
+hooks:
+  on_session_start:
+    - command: "~/.hermes/agent-hooks/codemax-brain-gate.sh"
+      timeout: 30
+```
+Same intent as Claude's SessionStart — it runs once when a new Hermes session starts in the repo, detects the WO-* / gbrain context, and (optionally) enforces the brain lookup as described above. Note it fires **once on a brand-new session** (not on every resumed message).
+
+> **So the flow is the same in both tools:** open the repo → the hook does the bookkeeping → just start talking about your task. No special incantation needed.
 
 ---
 

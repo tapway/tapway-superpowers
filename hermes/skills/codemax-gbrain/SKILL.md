@@ -3,11 +3,12 @@ name: codemax-gbrain
 description: >-
   Fold the shared gbrain brain into the normal dev loop (Hermes port of
   tapway-superpowers codemax-gbrain skill): pull the requirement, blueprint, and
-  ADR that a work order traces to at task start, and push updated living-docs to
-  gbrain (via codemax sync) at task end — so context is always present without
-  manually querying gbrain. Triggers include "pick up a work order", "start this
-  task", "sync docs to gbrain", "what context exists for WO-*", "codemax",
-  "gbrain", and any task that references a WO-*, requirement, or blueprint.
+  ADR traced from the branch's GitHub issue at task start, and push updated
+  living-docs to gbrain (via codemax sync) at task end — so context is always
+  present without manually querying gbrain. Triggers include "pick up a task",
+  "start this task", "sync docs to gbrain", "what context exists for this
+  branch", "codemax", "gbrain", and any task whose branch has a GitHub issue or
+  references a requirement, blueprint, or ADR.
 version: 1.0.0
 author: Tapway (ported to Hermes by limcheehow)
 license: MIT
@@ -26,10 +27,12 @@ metadata:
 > by setting `CODEMAX_ENABLED=1` and the `CODEMAX_GBRAIN_MCP` / `GBRAIN_TOKEN`
 > values for your deployment.
 
-**When to invoke:** At the start of a task that references a work order
-(`WO-*`), requirement, or blueprint — to pull the traced context into the
-session. And at the end of a task, before `/pr`, to push updated living-docs
-back to gbrain. Also invoke on any explicit "sync" or "query gbrain" request.
+**When to invoke:** At the start of a task whose branch has a GitHub issue
+(the `writing-plans` skill creates one after `/plan`, labeled `codemax`, body =
+the plan), or that references a requirement, blueprint, or ADR — to pull the
+traced context into the session. And at the end of a task, before `/pr`, to push
+updated living-docs back to gbrain. Also invoke on any explicit "sync" or
+"query gbrain" request.
 
 > ⚠️ **This is the Hermes port.** The tapway-superpowers repo also ships a
 > Claude Code copy at `skills/codemax-gbrain/SKILL.md`. The workflow (pull at
@@ -44,8 +47,8 @@ back to gbrain. Also invoke on any explicit "sync" or "query gbrain" request.
 gbrain is a **source of truth**, not a workflow tool. You do NOT query it
 continuously. You touch it at exactly two points:
 
-1. **Pull** — at task start, load the requirement/blueprint/ADR the work order
-   traces to, so you have the real context in-flow.
+1. **Pull** — at task start, load the requirement/blueprint/ADR the branch's
+   GitHub issue traces to, so you have the real context in-flow.
 2. **Push** — at task end, update the living-doc status and run `codemax sync`
    so the brain reflects what was actually built.
 
@@ -56,23 +59,25 @@ carry the standing contract; living-docs carry the product state).
 
 ## Pull — at task start
 
-When picking up a work order, get its traced context from gbrain:
+The entry point is the **GitHub issue for this branch** — the session-start
+hook detects it (same lookup as `create-issue.sh`), and the issue body holds the
+plan that traces to requirement / blueprint / ADR pages in the living-docs wiki:
 
 ```bash
-# 1. Find the work order in the living-docs repo
-#    (living-docs live in the repo, usually wiki/platforms/<platform>/work-orders/)
-grep -rl "WO-<id>" wiki/ 2>/dev/null
+# 1. Find the issue for this branch (label codemax, branch in the body)
+gh issue list --repo "$REPO" --search "label:codemax in:body ${BRANCH}" \
+  --json number,title,body --jq '.[0]'
 
-# 2. Read the requirement + blueprint it traces to (they're linked pages)
-#    Read the work-order file to see its "Traces to:" line, then read those
-#    linked pages for the full context.
+# 2. Read the plan in the issue body, then the requirement/blueprint/ADR pages
+#    it references — they're linked pages in wiki/platforms/<name>/:
+#    grep -rl "requirement\|blueprint\|ADR" wiki/platforms/<name>/ 2>/dev/null
 ```
 
-If the work order references gbrain/MCP for context, query the brain via the
+If the plan references gbrain/MCP for context, query the brain via the
 registered gbrain MCP **tools** (`mcp_gbrain_search`, `mcp_gbrain_get_page`,
-`mcp_gbrain_list_pages`). If the work order doesn't exist or has no traced
-context, say so and proceed with what's in the repo — do not fabricate a
-requirement.
+`mcp_gbrain_list_pages`). If there's no issue for the branch yet (plan not
+written), or the plan has no traced context, say so and proceed with what's in
+the repo — do not fabricate a requirement.
 
 **Rule:** Pull context once, use it in-flow. Do not keep re-querying gbrain
 during the task.
@@ -91,7 +96,7 @@ it's actually wired up:
   in your available tools, or `curl -s "$CODEMAX_GBRAIN_MCP/health"`.
 
 **If the brain hasn't been queried and you need it, tell the agent explicitly:**
-> *"Search the brain for `<topic>` / the requirement that `<WO-xx>` traces to."*
+> *"Search the brain for `<topic>` / the requirement that issue `#<n>` traces to."*
 
 This forces a need-to-know lookup even when automatic context pull is off or
 skipped.
@@ -115,7 +120,7 @@ When the work is done and you're about to open a PR, sync the living docs back
 to gbrain so the brain stays current:
 
 ```bash
-# Update the living-doc status (work order → done, etc.) in the repo
+# Update the living-doc status (task → done, etc.) in the repo
 # then sync the wiki ↔ gbrain lockstep (use your deployed wiki dirs):
 codemax sync run --wiki-dir "$CODEMAX_WIKI_DIR" --gbrain-dir "$CODEMAX_GBRAIN_DIR"
 ```
@@ -139,7 +144,8 @@ Context-pull is a *hint*, not a guarantee — an agent can skip the brain and wo
 from repo-local context alone. How far you can enforce it depends on the tool:
 
 - **Hermes (native binding):** attach shell hooks in `~/.hermes/config.yaml` —
-  `on_session_start` to detect the WO-* at session start, `pre_llm_call` to
+  `on_session_start` to detect the branch's GitHub issue at session start,
+  `pre_llm_call` to
   inject the gbrain search result as `{"context": "<brain snippet>"}` into the
   prompt (the model cannot omit it), and/or `pre_tool_call` (with
   `fail_closed: true`) to block the first code-editing call until the brain was
@@ -157,7 +163,7 @@ from repo-local context alone. How far you can enforce it depends on the tool:
   say so and ask the human — don't invent one.
 - **Living docs are a shared repo.** Structural changes (new requirements,
   blueprints, ADRs) land on a feature branch as a PR, not directly on `master`.
-- **The work order status moves** `todo → in_progress → review → done` as you
+- **The task status moves** `todo → in_progress → review → done` as you
   progress, and this is reflected in the living doc before sync.
 - **Static docs live in AGENTS.md / .hermes.md**; only *product state* lives in
   living-docs → gbrain. Don't sync the standing contract.
@@ -166,8 +172,8 @@ from repo-local context alone. How far you can enforce it depends on the tool:
 
 ## Verification
 
-- [ ] At task start: pulled the requirement/blueprint/ADR the WO traces to
-- [ ] At task end: work-order status updated in the living doc
+- [ ] At task start: pulled the requirement/blueprint/ADR the branch's issue traces to
+- [ ] At task end: task status updated in the living doc
 - [ ] `codemax sync run` executed and pages appear in gbrain
 - [ ] No fabricated context; missing context surfaced to the human
 - [ ] Structural changes opened as a PR, not pushed to master

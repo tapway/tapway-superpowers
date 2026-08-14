@@ -110,6 +110,27 @@ with the plan from docs/plans/[feature-name].md as the body, and note the branch
 
 The resulting issue auto-syncs to the kanban via the CodeMAX webhook. Push incremental progress to it as you work (in_progress → review → done).
 
+### 7c. Route the docs the plan produces (wiki vs. repo)
+Each document the plan creates belongs either in the **shared wiki / brain** or in the **repo's own docs**. Decide before implementing, so a doc lands in the right home the first time — no churn later.
+
+**Skip guard:** if the team does **not** run CodeMAX (`CODEMAX_ENABLED` unset), **skip this step entirely** — just update the **repo docs** the plan produces and move on. Nothing wiki-related runs, nothing fails.
+
+**One-line rule for the rest:**
+> Version-locked + travels with the code → **repo docs**. Knowledge that outlives a commit, explains the "why", spans platforms, or is synthesized → **wiki** (with shared infra → `references/`).
+
+For each artifact the plan produces, ask: "wiki or repo?" — and route it:
+| Plan output | Home |
+|---|---|
+| README / ARCHITECTURE / DEPLOYMENT / DB schema / OpenAPI, code, docstrings | **repo docs** |
+| Requirement, blueprint, ADR, work order | **wiki** → `platforms/<name>/{requirements,blueprints,decisions,work-orders}/` |
+| Cross-platform / shared infra (VSS, keycloak, edge tunnel) | **wiki** → `references/` |
+| User manual for an app UI | **wiki** → `general/user-manuals/<app>.md` |
+| Runnable artifact (config, script) | **repo / config repo** (keep spec inline in wiki) |
+
+The authoritative routing table lives once in the brain wiki's `CONTRIBUTING.md` ("Wiki vs. repo docs") and the `wiki-maintainer` skill — reference it, don't duplicate it.
+
+**Read-only / no wiki write access:** still decide the routing, but do **not** push to wiki `master`. Either record the decision in the plan/repo-docs only, or (where supported) submit wiki pages as a **draft** for approval. A failed or blocked wiki write must **never block the pipeline** — proceed to the next step either way.
+
 ### 8. Execution
 After committing, say:
 > "Plan and checklist committed and pushed. Teammates can pick up a work package from `docs/checklists/[feature-name]-checklist.md`. When ready to implement your package: create a branch, run `tdd`, then open a PR when done."

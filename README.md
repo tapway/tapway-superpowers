@@ -35,12 +35,12 @@ Prefer **Hermes Agent** over Claude Code? A port of these skills ships in this r
 ```bash
 # From inside the cloned repo:
 cd hermes
-bash install.sh        # macOS / Linux — installs all 24 skills + the /tapway bundle
+bash install.sh        # macOS / Linux — installs all 25 skills + the /tapway bundle
 # or, on Windows (PowerShell):
 .\install.ps1
 ```
 
-This installs all **18** Tapway skills through Hermes's native skill hub and creates a
+This installs all **25** Tapway skills through Hermes's native skill hub and creates a
 `/tapway` skill bundle that loads the whole pipeline with one slash command. A few
 Claude-only pieces (commit hooks, secret scanning) don't auto-run
 in Hermes — the equivalent discipline is preserved by following the pipeline. Full details

@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
+---
+
+## [1.8.8] — 2026-08-14
+
+### Changed
+
+- **Cross-repo CodeMAX doc restructure** — `docs/team-guide.md` now links to the CodeMAX `DEVELOPER_ONBOARDING.md` as the canonical MCP-connect reference instead of carrying a third copy of the connect steps, and documents how the coding agent pulls context from the gbrain brain plus the two enforcement primitives (`pre_llm_call` context injection, `pre_tool_call` blocking). Companion docs change in `tapway/codemax`.
 
 ## [1.8.7] — 2026-08-14
 

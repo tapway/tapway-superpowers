@@ -18,6 +18,11 @@ same guardrail hooks, without re-learning a parallel tool.
 - **Distribution:** a repo-checked `codex/` tree now (mirror of `hermes/`), plugin packaging later.
 - **Depth:** skills + enforceable hooks + custom "commands". **Subagents deliberately deferred.**
 - **Skills:** **all 24**, including `codemax-gbrain` (carry `CODEMAX_ENABLED` / `DB_CONNECTION` env behavior into the Codex `SKILL.md`).
+- **Trigger path (confirmed):** **3+5+1** — a `$tapway` umbrella skill
+  (chains the whole pipeline, analogue of the `hermes` `/tapway` bundle) +
+  an `AGENTS.md` pipeline directive written by the installer (background
+  discipline) + every granular step kept as its own `$skill` (fine control).
+  Codex's built-in `/plan` and `/review` used where they map.
 
 ## 2. Current state (grounded survey)
 

@@ -38,7 +38,7 @@ fi
 if [ "${CODEMAX_ENABLED:-0}" = "1" ]; then
   ISSUE_NUM=""
   if command -v gh &>/dev/null; then
-    REPO="$(git remote get-url origin 2>/dev/null | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
+    REPO="$(git remote get-url origin 2>/dev/null | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|' | sed -E 's|\.git$||')"
     BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')"
     if [ -n "$REPO" ] && [ -n "$BRANCH" ]; then
       ISSUE_NUM="$(gh issue list --repo "$REPO" --search "label:codemax in:body ${BRANCH}" --json number --jq '.[0].number // ""' 2>/dev/null)"

@@ -46,13 +46,30 @@ make_project() {
   cd "$ROOT_DIR"
 
   # Fake `gh` on PATH so issue detection is hermetic (no network/auth needed).
-  # `gh issue list ...` prints $FAKE_GH_ISSUE (empty = "no issue found").
+  #
+  # Hardened against the .git-swallow bug (PR #24 regression): real `gh` fails
+  # on a --repo ending in ".git", so a repo that still carries .git must be
+  # treated as "no issue" — otherwise the hook would silently report nothing
+  # forever. This makes the e2e fail RED if session-start.sh stops stripping
+  # .git from the remote URL.
   mkdir -p "$TMP/bin"
   cat > "$TMP/bin/gh" <<'FAKEGH'
 #!/bin/bash
-if [ "$1" = "issue" ] && [ "$2" = "list" ]; then
-  echo "${FAKE_GH_ISSUE:-}"
+# Parse --repo <owner/repo> from the arg list. If it still ends in ".git",
+# behave like real gh (which fails on that form): emit nothing = "no issue".
+REPO_ARG=""
+while [ $# -gt 0 ]; do
+  if [ "$1" = "--repo" ] && [ $# -ge 2 ]; then
+    REPO_ARG="$2"
+    shift 2
+    continue
+  fi
+  shift
+done
+if [ -z "$REPO_ARG" ] || [[ "$REPO_ARG" == *.git ]]; then
+  exit 0   # no usable repo (as real gh would error) → no issue found
 fi
+echo "${FAKE_GH_ISSUE:-}"
 exit 0
 FAKEGH
   chmod +x "$TMP/bin/gh"

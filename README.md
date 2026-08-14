@@ -505,6 +505,10 @@ claude plugin update tapway-superpowers@tapway-superpowers
 
 Restart Claude Code after updating to apply changes.
 
+**Troubleshooting:**
+- `claude plugin update tapway-superpowers` failing with "Plugin not found"? Use the full `tapway-superpowers@tapway-superpowers` name (`<plugin>@<marketplace>`) — the bare name doesn't resolve.
+- CLI says "already at the latest version" but you know a newer tag exists on GitHub? `claude plugin update` reads the `version` field in `.claude-plugin/marketplace.json`/`plugin.json`, not git tags. If a release was tagged without running `/release` (which bumps those manifest files), the CLI has nothing newer to see even though `main` has moved on. Check the manifest version at the tag in question to confirm.
+
 ---
 
 ## For Template Users

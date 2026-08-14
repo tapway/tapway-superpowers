@@ -7,6 +7,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ---
 ---
 
+## [1.8.9] — 2026-08-14
+
+### Added
+
+- **Hermes port of the `codemax-gbrain` skill** (`hermes/skills/codemax-gbrain/SKILL.md`). Hermes users previously had no agent-facing equivalent of the Claude brain-pull skill; now they do (pull context at task start, sync at task end), with per-tool sections where the tools diverge (MCP registration check, enforcement, manual "search the brain" fallback). Wired into `hermes/install.sh` + `hermes/install.ps1` (25 skills now).
+- **`writing-plans` step `7c` — "Route the docs the plan produces (wiki vs. repo)"** in both Claude and Hermes copies. After the plan (alongside the GitHub-issue step), each produced document is routed to the shared wiki/brain or the repo's own docs.
+  - **Non-CodeMAX users skip it entirely** (`CODEMAX_ENABLED` unset) and just update repo docs — nothing wiki-related runs or fails.
+  - **Read-only wiki access never blocks the pipeline**: routing still happens, but the agent pushes to wiki `master` only when it can (or drafts), and proceeds to the next step either way.
+- **`writing-plans` step `7b` (GitHub issue after plan)** added to the **Claude** copy, which was previously missing it (Hermes already had it) — closing the parity gap.
+
+### Fixed
+
+- **Hermes skills-guard compatibility for `codemax-gbrain` port.** The port previously contained the `agent_config_mod` trigger substring (`CLAUDE.md`), which would block `hermes skills install` in hub mode with a `DANGEROUS` verdict. Reworded to `AGENTS.md / .hermes.md` and added `codemax-gbrain` to the guard-trigger scrub list in `tests/test_hermes_install.py`.
+- **`codemax-gbrain` (both copies) "Route before you sync"** guidance added to the Push step, with read-only / no-CodeMAX do-not-block instructions.
+
+### Changed
+
+- **`docs/team-guide.md` and CodeMAX onboarding now split per tool** (Claude Code vs Hermes) for the CodeMAX enforcement + session-start + MCP-connect steps, and document the manual "search the brain for \<topic\>" fallback.
+
+### Tests
+
+- **`tests/test_wiki_repo_routing.py`** (29 checks) verifies the routing step, both guardrails (non-CodeMAX skip, read-only do-not-block), and guardrail **parity** between the Claude and Hermes copies (a silent single-copy edit now fails CI).
+- `tests/test_hermes_install.py` now **111 checks**, including the `codemax-gbrain` skills-guard scrub.
+
 ## [1.8.8] — 2026-08-14
 
 ### Changed

@@ -6,6 +6,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.7] — 2026-08-14
+
+### Fixed
+
+- **HTTPS remote resolution in GitHub issue gate** — the `REPO=` sed in `hooks/pre-execute-github-issue/check.sh` and `create-issue.sh` was greedy (`[^/]+` swallowed the trailing `.git`), so HTTPS remotes like `https://github.com/tapway/tapway-superpowers.git` resolved to `tapway/tapway-superpowers.git`. `gh issue list --repo <that>` errors under `set -euo pipefail`, aborting both scripts (exit 1, no output): session-start issue detection and post-plan issue creation silently failed. Added a chained `sed 's|\.git$||'` to strip the suffix. SSH/mixed remotes unaffected.
+
 ## [1.8.3] — 2026-08-12
 
 ### Fixed

@@ -1,5 +1,7 @@
 # Codex Port Implementation Plan
 
+> **Status:** ✅ IMPLEMENTED — Branch `feat/codex-skills-port` → PR #31. All 9 tasks complete; parity test `tests/test_codex_port.py` 287/287 pass; code-review warnings W1–W3 resolved.
+
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task.
 
 **Goal:** Port all 24 Tapway Superpowers skills + enforceable hooks into a `codex/` tree that installs into Codex's native skill/hook system (`.agents/skills/` + `.codex/hooks.json` + `AGENTS.md`), mirroring the existing `hermes/` port.

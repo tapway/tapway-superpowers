@@ -7,6 +7,45 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ---
 ---
 
+## [2.1.0] — 2026-08-15
+
+### Added — Codex port of Tapway Superpowers
+
+This release adds a `codex/` tree that brings the full Tapway engineering
+pipeline to **OpenAI Codex** (CLI / IDE), parallel to the existing `hermes/`
+port and mirroring the Claude-native source.
+
+### Added
+
+- **24 skills ported to Codex** (`codex/skills/`) — same pipeline as Claude:
+  interview → brainstorming → writing-plans → tdd → code-review → pr, plus
+  quality/process/infra skills and `codemax-gbrain` (env-gated).
+- **`$tapway` umbrella skill** — chains the full pipeline in order, the Codex
+  analogue of the Hermes `/tapway` bundle.
+- **9 enforceable hooks** (`codex/hooks/`) adapted to Codex's stdin-JSON hook
+  payloads — pre-bash-safety, pre-commit-secrets, pre-commit-gate,
+  dependency-audit, post-write-lint, post-commit-release-note, session-start,
+  GitHub-issue check/create. Wired via `codex/hooks.json.template`.
+- **Installer** (`codex/install.sh` + `install.ps1`) — copies skills to
+  `~/.agents/skills/` (user scope) or `.agents/skills/` (repo scope) and
+  optionally writes `.codex/hooks.json` + `AGENTS.md` into a consuming project.
+- **`AGENTS.md` pipeline template** written into consuming repos by the
+  installer (background discipline, never overwrites an existing file).
+- **`codex/README.md`** — Claude→Codex command mapping, hook-event mapping,
+  one-time trust-review docs, and a runbook for converting to a distributable
+  Codex plugin later.
+- **Parity test** `tests/test_codex_port.py` (287 checks) locking the port's
+  structure, guard-scrubbing, hook stdin parsing, and installer wiring.
+
+### Notes
+
+- **No custom slash commands in Codex** — the pipeline is invoked via `$skill`
+  mentions plus built-in `/plan` `/review` (Codex doesn't support user-defined
+  slash commands).
+- `dependency-audit` stays a hook, not a skill (matches the Claude layout).
+- Code-review pass resolved W1–W3 on the ported hooks: frontend lint path
+  handling, lockfile audit joining, and `--` option-injection guards.
+
 ## [2.0.0] — 2026-08-14
 
 ### Major — Canonical doc-routing + issue-driven session-start

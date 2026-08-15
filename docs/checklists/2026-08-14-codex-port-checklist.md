@@ -28,4 +28,4 @@
 
 - [x] Pre-review-cleanup (no scaffolding placeholders leaked)
 - [x] Self-review (bash -n on all hooks, stdin-JSON simulated, hooks.json.template valid JSON, `.git`-strip chained)
-- [ ] PR opened → 🟢
+- [ ] PR opened → 🟢 **PR:** [#31](https://github.com/tapway/tapway-superpowers/pull/31)

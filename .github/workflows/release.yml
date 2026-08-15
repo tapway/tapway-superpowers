@@ -24,7 +24,7 @@ on:
   push:
     branches:
       - staging
-      - prod
+      - master
   workflow_dispatch:
     inputs:
       environment:

@@ -1,0 +1,32 @@
+# Schemathesis configuration (schemathesis.toml — modern format, kebab-case keys).
+# See: https://schemathesis.readthedocs.io/en/stable/reference/configuration/
+# Resolution precedence: CLI > phase settings > operation settings > project settings > global
+
+# --- Global (CLI) settings ---
+# Random seed for reproducible runs (CI: set a fixed seed to re-run exact failures)
+# seed = 42
+
+# Stop after this many failures
+max-failures = 10
+
+# Disable specific health checks only if you have to (e.g. data_too_large on big schemas)
+# suppress-health-check = ["too_slow"]
+
+# --- Project settings (single API under test) ---
+# Base URL of the running app (env substitution supported: "https://${API_HOST}/v1")
+base-url = "http://localhost:8000"
+
+# The OpenAPI schema URL or path
+schema = "http://localhost:8000/openapi.json"
+
+# Default auth for all requests (use env vars in CI)
+# headers = { Authorization = "Bearer ${API_TOKEN}" }
+
+# --- Generation (per-test case budget) ---
+[generation]
+# Force unique inputs within a phase (no duplicate test cases)
+unique-inputs = true
+
+# Hypothesis example budget equivalent — raise in CI for deeper fuzzing.
+# CLI flag: --hypothesis-max-examples=100
+# (config equivalent lives under [phases]; see docs for your version)

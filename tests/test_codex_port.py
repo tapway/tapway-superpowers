@@ -176,6 +176,31 @@ def main() -> int:
         check("plugin" in text.lower(), "README leaves a plugin runbook (Option C path)")
         check("$skill" in text, "README documents $skill invocation (no custom slash cmds)")
 
+    print("\n[11] code-review fix gates (W1/W2/W3)")
+    pwl = (HOOKS / "post-write-lint.sh")
+    if pwl.is_file():
+        text = pwl.read_text(encoding="utf-8")
+        # W1 fix: frontend files must be linted (no bare `cd frontend` that drops
+        # the repo-root-relative path) and W3 fix: `--` guards option injection.
+        check("eslint --fix --" in text or "eslint --fix --" in text.replace("  --quiet", ""),
+              "W3: eslint uses -- separator before file")
+        check("ruff check --fix --" in text, "W3: ruff check uses -- separator before file")
+        check("ruff format --" in text or "ruff format \"$FILE\"" in text,
+              "W3: ruff format guards file path")
+        # W1 fix: for frontend/ files, the repo-root-relative patch path must be
+        # stripped of its `frontend/` prefix before linting inside frontend/, so
+        # eslint resolves the file (the original bug linted a nonexistent path).
+        check('"${FILE#frontend/}"' in text, "W1: frontend file path is stripped of frontend/ prefix")
+
+    dep = (HOOKS / "dependency-audit.sh")
+    if dep.is_file():
+        text = dep.read_text(encoding="utf-8")
+        # W2 fix: staged and tracked lockfiles must be joined with a newline
+        # separator so a trailing name doesn't merge onto a tracked name.
+        check("printf" in text, "W2: lockfiles joined via printf (newline separator)")
+        check('"$STAGED_LOCKFILES"' in text and '"$TRACKED_LOCKFILES"' in text,
+              "W2: staged + tracked lockfile lists both referenced")
+
     print("\n" + "=" * 68)
     print(f"RESULT: {len(PASS)} passed, {len(FAIL)} failed")
     print("=" * 68)

@@ -22,7 +22,10 @@ echo "→ Running dependency audit..."
 # --- Lockfile detection (staged files + committed lockfiles) ---
 STAGED_LOCKFILES=$(git diff --cached --name-only 2>/dev/null | grep -E "package-lock\.json$|yarn\.lock$|pnpm-lock\.yaml$|poetry\.lock$|Pipfile\.lock$|uv\.lock$|go\.sum$|Cargo\.lock$" 2>/dev/null || true)
 TRACKED_LOCKFILES=$(git ls-files 2>/dev/null | grep -E "package-lock\.json$|yarn\.lock$|pnpm-lock\.yaml$|poetry\.lock$|Pipfile\.lock$|uv\.lock$|go\.sum$|Cargo\.lock$" 2>/dev/null || true)
-LOCKFILES="${STAGED_LOCKFILES}${TRACKED_LOCKFILES}"
+# Join the two newline-delimited lists with a real newline separator so a
+# trailing staged name can never merge onto the first tracked name (which
+# would break every `grep -E "…lock$"` anchor below and silently skip audits).
+LOCKFILES=$(printf '%s\n%s\n' "$STAGED_LOCKFILES" "$TRACKED_LOCKFILES" | sed '/^$/d')
 
 # --- Node (npm audit) ---
 if echo "$LOCKFILES" | grep -qE "package-lock\.json$|yarn\.lock$|pnpm-lock\.yaml$"; then

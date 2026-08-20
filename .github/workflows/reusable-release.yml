@@ -1,0 +1,190 @@
+---
+name: Reusable SemVer Release
+---
+
+# ReusableSemVer Release — centralized release workflow for Tapway product repos.
+
+# The single source of truth for the SemVer release scheme:
+#   vMAJOR.MINOR.PATCH-stg   (staging)
+#   vMAJOR.MINOR.PATCH-prod  (production)
+#
+# Consumer repos call this from their own .github/workflows/release.yml:
+#
+#   name: Auto Release
+#   on:
+#     push:
+#       branches: [staging, master]
+#     workflow_dispatch:
+#       inputs:
+#         environment:
+#           required: true
+#           default: staging
+#           type: choice
+#           options: [staging, production]
+#   jobs:
+#     release:
+#       permissions:
+#         contents: write
+#       uses: tapway/tapway-superpowers/.github/workflows/reusable-release.yml@vX.Y.Z
+#       with:
+#         environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+#       secrets: inherit
+#
+# Behaviour (identical to the classic per-repo copy):
+#   - Bump derived from conventional commits since the last tag for the same env:
+#       feat! / BREAKING CHANGE  ->  MAJOR
+#       feat:                    ->  MINOR
+#       anything else            ->  PATCH
+#   - Each environment keeps its own independent version stream.
+#   - Optionally syncs .claude-plugin manifests (plugin repos only) and
+#     writes release notes from the top CHANGELOG.md section.
+
+name: Reusable SemVer Release
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Target environment (staging or production)"
+        required: true
+        default: "staging"
+        type: string
+      sync_plugin_manifests:
+        description: "Bump .claude-plugin/plugin.json & marketplace.json (Claude Code plugin repos only)"
+        required: false
+        default: false
+        type: boolean
+      release_notes_from_changelog:
+        description: "Use top CHANGELOG.md section as release notes (falls back to --generate-notes)"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # IMPORTANT: inside a called workflow, actions/checkout defaults to the
+      # workflow's OWN repo (tapway-superpowers). We must explicitly check out
+      # the CALLER repository so tags/logs/releases act on the caller's code.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed to read existing tags & commits
+          repository: ${{ github.repository }}
+          ref: ${{ github.ref }}
+
+      - name: Compute next version
+        id: ver
+        run: |
+          set -e
+
+          # Environment suffix from the caller's input.
+          INPUT="${{ inputs.environment }}"
+          [ "$INPUT" = "production" ] && ENV="-prod" || ENV="-stg"
+
+          # Latest semver tag for this env, e.g. v1.2.3-stg
+          LATEST=$(git tag -l "v*${ENV}" 2>/dev/null | sort -V | tail -1)
+
+          if [ -z "$LATEST" ]; then
+            MAJOR=0; MINOR=0; PATCH=0
+          else
+            VER=${LATEST#v}
+            VER=${VER%%"${ENV}"}
+            MAJOR=$(echo "$VER" | cut -d. -f1)
+            MINOR=$(echo "$VER" | cut -d. -f2)
+            PATCH=$(echo "$VER" | cut -d. -f3)
+          fi
+
+          RANGE="${LATEST:-$(git rev-list --max-parents=0 HEAD)}..HEAD"
+
+          BUMP="patch"
+          if git log "${RANGE}" --format="%s%n%b" 2>/dev/null \
+             | grep -qE '(^feat!|BREAKING CHANGE)'; then
+            BUMP="major"
+          elif git log "${RANGE}" --format="%s" 2>/dev/null \
+             | grep -qE '^(feat|feat\()'; then
+            BUMP="minor"
+          fi
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          VERSION="v${MAJOR}.${MINOR}.${PATCH}${ENV}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "bump=${BUMP}"        >> "$GITHUB_OUTPUT"
+          echo "Computed version: ${VERSION} (${BUMP} bump)"
+
+      - name: Sync plugin manifest versions
+        # Only for Claude Code plugin repos; consumers skip.
+        if: inputs.sync_plugin_manifests && hashFiles('.claude-plugin/plugin.json') != ''
+        run: |
+          set -e
+
+          # Manifest "version" fields must never carry the -stg/-prod suffix —
+          # Claude Code's marketplace resolver reads these as plain SemVer.
+          VERSION="${{ steps.ver.outputs.version }}"
+          PLAIN_VERSION="${VERSION#v}"
+          PLAIN_VERSION="${PLAIN_VERSION%-*}"
+
+          jq --arg v "$PLAIN_VERSION" \
+            '.metadata.version = $v | .plugins[0].version = $v' \
+            .claude-plugin/marketplace.json > /tmp/marketplace.json
+          mv /tmp/marketplace.json .claude-plugin/marketplace.json
+
+          jq --arg v "$PLAIN_VERSION" '.version = $v' \
+            .claude-plugin/plugin.json > /tmp/plugin.json
+          mv /tmp/plugin.json .claude-plugin/plugin.json
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- .claude-plugin/; then
+            echo "Manifests already at ${PLAIN_VERSION}"
+          else
+            git add .claude-plugin/marketplace.json .claude-plugin/plugin.json
+            # [skip ci] prevents this commit from re-triggering any workflows.
+            git commit -m "chore: sync plugin manifest version to ${PLAIN_VERSION} [skip ci]"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: Tag and publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          VERSION="${{ steps.ver.outputs.version }}"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$VERSION"
+          git push origin "$VERSION"
+
+          # Extract the top CHANGELOG section (between first ## [ and second ## [ or ---)
+          NOTES_OK=false
+          if [ "${{ inputs.release_notes_from_changelog }}" = "true" ] && [ -f CHANGELOG.md ]; then
+            if awk '/^## \[/{if(p)exit; p=1; next} p && /^(## \[|---)/{exit} p{print}' CHANGELOG.md \
+               > /tmp/release-notes.md 2>/dev/null && [ -s /tmp/release-notes.md ]; then
+              NOTES_OK=true
+            fi
+          fi
+
+          if [ "$NOTES_OK" = "true" ]; then
+            gh release create "$VERSION" \
+              --title "$VERSION" \
+              --target "${{ github.ref_name }}" \
+              --notes-file /tmp/release-notes.md
+          else
+            gh release create "$VERSION" \
+              --title "$VERSION" \
+              --target "${{ github.ref_name }}" \
+              --generate-notes
+          fi

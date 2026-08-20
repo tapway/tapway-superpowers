@@ -7,6 +7,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ---
 ---
 
+## [2.2.0] — 2026-08-20
+
+### Added
+
+- Centralized reusable SemVer release workflow (`.github/workflows/reusable-release.yml`) — `workflow_call` entry point consumer repos can call for the `vMAJOR.MINOR.PATCH-stg/-prod` scheme.
+
+---
+
 ## [2.1.0] — 2026-08-15
 
 ### Added — Codex port of Tapway Superpowers

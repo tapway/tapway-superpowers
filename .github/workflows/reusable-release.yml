@@ -1,10 +1,7 @@
----
 name: Reusable SemVer Release
----
 
-# ReusableSemVer Release — centralized release workflow for Tapway product repos.
-
-# The single source of truth for the SemVer release scheme:
+# Reusable SemVer Release - centralized release workflow for Tapway product
+# repos. Single source of truth for the SemVer scheme:
 #   vMAJOR.MINOR.PATCH-stg   (staging)
 #   vMAJOR.MINOR.PATCH-prod  (production)
 #
@@ -38,8 +35,6 @@ name: Reusable SemVer Release
 #   - Each environment keeps its own independent version stream.
 #   - Optionally syncs .claude-plugin manifests (plugin repos only) and
 #     writes release notes from the top CHANGELOG.md section.
-
-name: Reusable SemVer Release
 
 on:
   workflow_call:
@@ -75,7 +70,7 @@ jobs:
       # the CALLER repository so tags/logs/releases act on the caller's code.
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history needed to read existing tags & commits
+          fetch-depth: 0
           repository: ${{ github.repository }}
           ref: ${{ github.ref }}
 
@@ -124,13 +119,10 @@ jobs:
           echo "Computed version: ${VERSION} (${BUMP} bump)"
 
       - name: Sync plugin manifest versions
-        # Only for Claude Code plugin repos; consumers skip.
         if: inputs.sync_plugin_manifests && hashFiles('.claude-plugin/plugin.json') != ''
         run: |
           set -e
 
-          # Manifest "version" fields must never carry the -stg/-prod suffix —
-          # Claude Code's marketplace resolver reads these as plain SemVer.
           VERSION="${{ steps.ver.outputs.version }}"
           PLAIN_VERSION="${VERSION#v}"
           PLAIN_VERSION="${PLAIN_VERSION%-*}"
@@ -151,7 +143,6 @@ jobs:
             echo "Manifests already at ${PLAIN_VERSION}"
           else
             git add .claude-plugin/marketplace.json .claude-plugin/plugin.json
-            # [skip ci] prevents this commit from re-triggering any workflows.
             git commit -m "chore: sync plugin manifest version to ${PLAIN_VERSION} [skip ci]"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
@@ -168,7 +159,6 @@ jobs:
           git tag "$VERSION"
           git push origin "$VERSION"
 
-          # Extract the top CHANGELOG section (between first ## [ and second ## [ or ---)
           NOTES_OK=false
           if [ "${{ inputs.release_notes_from_changelog }}" = "true" ] && [ -f CHANGELOG.md ]; then
             if awk '/^## \[/{if(p)exit; p=1; next} p && /^(## \[|---)/{exit} p{print}' CHANGELOG.md \

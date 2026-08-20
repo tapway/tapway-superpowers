@@ -7,6 +7,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ---
 ---
 
+## [2.2.1] — 2026-08-20
+
+### Fixed
+
+- Removed YAML frontmatter + duplicate `name` key from `reusable-release.yml` (parser cleanliness).
+
+---
+
 ## [2.2.0] — 2026-08-20
 
 ### Added

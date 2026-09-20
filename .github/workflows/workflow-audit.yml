@@ -41,16 +41,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
         run: |
           set -e
 
           # All commit subjects in this PR (excluding merges)
-          git log origin/main..HEAD --format='%s' --no-merges > /tmp/commits.txt
+          git log "origin/${BASE_BRANCH:-master}"..HEAD --format='%s' --no-merges > /tmp/commits.txt
           echo "--- commits ---"
           cat /tmp/commits.txt
 
           # Files changed: added/modified (omit docs/checklists/plans for doc-touch check)
-          git diff origin/main...HEAD --name-status > /tmp/files.txt
+          git diff "origin/${BASE_BRANCH:-master}"...HEAD --name-status > /tmp/files.txt
           echo "--- files ---"
           cat /tmp/files.txt
 
@@ -80,7 +81,7 @@ jobs:
           # Scan the PR diff for common secret patterns.
           # grep exits 1 when nothing matches -> we WANT to pass then.
           # Capture the exit code explicitly so `set -e` doesn't kill us.
-          if git diff origin/main...HEAD -- . ':!*.lock' ':!*.md' \
+          if git diff "origin/${BASE_BRANCH:-master}"...HEAD -- . ':!*.lock' ':!*.md' \
              | grep -nE '(AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----)'; then
             echo "::error::SECRET detected in diff. Remove it before merge."
             exit 1

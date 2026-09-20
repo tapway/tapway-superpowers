@@ -30,6 +30,9 @@ hooks:
     - matcher: "terminal"
       command: "~/.hermes/agent-hooks/tapway-dependency-audit.sh"
       timeout: 120
+    - matcher: "terminal|write_file|patch"
+      command: "~/.hermes/agent-hooks/pre-brainstorm-ground.sh"
+      timeout: 30
 
 # Optional: auto-accept the consent prompt for these (event, command) pairs.
 # The first-use prompt is shown per pair unless this is set.

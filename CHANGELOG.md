@@ -5,6 +5,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
+
+## [2.3.0] — 2026-09-21
+
+### Added — Platform grounding (G1–G6)
+
+- **`brainstorming` skill: Step 1.5 — Platform Context (mandatory, fail-closed).** Before any option is generated, the skill retrieves the platform-wide design context (ownership, contracts, existing capability, ADRs, data model, dependency direction) from the dedicated spec repo, records a routing decision, and writes unresolved items as `UNKNOWN (not retrieved: …)` rows. All three variants (skills/, hermes/skills/, codex/skills/) updated in sync.
+- **Option rows now grounded:** every option carries **Platform Fit** and a **Grounding:** line (`catalog:<platform>#<contract-id>`, ADR ids); options that violate a platform contract are recorded with **Rejected because platform:**.
+- **Index-first pack budget (~4k chars):** the platform context is an index with fetch-on-demand, never inline docs (context-rot defense).
+- **`pre-brainstorm-ground` gate (fail-closed):** shared lib + `extract-post-text.py`, shipped for Claude Code (`hooks/hooks.json` PreToolUse Write|Edit), Codex (`codex/hooks.json.template` Bash|Edit|Write) and Hermes (`hermes/config.hooks.yaml`, matcher `terminal|write_file|patch`). Validates the POST-write text (payload content / heredoc / echo bodies), accepts the skill template's bullet/bold `Grounding:` rows, gates nested `docs/brainstorming/**` paths, and fails closed when python3 is unavailable. Off by default (`TAPWAY_BRAINSTORM_GATE=1` enables — this repo is public).
+- **Release workflow hardened:** tag + GitHub release are published before (and independent of) the plugin-manifest version sync, which is now non-fatal when the branch ruleset rejects the bot's push — this unblocks Auto Release, which had failed on every master push since the ruleset landed.
+
+### Fixed
+
+- `check_docs_consistency.py`: stale count expectations corrected (skills 23→24, hermes/skills 24→25, hooks 8→10, plugin.json skills 23→24).
+- `.claude-plugin/plugin.json`: removed stale `hooks: []` field (official plugins omit it).
+
+### Tests
+
+- `tests/test-phase-g.sh` — 40+ assertions: Step 1.5 in all variants, template-form docs, creation-flow gating (grounded allowed / ungrounded blocked), heading-dodge prevention, no-python3 fail-closed, md5 copy-drift guard across the three hook copies.
+- `tests/e2e-platform-grounding.sh` — full chain: spec repo → pack build → CLI check → hook.
+
+---
 ---
 
 ## [2.2.1] — 2026-08-20

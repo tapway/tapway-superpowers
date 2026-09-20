@@ -22,13 +22,19 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "^Bash$",
+        "matcher": "^Bash$|^Edit$|^ApplyPatch$|^Write$",
         "hooks": [
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pre-bash-safety.sh\"",
             "timeout": 10,
             "statusMessage": "Checking Bash safety"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pre-brainstorm-ground.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking brainstorm grounding"
           },
           {
             "type": "command",

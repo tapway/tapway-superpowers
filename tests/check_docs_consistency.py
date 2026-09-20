@@ -6,7 +6,7 @@ import os
 checks = []
 
 d = json.load(open(".claude-plugin/plugin.json"))
-checks.append(("plugin.json skills=23", len(d["skills"]) == 23, len(d["skills"])))
+checks.append(("plugin.json skills=24", len(d["skills"]) == 24, len(d["skills"])))
 checks.append(("plugin.json agents=5", len(d["agents"]) == 5, len(d["agents"])))
 
 readme = open("README.md").read()
@@ -17,13 +17,13 @@ checks.append(("README no stale 13 Skills ToC", "  - [13 Skills]" not in readme,
 checks.append(("README Documentation index", "docs/ARCHITECTURE.md" in readme, "present" if "docs/ARCHITECTURE.md" in readme else "missing"))
 
 h = open("hermes/README.md").read()
-checks.append(("hermes/README 'All **24**'", "All **24**" in h, "present" if "All **24**" in h else "missing"))
+checks.append(("hermes/README 'All **25**'", "All **25**" in h, "present" if "All **25**" in h else "missing"))
 
-checks.append(("skills/ count=23", len(os.listdir("skills")) == 23, len(os.listdir("skills"))))
-checks.append(("hermes/skills/ count=24", len(os.listdir("hermes/skills")) == 24, len(os.listdir("hermes/skills"))))
+checks.append(("skills/ count=24", len(os.listdir("skills")) == 24, len(os.listdir("skills"))))
+checks.append(("hermes/skills/ count=25", len(os.listdir("hermes/skills")) == 25, len(os.listdir("hermes/skills"))))
 checks.append(("agents/ count=5", len(os.listdir("agents")) == 5, len(os.listdir("agents"))))
 hook_dirs = [x for x in os.listdir("hooks") if os.path.isdir(f"hooks/{x}")]
-checks.append(("hooks dirs=8 (+hooks.json)", len(hook_dirs) == 8, len(hook_dirs)))
+checks.append(("hooks dirs=10 (+hooks.json)", len(hook_dirs) == 10, len(hook_dirs)))
 
 allok = True
 for label, ok, val in checks:

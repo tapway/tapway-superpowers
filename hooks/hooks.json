@@ -1,5 +1,5 @@
 {
-  "description": "Tapway Superpowers hooks — enforceable quality gates",
+  "description": "Tapway Superpowers hooks \u2014 enforceable quality gates",
   "hooks": {
     "PreToolUse": [
       {
@@ -27,6 +27,17 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/dependency-audit/dependency-audit.sh\"",
             "if": "Bash(git commit:*)",
             "timeout": 120
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-brainstorm-ground/pre-brainstorm-ground.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking brainstorm grounding"
           }
         ]
       }

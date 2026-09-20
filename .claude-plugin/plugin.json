@@ -45,7 +45,6 @@
     "./skills/incident-runbook",
     "./skills/codemax-gbrain"
   ],
-  "hooks": [],
   "agents": [
     "./agents/code-reviewer/AGENT.md",
     "./agents/test-writer/AGENT.md",

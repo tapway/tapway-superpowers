@@ -60,9 +60,13 @@ jobs:
             INPUT="${{ github.event.inputs.environment }}"
             [ "$INPUT" = "production" ] && ENV="-prod" || ENV="-stg"
           else
-            BRANCH="${GITHUB_REF_NAME}"
-            ENV="-stg"
-            [ "$BRANCH" = "prod" ] && ENV="-prod"
+            # master releases are UNSUFFIXED (historical tags are plain vMAJOR.MINOR.PATCH);
+            # staging -> -stg, prod -> -prod, anything else -> -stg.
+            case "${GITHUB_REF_NAME}" in
+              master|main) ENV="" ;;
+              prod)        ENV="-prod" ;;
+              *)           ENV="-stg" ;;
+            esac
           fi
 
           # Latest semver tag for this env, e.g. v1.2.3-stg

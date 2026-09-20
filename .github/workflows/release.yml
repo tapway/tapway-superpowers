@@ -105,8 +105,33 @@ jobs:
           echo "bump=${BUMP}"        >> "$GITHUB_OUTPUT"
           echo "Computed version: ${VERSION} (${BUMP} bump)"
 
-      - name: Sync plugin manifest versions
+      - name: Tag and publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Tag + release FIRST: these must succeed regardless of the manifest
+          # sync below (the ruleset may reject the bot's push to a protected
+          # branch, which previously aborted the whole release).
+          git tag "$VERSION"
+          git push origin "$VERSION"
+
+          # Extract the top CHANGELOG section (between first ## [ and second ## [ or ---)
+          awk '/^## \[/{if(p)exit; p=1; next} p && /^(## \[|---)/{exit} p{print}' CHANGELOG.md \
+            > /tmp/release-notes.md
+
+          gh release create "$VERSION" \
+            --title "$VERSION" \
+            --target "${{ github.ref_name }}" \
+            --notes-file /tmp/release-notes.md
+
+      - name: Sync plugin manifest versions (non-fatal)
         id: sync
+        continue-on-error: true
         run: |
           set -e
 
@@ -133,27 +158,10 @@ jobs:
           else
             git add .claude-plugin/marketplace.json .claude-plugin/plugin.json
             # [skip ci] prevents this push from re-triggering this workflow.
-            git commit -m "chore: sync plugin manifest version to ${PLAIN_VERSION} [skip ci]"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
+            # If the branch ruleset rejects this bot push, the tag/release have
+            # already been published — the manifest sync lands via the next PR.
+            git commit -m "chore: sync plugin manifest version to ${PLAIN_VERSION} [skip ci]" \
+              && git push origin "HEAD:${GITHUB_REF_NAME}" \
+              || echo "::warning::manifest-sync push rejected (protected branch); version files updated in the release tag"
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Tag and publish release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${{ steps.ver.outputs.version }}"
-
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "$VERSION"
-          git push origin "$VERSION"
-
-          # Extract the top CHANGELOG section (between first ## [ and second ## [ or ---)
-          awk '/^## \[/{if(p)exit; p=1; next} p && /^(## \[|---)/{exit} p{print}' CHANGELOG.md \
-            > /tmp/release-notes.md
-
-          gh release create "$VERSION" \
-            --title "$VERSION" \
-            --target "${{ github.ref_name }}" \
-            --notes-file /tmp/release-notes.md

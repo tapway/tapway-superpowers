@@ -65,6 +65,12 @@ SKILLS=(
   git-worktrees
   setup-project
   codemax-gbrain
+  ponytail
+  ponytail-review
+  ponytail-audit
+  ponytail-debt
+  ponytail-gain
+  ponytail-help
 )
 
 # Plus the $tapway umbrella that chains the whole pipeline.

@@ -35,7 +35,7 @@ Prefer **Hermes Agent** over Claude Code? A port of these skills ships in this r
 ```bash
 # From inside the cloned repo:
 cd hermes
-bash install.sh        # macOS / Linux — installs all 25 skills + the /tapway bundle
+bash install.sh        # macOS / Linux — installs all 31 skills + the /tapway bundle
 # or, on Windows (PowerShell):
 .\install.ps1
 ```
@@ -58,7 +58,7 @@ and the skill-to-Hermes mapping are in [`hermes/README.md`](hermes/README.md).
 - [Code Review — Inside the Agent](#code-review--inside-the-agent)
 - [Release Convention — Semantic Versioning](#release-convention--semantic-versioning)
 - [What You Get](#what-you-get)
-  - [24 Skills](#24-skills)
+  - [30 Skills](#30-skills)
   - [8 Guardrail Hooks](#8-guardrail-hooks)
   - [5 Specialized Agents](#5-specialized-agents)
 - [Slash Commands Reference](#slash-commands-reference)
@@ -366,7 +366,7 @@ Set `staging` as your repo's default branch (GitHub → Settings → Branches �
 
 ## What You Get
 
-### 24 Skills
+### 30 Skills
 
 AI behaviors that activate automatically when you use relevant keywords. Also invokable explicitly with `/skill-name`.
 
@@ -397,8 +397,27 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `observe` | Structured observability shipped with the feature: on-call questions first → structured logs + correlation IDs → RED metrics → OTel → symptom-based alerts → staging verification | "add observability", "add logging", "add metrics", "add tracing", "instrument this" |
 | `deprecate` | Safe removal of APIs, modules, or features: decision gate → replacement first → advisory/compulsory type → migration guide → Strangler/Adapter/Feature-flag → zero-usage gate → remove | "deprecate this", "remove this API", "sunset this feature", "migrate away from X" |
 | `codemax-gbrain` | Fold the shared gbrain brain into the dev loop: pull the requirement/blueprint/ADR a work order traces to at task start, and sync living-docs back to gbrain at task end (via `codemax sync run`). Never manually query the brain — it's part of the workflow. | "pick up a work order", "start this task", "sync docs to gbrain", "what context exists for WO-*", "codemax", "gbrain" |
+| `ponytail` | Laziest solution that actually works: YAGNI first, standard library before custom code, native platform features before dependencies, one line before fifty. Levels: lite / full / ultra. **Third-party — vendored from [dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail) (MIT).** | "ponytail", "be lazy", "lazy mode", "simplest solution", "minimal solution", "yagni", "do less", complaints about over-engineering or bloat |
+| `ponytail-review` | Diff review that hunts only over-engineering: reinvented standard library, unneeded dependencies, speculative abstractions, dead flexibility. One line per finding: location, what to cut, what replaces it. | "review for over-engineering", "what can we delete", "is this over-engineered", "simplify review" |
+| `ponytail-audit` | Whole-repo over-engineering audit (scans the tree, not a diff): ranked list of what to delete, simplify, or replace with stdlib/native equivalents, biggest cut first. One-shot report; applies nothing. | "audit this codebase", "audit for over-engineering", "what can I delete from this repo", "find bloat" |
+| `ponytail-debt` | Harvests every `ponytail:` comment into a debt ledger, so deliberate shortcuts record their ceiling and upgrade path instead of rotting into "later means never". One-shot report; changes nothing. | "ponytail debt", "what did ponytail defer", "list the shortcuts", "ponytail ledger" |
+| `ponytail-gain` | Displays ponytail's measured impact scoreboard (less code, less cost, more speed) from the upstream benchmark medians. One-shot display, not a mode. | "ponytail gain", "what does ponytail save", "ponytail scoreboard" |
+| `ponytail-help` | Quick-reference card for all ponytail modes, skills, and commands. One-shot display, not a mode. | "ponytail help", "what ponytail commands", "how do I use ponytail" |
 
 > All skills apply Andrej Karpathy's coding principles: Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution.
+
+> The six `ponytail*` skills are **third-party and vendored verbatim** from
+> [dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail) (MIT, (c) 2026
+> DietrichGebert, pinned at commit `e3ba2aa`). They are **not** Tapway-authored and do not
+> carry the Karpathy framing above. Licence retained at `skills/ponytail/LICENSE`; upstream repo
+> and commit are pinned in each skill's frontmatter.
+
+> **Measured impact** — A/B on 5 Tapway repos, 30 headless agent sessions, n=3 per cell,
+> `deepseek-v4.1-flash`: **−40% input tokens, −54% total, −50% cost, −38% source LOC**, with no
+> measured loss of correctness (100% baseline vs 93% ponytail; neither arm dropped a validation
+> guard, and the single ponytail miss was a malformed generation with zero edits). n=3 with up to
+> 3.6× run-to-run variance — treat the means as ±10pp. Note `ponytail` is **auto-triggering**:
+> once loaded it shapes how code is written for *every* coding task, not only on request.
 
 ---
 

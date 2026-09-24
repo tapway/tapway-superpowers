@@ -6,7 +6,7 @@ A port of the [Tapway Superpowers](https://github.com/tapway/tapway-superpowers)
 
 ## Install
 
-All **25** Tapway skills install into Hermes via `install.sh` / `install.ps1`.
+All **31** Tapway skills install into Hermes via `install.sh` / `install.ps1`.
 The installer also creates a **`/tapway` skill bundle** so the entire strict
 pipeline loads with a single slash command.
 
@@ -48,7 +48,7 @@ If the hub scanner blocks a skill, re-run from a checkout with
 
 Then verify:
 ```bash
-ls "$HERMES_HOME/skills/tapway" | wc -l    # expect 25 (or your category path)
+ls "$HERMES_HOME/skills/tapway" | wc -l    # expect 31 (or your category path)
 hermes skills list | grep -E 'tapway'
 hermes bundles list                        # "tapway" bundle present
 ```
@@ -75,7 +75,7 @@ hermes bundles list                        # "tapway" bundle present
 
 Field report from the v1.8.2 update: [INSTALL_ISSUES.md](./INSTALL_ISSUES.md).
 
-### What you get: 25 skills
+### What you get: 31 skills
 
 discovery/planning | implementation | quality/gates | process/infra
 ---|---|---|---

@@ -49,6 +49,12 @@ EXPECTED = [
     "git-worktrees",
     "setup-project",
     "codemax-gbrain",
+    "ponytail",
+    "ponytail-review",
+    "ponytail-audit",
+    "ponytail-debt",
+    "ponytail-gain",
+    "ponytail-help",
 ]
 
 # Substrings that previously tripped Hermes skills-guard on community installs.
@@ -99,6 +105,12 @@ def main() -> int:
         "repo-docs",
         "setup-project",
         "codemax-gbrain",
+        "ponytail",
+        "ponytail-review",
+        "ponytail-audit",
+        "ponytail-debt",
+        "ponytail-gain",
+        "ponytail-help",
     ]
     for name in blocked:
         text = (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")

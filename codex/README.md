@@ -23,7 +23,7 @@ bash codex/install.sh
 CODEX_TARGET_PROJECT=/path/to/project bash codex/install.sh
 ```
 
-This copies the **24 skills + `$tapway` umbrella** to `~/.agents/skills/` (or
+This copies the **30 skills + `$tapway` umbrella** to `~/.agents/skills/` (or
 `<project>/.agents/skills/`), and — when `CODEX_TARGET_PROJECT` is set — writes:
 
 - `<project>/.codex/hooks.json` (hook manifest)
@@ -129,7 +129,7 @@ repository-tree distribution first, plugin "later".
 
 ## Scope decisions (from the brainstorm)
 
-- **24 skills** ported (Claude's set, mirrors `hermes/`). `dependency-audit`
+- **30 skills** ported (Claude's set, mirrors `hermes/`). `dependency-audit`
   stays a hook, not a skill.
 - **Subagents deferred** — `agents/*.md` subagents are out of scope this round.
 - **No custom slash commands** — `$skill` mentions + built-in `/plan` `/review`.

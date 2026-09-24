@@ -6,6 +6,53 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.4.0] — 2026-09-24
+
+### Added — ponytail skill pack (vendored third-party, MIT)
+
+Six skills vendored **verbatim** from
+[github.com/dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail) (MIT, (c) 2026 DietrichGebert) at commit
+`e3ba2aa6f1e6f0bc4d69eb09c9f0d0a93af56156`, and ported into all three host trees: `skills/` (Claude),
+`hermes/skills/`, `codex/skills/`.
+
+- **`ponytail`** — forces the laziest solution that actually works: YAGNI first,
+  standard library before custom code, native platform features before dependencies,
+  one line before fifty. Levels `lite` / `full` / `ultra`. Auto-triggers on coding tasks.
+- **`ponytail-review`** / **`ponytail-audit`** — over-engineering review of a diff / of a whole repo.
+- **`ponytail-debt`** / **`ponytail-gain`** / **`ponytail-help`** — debt ledger,
+  impact scoreboard, reference card.
+- **`skills/ponytail/LICENSE`** — upstream MIT licence retained; upstream repo + commit
+  pinned in every vendored skill's frontmatter.
+
+Rule text is byte-for-byte upstream in all three trees; only the YAML frontmatter and an
+appended host-notes section were adapted. `tests/test_ponytail_pack.py` fails if any
+canonical rule line goes missing from a host port, or if any declared skill count drifts.
+
+### Changed
+
+- Skill counts synced across every declaration point: **30** (Claude `skills/`),
+  **31** (Hermes), **30 + `$tapway` umbrella** (Codex) — `plugin.json`, both `install.sh`
+  `SKILLS` arrays, `README.md`, `hermes/README.md`, `codex/README.md`, and
+  `tests/test_hermes_install.py`.
+- `.claude-plugin/marketplace.json` — version plus **pre-existing stale counts corrected**
+  (19 skills / 4 agents → 30 skills / 5 agents).
+- Hermes ports are free of the `CLAUDE.md` / `cat .env.example` skills-guard triggers that
+  break community installs.
+
+### Measured — A/B on 5 Tapway repos
+
+30 headless agent sessions, 2 arms x 5 repos x n=3, `deepseek-v4.1-flash`, pinned SHAs,
+per-cell clones; arms differ only by preloading this skill:
+
+- **−40.3% input tokens, −50.4% output, −53.7% total, −38.4% API calls, −50.4% cost,
+  −38.4% source LOC.**
+- Correctness **100% (baseline, 15/15) vs 93% (ponytail, 14/15)**; neither arm dropped a
+  validation guard or broke an existing suite. The single ponytail miss was a malformed
+  generation with zero edits — a model failure, not a quality regression.
+- Caveat: n=3 with up to 3.6x run-to-run variance — treat the means as ±10pp.
+
+---
+
 ## [2.3.0] — 2026-09-21
 
 ### Added — Platform grounding (G1–G6)

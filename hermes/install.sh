@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# install.sh — Install all 24 Tapway Superpowers skills into Hermes Agent
+# install.sh — Install all 31 Tapway Superpowers skills into Hermes Agent
 #              (gbrain-style: one command scaffolds the whole skillpack).
 #
 # Modes (HERMES_INSTALL_MODE):
@@ -37,7 +37,7 @@ MODE="${HERMES_INSTALL_MODE:-auto}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_SKILLS_DIR="${SCRIPT_DIR}/skills"
 
-# All 24 ported skills. Order = pipeline order.
+# All 31 ported skills. Order = pipeline order (ponytail pack appended last).
 SKILLS=(
   interview
   brainstorming
@@ -64,6 +64,12 @@ SKILLS=(
   git-worktrees
   setup-project
   codemax-gbrain
+  ponytail
+  ponytail-review
+  ponytail-audit
+  ponytail-debt
+  ponytail-gain
+  ponytail-help
 )
 
 # 24 ported skills in pipeline order (plus codemax-gbrain = 25).

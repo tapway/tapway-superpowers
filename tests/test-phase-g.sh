@@ -186,10 +186,15 @@ fi
 # c) the three lib copies must be byte-identical (drift guard)
 LIBS="$ROOT/hooks/pre-brainstorm-ground/pre-brainstorm-ground-lib.sh $ROOT/codex/hooks/pre-brainstorm-ground-lib.sh $ROOT/hermes/agent-hooks/pre-brainstorm-ground-lib.sh"
 EXTRACTORS="$ROOT/hooks/pre-brainstorm-ground/extract-post-text.py $ROOT/codex/hooks/extract-post-text.py $ROOT/hermes/agent-hooks/extract-post-text.py"
-if md5sum $LIBS | awk '{print $1}' | sort -u | wc -l | grep -q '^1$' && md5sum $EXTRACTORS | awk '{print $1}' | sort -u | wc -l | grep -q '^1$'; then
+# NOTE: strip whitespace before comparing. BSD/macOS `wc -l` pads its output
+# ("       1"), so `grep -q '^1$'` can never match there and this guard failed
+# unconditionally on macOS regardless of whether the copies had actually drifted.
+uniq_lib=$(md5sum $LIBS | awk '{print $1}' | sort -u | wc -l | tr -d '[:space:]')
+uniq_ex=$(md5sum $EXTRACTORS | awk '{print $1}' | sort -u | wc -l | tr -d '[:space:]')
+if [ "$uniq_lib" = "1" ] && [ "$uniq_ex" = "1" ]; then
   green "PASS: all three lib+extractor copies are byte-identical"
 else
-  red "FAIL: lib/extractor copies have drifted"
+  red "FAIL: lib/extractor copies have drifted (distinct lib=$uniq_lib extractor=$uniq_ex, want 1)"
   FAILURES=$((FAILURES+1))
 fi
 

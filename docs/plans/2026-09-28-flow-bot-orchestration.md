@@ -24,10 +24,17 @@ verify the **artifact**, then continue or stop.
    phase that produces nothing leaves HEAD unchanged, and a HEAD-scoped check would then report the
    *previous* phase's commit as this phase's evidence.
 2. **Verify a range, not a commit.** `⟨F4⟩` flow-build commits **per task**, so its evidence is
-   `git diff --numstat BASE..HEAD`. Phase B: the range is non-empty and every changed path is inside the
-   plan's authorised set. Phase A: the range touches **docs only**.
-3. **Genesis is a defined case.** `⟨F5⟩` Phase 1 has no predecessor: the precondition is that `BASE` exists
-   and the Confirmed Intent document is non-empty — not "a previous phase committed".
+   `git diff --numstat BASE..HEAD`. **Phase A and Phase B both require a NON-EMPTY range**: Phase B additionally requires every changed path
+   to be inside the plan's authorised set; Phase A additionally requires every changed path to be under
+   `docs/`. An **empty** range satisfies "touches docs only" vacuously — measured: with no commit after
+   `BASE`, `git diff --name-only "$BASE..HEAD" | grep -qv '^docs/'` is false and a naive docs-only check
+   exits 0 — so a phase that produced nothing would be reported VERIFIED. The non-emptiness test comes
+   first. `⟨F7-c2⟩`
+3. **Genesis is a defined case.** `⟨F5⟩` Phase 1 has no predecessor: the precondition is that `BASE` exists and the **Confirmed Intent document at
+   a pinned path** (`docs/flow/<feature>/intent.md`, written by the owner in the CLI — not produced by a
+   headless phase) is non-empty. `⟨F2-c2⟩` **Design consequence:** `@decider` owns the Confirmed Intent and
+   `/interview` is explicitly interactive, so a headless @decider cannot run it; the intent must exist
+   *before* phase 1 launches, or the runner is refused rather than fed an invented one.
 4. **Structured evidence only.** `⟨F6⟩` The gate verdict comes from the artifact and the phase's `state.db`
    row, **never** from grepping the transcript: the framework's own skill warns a run's log contains the
    literal gate-seal string from the moment it starts, so a log grep reports PASSED for every run,
@@ -65,6 +72,7 @@ verify the **artifact**, then continue or stop.
 
 | Risk | Mitigation |
 |---|---|
+| **A weekday cron rewinds the working checkout** | `codemax-skills-sync.sh:50` runs `git reset -q --hard origin/master` in `~/tapway-superpowers` whenever master's tip moves. **This branch is not on origin/master**, so an unpushed commit is destroyed and the tree reverts. The plan set itself and (for the grounding plan) the repo-tree edits are exposed. Owner decision required: push/merge the branch, or exclude the repo from that cron. Until then the plan set is backed up outside the repo at `~/.hermes/profiles/codemax/backups/flow-plans-<ts>/`. |
 | Launching on a false premise | `BASE` pinned per phase; the precondition prints and refuses `⟨F3⟩` |
 | Trusting a phase's summary | Artifact/range verification is a required step with named commands |
 | A docs-last commit hides code changes | Range check `BASE..HEAD`, not `HEAD` `⟨F4⟩` |
@@ -86,7 +94,9 @@ verify the **artifact**, then continue or stop.
 | 5 | Re-entry guard | a phase launched without `FLOW_ORCHESTRATED` is refused; with it, the contract carries the run-only-your-phase clause `⟨F12⟩` |
 | 6 | Provenance output | prints the profile + session id; the word "author" appears **nowhere** in its output `⟨F8⟩` |
 | 7 | Bound | the max wait is a single scripted value; a deliberately hanging phase is stopped at 900 s and reported `⟨F13⟩` |
-| 8 | Flow text | flow-decide names the 4 Phase-A bots in order + refuse-not-launch; flow-build names @builder + range verification; TDD/simplify/PR steps unchanged |
+| 8 | Flow text | flow-decide names the 4 Phase-A bots in order + refuse-not-launch; flow-build names @builder + range verification. The preservation half is checked as `diff -u <backup> <new> \| grep -c '^-[^-]'` over the TDD/simplify/PR step headings = 0 **after a `test -f` preflight** `⟨F8-c2⟩` `⟨F15-c2⟩` |
+| 8b | Scope the status check | `git status --porcelain` is run **only against the paths this phase was authorised to touch** — an unscoped status cannot tell this phase's stray file from a sibling run's, so both directions misreport `⟨F10⟩` |
+| 8c | Condition survey freshness | every machine-state row the preconditions rely on is **re-measured immediately before the run** and the values recorded; the cycle-1 survey was already stale when written `⟨F15⟩` |
 | 9 | Refuted claims removed | `peer messaging is CLOSED` and `check whether the seal's commit author` are **absent** from `hermes-flow-pipeline` `⟨F9⟩` |
 | 10 | Propagate + verify | all 7 pairs md5-identical; 7 backups present `⟨F7⟩` |
 | 11 | Repo suites still pass | `python3 tests/test_hermes_install.py`, `test_ponytail_pack.py`, `test_codex_port.py`, `test_quality_gates.py` all exit 0 — adding scripts must not move a declared count |

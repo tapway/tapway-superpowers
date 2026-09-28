@@ -16,9 +16,11 @@ pilots.
 ## Approach
 
 1. **Collision-managed CLI.** `⟨F2⟩` Installing the package **does** create a `codemax` console script in
-   the venv's own `bin/` (`[project.scripts]`, reproduced empirically). The protection is that **the venv
-   is never activated and its `bin/` never precedes `~/.local/bin` on PATH**; the venv's `bin/codemax`
-   existing is the *expected* state, asserted as such. Invoke as `python -m codemax.cli …`.
+   the venv's own `bin/` (`[project.scripts]`, reproduced empirically). The protection is that **the venv is never activated and its `bin/` never precedes `~/.local/bin` on PATH**; the venv's
+   `bin/codemax` existing is the *expected* state, asserted as such. **Every command in this plan and in the
+   skill text uses the venv's own interpreter**, `~/.hermes/venvs/codemax-cli/bin/python -m codemax.cli …`
+   — the bare `python -m codemax.cli` form **fails** (`ModuleNotFoundError: No module named 'codemax'`),
+   because the venv is never activated and the system interpreter has no `codemax`. `⟨F-c2⟩`
 2. **Pin the ref, assert the subgroup.** `⟨F13⟩` `tapway/codemax` master moves and the `platform-context`
    group arrived only with **PR #104**. Record the resolved SHA and assert the subgroup (`--help` on the
    group exits 0) — the top-level `--help` exits 0 regardless.
@@ -55,6 +57,7 @@ pilots.
 
 | Risk | Mitigation |
 |---|---|
+| **A weekday cron rewinds the working checkout** | `codemax-skills-sync.sh:50` runs `git reset -q --hard origin/master` in `~/tapway-superpowers` whenever master's tip moves. **This branch is not on origin/master**, so an unpushed commit is destroyed and the tree reverts. The plan set itself and (for the grounding plan) the repo-tree edits are exposed. Owner decision required: push/merge the branch, or exclude the repo from that cron. Until then the plan set is backed up outside the repo at `~/.hermes/profiles/codemax/backups/flow-plans-<ts>/`. |
 | The launcher is shadowed | Never activate the venv; never PATH its `bin/`; assert `~/.local/bin/codemax` sha256 unchanged `⟨F2⟩` |
 | The weekday cron reverts the fix | Repo trees edited in the same change; a criterion re-greps after a simulated install `⟨F3⟩` |
 | `hermes-agent` drift (venv 0.19.0 vs box 0.21.5+3840) | Recorded; only the `platform-context` path is exercised `⟨F14⟩` |
@@ -72,9 +75,9 @@ pilots.
 | 4 | Build offline | with the network down, `platform-context build` writes a pack; assert it contains ADR ids + component roles **and** that `'catalog:' in idx` is **False** `⟨F1⟩` |
 | 5 | Fail-closed proof | `check` exits **0** on a grounded doc and **non-zero** on an ungrounded one — both directions executed |
 | 6 | Wire the env | all **7** files hold a **non-empty** `TAPWAY_SPECS_DIR` equal to the clone path; `grep -c` = 1 each `⟨F6⟩` |
-| 7 | Rewrite both commands | `grep -c 'python -m codemax.cli'` ≥ 2; `grep -c 'codemax platform-context'` = **0** (catches the `check` twin as well as `build`) `⟨F5⟩` |
+| 7 | Rewrite both commands | `grep -c 'venvs/codemax-cli/bin/python -m codemax.cli'` ≥ 2; `grep -c 'codemax platform-context'` = **0** (catches the `check` twin). Run each as `test "$(grep -c …)" -eq 0` — the bare `grep -c` exits 1 when the count is 0, i.e. it reports failure when the file is *correct* `⟨F5⟩` `⟨F-c2⟩` |
 | 8 | Correct the note, decidably | per copy: `grep -q 'retrieval is wired'` **and** `! grep -q 'does not exist'` `⟨F4⟩` |
-| 9 | Prove the cron carries it | run `hermes/install.sh`'s local path against a scratch dest; assert the corrected text arrives `⟨F3⟩` |
+| 9 | Prove the cron carries it — **safely** | **Do not** set a scratch `HERMES_HOME`: `resolve_hermes_home` (install.sh:87-107) prefers `hermes config path`, so a scratch value is **ignored** and the live 31 skill dirs are `rm -rf`'d and recopied — and `hermes bundles create … --force` is rewritten. Use `HERMES_DRY_RUN=1` to prove the source path resolves, then assert on `hermes/skills/brainstorming/SKILL.md` **directly** rather than via an install run `⟨F3⟩` `⟨F-c2⟩` |
 | 10 | Assert the gate stayed off | `TAPWAY_BRAINSTORM_GATE` absent from all 7 env files **and** `test ! -d ~/.hermes/agent-hooks` `⟨F12⟩` |
 
 ## Success criteria

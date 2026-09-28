@@ -67,6 +67,7 @@ for a diff.
 
 | Risk | Mitigation |
 |---|---|
+| **A weekday cron rewinds the working checkout** | `codemax-skills-sync.sh:50` runs `git reset -q --hard origin/master` in `~/tapway-superpowers` whenever master's tip moves. **This branch is not on origin/master**, so an unpushed commit is destroyed and the tree reverts. The plan set itself and (for the grounding plan) the repo-tree edits are exposed. Owner decision required: push/merge the branch, or exclude the repo from that cron. Until then the plan set is backed up outside the repo at `~/.hermes/profiles/codemax/backups/flow-plans-<ts>/`. |
 | ponytail degrades the RED gate in @builder | Gate precedence in Step 1; evidence = counted ledger + ≥3 logged builder runs; revert = delete 6 dirs |
 | Step 3 runs both the skill and the fallback | The fallback runs **only** where `/simplify-code` does not resolve `⟨F5⟩` |
 | The install command silently does nothing | `--apply` required; the criterion asserts a **created directory** `⟨F1⟩` |
@@ -83,7 +84,12 @@ for a diff.
 | 2 | Prove the install set | architect/planner/builder → `grep -c '│ ponytail'` = 6; **positive control** codemax = 6; decider + doubter = 0 `⟨F13⟩` |
 | 3 | Back up all 7 pairs | `find ~/.hermes -path '*backups/flow-pairs-*' -name 'flow-decide*' | wc -l` = 7 `⟨F14⟩` |
 | 4 | Rewrite the whole Step 3 | contains `ponytail-review`; **absent**: `run a manual simplification pass over your own diff`, `exists only on the` … `default` in the same paragraph, and the `cp -R` copy-in instruction `⟨F3⟩` `⟨F16⟩` — each grep proven to fail on the v1 fixture |
-| 5 | Gate precedence in Step 1 | the ordering sentence is present; `diff <backup> <new>` removes **no line** from the TDD gate block `⟨F8⟩` — a **labelled regression guard**: green by design, because it asserts that an untouched block stayed untouched. It is not RED evidence and must not be counted as such. |
+| 5 | Gate precedence in Step 1 | the ordering sentence is present; the guard form is `test -f "$BK" && test -f "$NEW" || { echo 'REFUSE: baseline missing'; exit 1; }` then
+`diff -u "$BK" "$NEW" | grep -c '^-[^-]'` must be **0** for the TDD gate block `⟨F8⟩`.
+**Do not use bare `diff`**: it exits **1** when the two files legitimately differ (they must differ after
+task 4), and when the baseline is missing the removed-line count reads `0` — a **false PASS**. The proven
+idiom already exists at `~/.hermes/scripts/tapway-v240-sync.sh:64-72`; this criterion was measured to
+fail-open without it. Labelled regression guard, but now one that can actually run. |
 | 6 | Step 7 ledger line | the fenced Report block contains a `ponytail:` ledger line; the step names `ponytail-debt`; `ponytail-gain` appears only with a "benchmark medians" qualifier `⟨F4⟩` `⟨F9⟩` |
 | 7 | flow-decide Steps 2–3 | flow-decide names the YAGNI bullet; the "minimum 3 options" guard is asserted on **`skills/tapway/brainstorming/SKILL.md`** (the file that owns it), not on flow-decide `⟨F7⟩` |
 | 8 | Step 6 recorded as not adopted | the not-adopted sentence appears in plan + brainstorm + checklist `⟨F10⟩` |
@@ -96,7 +102,9 @@ for a diff.
 1. `grep -c '│ ponytail'` = 6 for architect/planner/builder, 0 for decider/doubter, **with codemax asserted
    at 6 as a positive control** so a broken probe cannot read as a clean exclusion `⟨F13⟩`.
 2. Step 3 contains a procedure and none of the three v1 strings, each grep proven able to fail.
-3. No line removed from the TDD gate block, proven against the pre-change backup by diff `⟨F8⟩` (*labelled regression guard — green on write by design; the other six criteria are the RED evidence*).
+3. No line removed from the TDD gate block, proven with `diff -u | grep -c '^-[^-]'` = 0 **after a
+   `test -f` preflight on both paths** — the preflight is required because a missing baseline otherwise
+   reads as a PASS. (*labelled regression guard; the other criteria are the RED evidence*) `⟨F8⟩`
 4. All 7 pairs md5-identical; the backup **count** is asserted, not assumed `⟨F14⟩`.
 5. Step 7's report carries the counted ledger; **no** criterion permits a per-repo number from
    `ponytail-gain` `⟨F4⟩`.

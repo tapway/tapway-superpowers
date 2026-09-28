@@ -6,6 +6,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **`hermes/skills/ponytail/SKILL.md` declared `license: MIT` twice**, and Hermes *drops* a skill
+  whose frontmatter repeats a key: the file sat on disk, `hermes skills list` never showed it, and
+  `/ponytail` never resolved — while the pack's five satellite skills loaded normally and this
+  suite stayed green (109 passed, 0 failed). The defect existed only in the Hermes port, so the
+  pack's headline skill was invisible in the one host it was ported for. Removed the duplicate
+  line; the pack now resolves all 6 skills.
+
+### Added
+
+- `tests/test_ponytail_pack.py` **[7]**: asserts every host port's frontmatter has unique
+  top-level keys, the class the existing checks could not see. Confirmed RED (126 passed, 1 failed)
+  against the unfixed file before the fix, GREEN (127 passed, 0 failed) after.
+
+---
+
 ## [2.4.0] — 2026-09-24
 
 ### Added — ponytail skill pack (vendored third-party, MIT)

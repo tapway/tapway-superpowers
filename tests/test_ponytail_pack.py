@@ -71,6 +71,27 @@ def body_lines(text: str) -> list[str]:
     return [ln.strip() for ln in body.splitlines() if ln.strip()]
 
 
+def duplicate_frontmatter_keys(text: str) -> list[str]:
+    """Top-level YAML keys declared more than once in the frontmatter.
+
+    Hermes silently DROPS a skill whose frontmatter repeats a key: the file sits
+    on disk, `hermes skills list` never shows it, and the slash command never
+    resolves. The port looks complete and every other check here passes, so the
+    only way to catch it is to look for the duplicate itself. (Hit for real:
+    `license:` declared twice in hermes/skills/ponytail, which made the pack's
+    headline skill invisible in the one host it was ported for.)
+    """
+    fm, _ = split_frontmatter(text)
+    seen: dict[str, int] = {}
+    for ln in fm.splitlines():
+        if not ln or ln[0].isspace() or ln.lstrip().startswith("#"):
+            continue
+        m = re.match(r"([A-Za-z0-9_-]+):", ln)
+        if m:
+            seen[m.group(1)] = seen.get(m.group(1), 0) + 1
+    return sorted(k for k, n in seen.items() if n > 1)
+
+
 def skill_dirs(path: Path) -> list[str]:
     if not path.is_dir():
         return []
@@ -192,6 +213,19 @@ def main() -> int:
         for trig in ("coding task", "laziest", "yagni"):
             check(trig in fm.lower(), f"ponytail description carries trigger {trig!r}")
         check("Do NOT" in fm, "ponytail description scopes out non-coding requests")
+
+    print("\n[7] frontmatter keys unique (a repeated key makes Hermes drop the skill)")
+    for name in PACK:
+        for tree in ("skills", "hermes/skills", "codex/skills"):
+            p = ROOT / tree / name / "SKILL.md"
+            if not p.is_file():
+                continue
+            dups = duplicate_frontmatter_keys(p.read_text(encoding="utf-8"))
+            check(
+                not dups,
+                f"{name}: {tree} frontmatter keys unique"
+                + (f" (repeated: {', '.join(dups)})" if dups else ""),
+            )
 
     print("\n" + "=" * 68)
     print(f"RESULT: {len(PASS)} passed, {len(FAIL)} failed")

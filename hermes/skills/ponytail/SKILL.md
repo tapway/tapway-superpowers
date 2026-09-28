@@ -15,7 +15,6 @@ description: >
   summaries, recipes).
 argument-hint: "[lite|full|ultra]"
 license: MIT
-license: MIT
 version: 1.0.0
 author: Tapway (ported to Hermes by limcheehow)
 platforms: [linux, macos, windows]

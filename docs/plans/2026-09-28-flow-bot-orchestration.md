@@ -1,3 +1,8 @@
+> **⚠ SUPERSEDED FOR SCOPE — not sealed.** The chain design below is retained as the design record.
+> The scope decision is `docs/plans/2026-09-28-flow-bot-orchestration-rescope.md`: one phase,
+> driven by hand, supervisor text NOT propagated to worker profiles. Do not implement the chain
+> from this document.
+
 # Plan: One entry point — the flow drives the bot team
 
 > **Revision v2 — post doubt-cycle-1.** v1 returned 16 findings, all Actionable; each fix is

@@ -60,7 +60,9 @@ Install `ponytail` in the three profiles; no reviewer, no ledger, no scoreboard.
 over-engineering pass at **Step 3 simplify** (and an optional second lens at Step 6); `ponytail-debt`
 as the **per-repo counted ledger** — the only per-repo figure the pack itself authorises
 (`grep -rnE '(#|//) ?ponytail:' .`) — surfaced in the Step 7 report; `ponytail-gain` as a
-**benchmark card** that may be displayed but never presented as this-repo savings; `ponytail-audit` explicitly unplugged; `ponytail-help` as operator reference.
+**benchmark card** that may be displayed but never presented as this-repo savings; `ponytail-audit` explicitly unplugged; `ponytail-help` as operator reference. **Step 6 is NOT adopted:**
+the optional second lens floated earlier in this section is withdrawn — the over-engineering pass lives at
+Step 3 only, so `/code-review` at Step 6 is unchanged `⟨F-c2⟩`.
 - **Platform Fit:** `UNKNOWN (not retrieved: platform pack unavailable — `codemax platform-context` is not installed on this host and `tapway/platform-specs` is not cloned. Retrieval is the subject of the companion brainstorm `platform-grounding-retrieval.md`.)`
 - **Grounding:** `UNKNOWN (not retrieved: platform pack unavailable — `codemax platform-context` is not installed on this host and `tapway/platform-specs` is not cloned. Retrieval is the subject of the companion brainstorm `platform-grounding-retrieval.md`.)`
 - **Pros:** every skill lands somewhere accountable; gives the fallback a procedure; the measurement problem
@@ -124,7 +126,10 @@ audit target at plan time — they review code, and at Step 2 the artifact is an
 - If the measured builder A/B shows the RED gate degrading, the install set narrows to architect/planner
   only and the builder is reverted.
 - If `ponytail-debt` turns out to have no writer in practice (nobody adds `ponytail:` markers), it is
-  dropped from the plan rather than carried as dead config.
+  **carried with a decidable criterion** instead (plan task 10: >=1 real marker in a named target repo, or an
+empty ledger whose command output is pasted). This supersedes v1's "drop it": the instrument's own text
+(`ponytail-debt` line 48) says an empty ledger is a legitimate outcome, so carrying it is free while removing
+it would discard the only per-repo figure the pack authorises `⟨F-c2⟩`.
 
 ## 6. Save output
 

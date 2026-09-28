@@ -1,40 +1,47 @@
-# Checklist: Step 1.5 retrieval  (v3 — synced to plan)
+# Checklist: Step 1.5 grounding — environment wiring  (v4)
 
 **Branch:** `feat/flow-drives-bots`  **Status:** 🔴 not started
-**Plan:** `docs/plans/2026-09-28-platform-grounding-retrieval.md`
+**Plan:** `docs/plans/2026-09-28-platform-grounding-retrieval.md` (v4 — supersedes v3)
 
-## Infra
-- [ ] ⬜ Clone `tapway/platform-specs` → `~/platform-specs-local`; assert `constitution.md` **and** `platforms/samurai-v2/catalog.yaml`
-- [ ] ⬜ Clone `tapway/codemax` → `~/tapway-codemax`; **pin decidable**: `test "$(grep -c "$SHA" <plan>)" -ge 1` (running `rev-parse` alone cannot fail)
-- [ ] ⬜ Venv `~/.hermes/venvs/codemax-cli`; **expect** `bin/codemax` — assert its presence, it is not a failure
-- [ ] ⬜ Record the `hermes-agent` drift (PyPI 0.19.0 vs box 0.21.5+3840)
+> **Premise corrected.** v1–v3 planned to wire Step 1.5. It is already implemented on master
+> (`docs/plans/2026-09-21-platform-grounding-g1-g6.md`, Status: implemented) and present in all three
+> skill variants. This checklist covers **environment wiring only**. Do not rewrite Step 1.5.
 
-## Prove the CLI — every command uses the venv's own interpreter
-- [ ] ⬜ `~/.hermes/venvs/codemax-cli/bin/python -m codemax.cli platform-context --help` exits 0 (the **subgroup**)
-- [ ] ⬜ **NOT** bare `python -m codemax.cli` — it fails (`ModuleNotFoundError`), because the venv is never on PATH
-- [ ] ⬜ Build with the network **probed and restored** around it (a build succeeding identically online proves nothing)
-- [ ] ⬜ Task 4 shell-form: `test "$(printf '%s' "$OUT" | grep -c 'ADR-')" -ge 1` and `test "$(printf '%s' "$OUT" | grep -c 'catalog:')" -eq 0`
-- [ ] ⬜ `check` passes a grounded doc (exit 0)
-- [ ] ⬜ `check` **fails** an ungrounded doc (non-zero) ← fail-closed proven
-- [ ] ⬜ **Pass-direction fixture uses an ADR-id-only doc** — a `catalog:<p>#<id>` citation can never resolve; and assert the checker's option-heading regex accepts the doc's headings
+## Criteria hygiene — both of these bit this plan set
+- [ ] ⬜ No criterion uses `wc -l | grep -q '^N$'` — BSD/macOS pads (`"       1"`), so it never matches. Use `$(… | tr -d '[:space:]')`
+- [ ] ⬜ No criterion runs `grep -c` unguarded under `set -e` — it exits 1 when the count is 0, i.e. it aborts in the passing state. Use `|| true` or `test "$(… || true)" -eq 0`
 
-## Wiring
-- [ ] ⬜ Non-empty `TAPWAY_SPECS_DIR` (equal to the clone path) in all **7** env files; `test "$(grep -c …)" -eq 1` (bare `grep -c` exits 1 when the count is 0, i.e. fails when correct)
-- [ ] ⬜ **End-to-end**: a fresh shell runs the documented build with `$TAPWAY_SPECS_DIR` **read** from a profile `.env`, not typed — every other criterion is component-level
-- [ ] ⬜ **Guard**: `TAPWAY_BRAINSTORM_GATE` absent from all 7 **and** `test ! -d ~/.hermes/agent-hooks` (both already true)
-- [ ] ⬜ `~/.local/bin/codemax` sha256 unchanged
+## Environment
+- [ ] ⬜ `python3 -m venv ~/.hermes/venvs/codemax-cli`; `…/bin/python -c 'import sys;assert sys.version_info>=(3,11)'` exits 0 (box is 3.12.8)
+- [ ] ⬜ Install with `…/bin/pip install ~/tapway-codemax` — isolation **on**. **Not** v3's `--no-build-isolation`: a fresh venv has no setuptools, so the backend is unavailable (`BackendUnavailable`)
+- [ ] ⬜ Offline fallback, if needed: `…/bin/pip install -U setuptools` **then** the no-isolation form
+- [ ] ⬜ `…/bin/python -c 'import codemax'` exits 0
+- [ ] ⬜ **Never** bare `python -m codemax.cli` and never a `$PY` variable — v3 used undefined `$PY`, and the venv's `bin/` is deliberately off PATH
+- [ ] ⬜ Clone `tapway/platform-specs` → `~/platform-specs-local` **read-only**; assert `constitution.md` **and** `platforms/samurai-v2/catalog.yaml`
+- [ ] ⬜ `TAPWAY_SPECS_DIR` non-empty in each env file the skill reads — file list enumerated, not implied
 
-## Skill text — all copies a writer can serve
-- [ ] ⬜ Both commands rewritten: `grep -c 'venvs/codemax-cli/bin/python -m codemax.cli'` ≥ 2; `grep -c 'codemax platform-context'` = **0** (as `test "$(…)" -eq 0`)
-- [ ] ⬜ Note corrected: `retrieval is wired` present **and** zero `does not exist` — **and** the note must stop naming `codemax platform-context` at all, else task 7 and task 8 contradict
-- [ ] ⬜ Also remove the note's other now-false statements: specs "not cloned" and `TAPWAY_SPECS_DIR` "is unset"
-- [ ] ⬜ Edited in the repo trees **and** all 7 installed copies. **Only `hermes/skills` is distributed by the cron** — `skills/` and `codex/skills/` serve the Claude plugin and `codex/install.sh`
-- [ ] ⬜ **CRITICAL**: the repo-tree edits only survive if **pushed/merged to master** — `codemax-skills-sync.sh:50` does `git reset --hard origin/master`, so unmerged branch edits are rewound
-- [ ] ⬜ `hermes-flow-pipeline` updated in the **4 trees that carry it** (root, architect, codemax, doubter, planner as measured)
-- [ ] ⬜ **NEVER** set a scratch `HERMES_HOME`: `resolve_hermes_home` ignores it and `install_local` `rm -rf`s the live 31 dirs. Use `HERMES_DRY_RUN=1` + assert on `hermes/skills/` directly
+## Prove it works
+- [ ] ⬜ `…/bin/python -m codemax.cli platform-context --help` exits 0 (the subgroup)
+- [ ] ⬜ Pack builds: output has ≥1 ADR id **and no `catalog:`** — both catalogs carry `provides: []`, so a catalog citation can never resolve
+- [ ] ⬜ Checker passes an ADR-id-only doc; checker **fails** an ungrounded doc (both directions)
+- [ ] ⬜ **`bash tests/e2e-platform-grounding.sh` → 0 failures** (currently 3; the same 3 on clean master, so pre-existing)
+- [ ] ⬜ The `UNKNOWN row should pass` failure is **decided, not papered over**: the skill mandates `UNKNOWN (not retrieved: …)` rows, while `_resolve_ref` pushes exactly that text into `unresolved` → `passed=False`. State which side is the bug
+- [ ] ⬜ No assertion was relaxed to reach green
 
-## QA
+## Skill text — read the anchor coupling first
+- [ ] ⬜ `~/.hermes/scripts/tapway-v240-sync.sh` defines `ANCHOR_A` (84–86) and `ANCHOR_B` (91–93) and exits **3** on mismatch (98–100); its classifier keys on the literal phrase `Box reality` (142–144); it `rm -rf`s + `cp -a`s (175–179)
+- [ ] ⬜ v3's "`codemax platform-context` must occur 0 times" **would zero ANCHOR_B and fail the script closed**, leaving the skill at upstream v1.3.0 — the version this plan exists to fix
+- [ ] ⬜ So: keep the anchors, or update them in the same change
+- [ ] ⬜ After editing, `bash ~/.hermes/scripts/tapway-v240-sync.sh` (**dry-run default**) classifies the skill **KEEP**, not FLAG
+- [ ] ⬜ Note reads `retrieval is wired` ≥1 and `does not exist` = 0 per copy
+
+## Decisions to record (not to act on)
+- [ ] ⬜ *(guard)* `test ! -d ~/.hermes/agent-hooks` still true — the hook is **not** installed here; the gate is pilots-only and this repo is public. `hermes/config.hooks.yaml:34` still names it
+- [ ] ⬜ *(guard)* `TAPWAY_BRAINSTORM_GATE` absent from all 7 env files
+- [ ] ⬜ *(guard)* `shasum -a 256 ~/.local/bin/codemax` = `08f16040b18cd8c33a0edddb3df5d525d5eb80a0f5c7fe23bc846eef60230a54` — baseline now recorded, so this is decidable (v3's "unchanged" was not)
+- [ ] ⬜ Wiring + gate-off decision recorded in `hermes-flow-pipeline/SKILL.md` in **all 7 trees** that carry it
+
+## Ship
+- [ ] ⬜ Committed **and merged** — `git ls-tree origin/master <edited path>` succeeds. `codemax-skills-sync.sh:50` hard-resets to `origin/master` on the weekday tick
+- [ ] ⬜ PR body states which of the 3 e2e failures resolved and why the third was decided as it was
 - [ ] ⬜ No write of any kind to `tapway/platform-specs`
-- [ ] ⬜ Claim bounded to roles + ADR ids + constitution (both catalogs carry `provides: []`)
-- [ ] ⬜ Fallbacks named: clone → `gh auth refresh -s repo`; install → `pip install --no-build-isolation ~/tapway-codemax`
-- [ ] ⬜ Claude plugin clone named as out of scope

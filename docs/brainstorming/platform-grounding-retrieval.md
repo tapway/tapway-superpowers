@@ -133,3 +133,21 @@ Revised after the Step 4 gate returned 48 findings across the three plans
 (`docs/plans/2026-09-28-doubt-cycle-1-reconciliation.md`). Changes here are limited to statements that
 were **false on this machine** or that inverted the pack's own rules; each was re-measured before it was
 written. Findings that are plan-level (criteria shape, scope, ordering) are fixed in the plan, not here.
+
+---
+
+## Premise correction (added after doubt cycle 3)
+
+**This document planned work that was already done.** `docs/plans/2026-09-21-platform-grounding-g1-g6.md`
+has been on master throughout, marked *Status: implemented*, and its implementation is present in the
+repo — Step 1.5 in all three skill variants, `hooks/pre-brainstorm-ground/` wired at
+`hermes/config.hooks.yaml:34`, and both test suites. The premise this brainstorm argued from ("retrieval
+is not wired for real") was false.
+
+The real remaining gap is narrower and different in kind: the implementation exists, but on this machine
+it does not function — no venv, no CLI, no specs wiring, `e2e-platform-grounding.sh` failing 3 assertions
+(and failing the same 3 on clean master). The plan is re-scoped to environment wiring accordingly.
+
+**Why the gate missed it:** reviewers are handed the artifact and its contract. The defect was upstream of
+both. A premise check — *does this already exist?* — must happen before planning. Three doubt cycles were
+spent on criteria for a task whose existence was never verified.

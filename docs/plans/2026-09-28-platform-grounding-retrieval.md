@@ -28,7 +28,7 @@ planning, not after. That is the transferable lesson from this plan, and it cost
 |---|---|---|
 | the E2E suite fails | `bash tests/e2e-platform-grounding.sh` | 3 failures — `pack build (python import)`, `UNKNOWN row should pass`, `real ADR citation should resolve` |
 | …and it is **not** a regression | same command on clean `master` | **the same 3 failures** — pre-existing |
-| the hook is configured but absent | `test -d ~/.hermes/agent-hooks` | absent, while `hermes/config.hooks.yaml:34` names `~/.hermes/agent-hooks/pre-brainstorm-ground.sh` |
+| the hook was never enabled | `grep -c agent-hooks ~/.hermes/config.yaml` | **0** — the hook is not configured. `hermes/config.hooks.yaml:34` declares it inside a **template** that says "To ENABLE, copy this block into `~/.hermes/config.yaml`", so it is a sample, not live config |
 | no CLI on this box | `python3 -m codemax.cli` | `ModuleNotFoundError`; no `~/.hermes/venvs/codemax-cli` |
 | specs not wired | grep `TAPWAY_SPECS_DIR` over all 7 env files | unset everywhere |
 | the gate is correctly off | grep `TAPWAY_BRAINSTORM_GATE` | absent everywhere — **and it must stay that way** (CH Lim: fail-closed gate is pilots-only; this repo is public) |
@@ -40,7 +40,9 @@ certify** — and both were caught in this plan set or in the sibling test the s
 
 - **Whitespace.** BSD/macOS `wc -l` pads its output (`"       1"`), so `grep -q '^1$'` never matches there.
   Strip it: `$(… | wc -l | tr -d '[:space:]')`. The phase-g drift guard had exactly this bug and reported
-  failure on every macOS run regardless of state (fixed in PR #38).
+  failure on every macOS run regardless of state (fixed **locally only** — the fix is in this working
+  tree on `feat/flow-drives-bots`; PR #38 was withdrawn unmerged, so `origin/master` still carries
+  the buggy idiom).
 - **`set -e` safety.** `grep -c` exits 1 when the count is 0, so `n=$(… | grep -c X)` aborts a `set -e`
   script in exactly the passing state. Wrap in `|| true`, or use `test "$(… | grep -c X || true)" -eq 0`.
 
@@ -137,3 +139,82 @@ failures (`pack build`, `real ADR citation`) are expected to resolve from tasks 
 - Writing to `tapway/platform-specs`
 - The Claude Code plugin clones under `~/.claude/plugins/` (three copies, including the versioned cache)
 - `e2e` assertions unrelated to grounding
+
+---
+
+## VERIFIED BLOCKERS — this plan cannot execute on this Mac (cycle-1, 2026-09-28)
+
+A fresh reviewer plus the author's own re-execution found **16 issues, 7 high**. Six were confirmed
+independently here. They are listed first because three of them mean the plan stops at task 2.
+
+### B1 · There is no codemax source on this box
+
+```
+ls -d ~/tapway-codemax        → No such file or directory
+find ~ -name platform_spec.py → (none outside scratch caches)
+```
+
+Tasks 1–5 target `~/tapway-codemax`, but **no task clones it**, and the Files table never lists the clone.
+The plan's own install command cannot resolve. This is a missing prerequisite, not a step.
+
+### B2 · The E2E harness hardcodes a Linux path
+
+```
+tests/e2e-platform-grounding.sh:20
+  CODEMAX_DIR="${CODEMAX_DIR:-/home/tapway/projects/codemax-g16}"
+```
+
+It runs bare `python3` with `sys.path.insert(0, "$CODEMAX_DIR/src")` — **it never uses the venv this plan
+creates**. So tasks 1–2 change neither the interpreter nor that path, and success criterion 1 ("0 failures")
+stays RED for a reason no task addresses. On macOS the default is not merely wrong, it is unreachable.
+
+### B3 · The "one genuine design question" was mischaracterised
+
+The plan said the `UNKNOWN row should pass` failure is "a real contradiction" between the skill and the
+checker. Executing the real checker shows the form the test actually writes is **accepted**:
+
+| doc form | checker result |
+|---|---|
+| `UNKNOWN (not retrieved: pack unavailable)` — the bare row the E2E writes (line 56) | `passed=True` |
+| `Grounding: UNKNOWN (not retrieved: …)` — the `Grounding:`-prefixed form | `passed=False` |
+
+So there is no contradiction for the tested form. The narrower question — whether the skill mandates the
+`Grounding:`-prefixed spelling — is real but **the plan never isolated it**, and the two cannot be conflated.
+
+### B4 · Task 12's durability criterion cannot fail
+
+`git ls-tree origin/master <path>` exits **0** for a path that does not exist:
+
+```
+git ls-tree origin/master hermes/no-such-dir/ → exit=0, empty output
+```
+
+So "committed AND merged" is satisfied by a never-written change.
+
+### B5 · Task 7 edits the wrong artifact
+
+The stale "Box reality" note is **injected by the sync script**, not stored in the skill:
+
+```
+~/.hermes/scripts/tapway-v240-sync.sh:89   (REPL_A — the note text)
+```
+
+Editing the skill file cannot fix a note the script rewrites on every sync. The script is not in the Files
+table. Measured on the served copy: `retrieval is wired` = 0, `does not exist` = 1.
+
+### B6 · The hook was never enabled
+
+`grep -c agent-hooks ~/.hermes/config.yaml` → **0**. `hermes/config.hooks.yaml` is a *template*
+("To ENABLE, copy this block into `~/.hermes/config.yaml`"). Earlier evidence rows called this
+"configured but absent"; it is not configured at all.
+
+### Also open (medium)
+- Task 5 commits the plan's **own banned idiom** (unguarded `grep -c`) and leaves `<f>` unresolved with no file list
+- Success criterion 5's *(guard)* label wraps real deliverable work (`TAPWAY_SPECS_DIR`) with the pinned gate-off clause
+- Tasks 11 and 12 contradict: the 7 `hermes-flow-pipeline` copies are **not repo content**, so "must be merged" cannot cover them
+- The "offline fallback" (`pip install -U setuptools`) is itself a PyPI fetch
+- Installing codemax pulls `hermes-agent>=0.19.0` from PyPI onto a box running 0.21.5 — the dependency drift the brainstorm raised and the plan dropped
+- The E2E suite double-reports one check (`fail()` returns 0, so the following `ok()` also runs) and its CLI-dependent PASSes are vacuous while the module is absent
+
+**Verdict: not executable, not sealed.** Wiring the grounding locally is a different and larger job than
+"environment wiring" — it needs the private `tapway/codemax` source and a harness that is not Linux-pathed.

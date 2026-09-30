@@ -1,7 +1,7 @@
 # Work Package Checklist — Hermes plugin install
 
 **Branch:** `feat/hermes-plugin`
-**PR:** (this PR)
+**PR:** https://github.com/tapway/tapway-superpowers/pull/39
 **Status:** 🟢 Ready for review
 
 ## Packaging

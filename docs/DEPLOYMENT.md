@@ -54,10 +54,19 @@ From inside a clone of this repo:
 
 ```bash
 cd hermes
-bash install.sh            # macOS / Linux — installs all 24 skills + the /tapway bundle
+bash install.sh            # macOS / Linux — installs all 31 skills + the /tapway bundle
 # or Windows (PowerShell):
 .\install.ps1
 ```
+
+No clone — Hermes plugin (namespaced skills, not bare slash commands):
+
+```bash
+hermes plugins install tapway/tapway-superpowers/hermes/plugin --enable
+```
+
+Do not install the repository root as a plugin. Plugin-guard marks that tree
+DANGEROUS. `hermes/plugin/` is the scanned, self-contained package.
 
 Preview without installing: `HERMES_DRY_RUN=1 bash install.sh`
 

@@ -1,0 +1,7 @@
+name: tapway-superpowers
+version: 2.4.0
+description: Tapway Superpowers skills for Hermes, namespaced to avoid slash-command collisions
+author: Tapway
+license: MIT
+homepage: https://github.com/tapway/tapway-superpowers
+tags: [tapway, skills, tdd, code-review]

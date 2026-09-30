@@ -53,6 +53,24 @@ hermes skills list | grep -E 'tapway'
 hermes bundles list                        # "tapway" bundle present
 ```
 
+## Install as a Hermes plugin
+
+No clone and no `install.sh`. Hermes copies only `hermes/plugin/` (a
+`plugin.yaml` plus a byte mirror of `hermes/skills/`). A root install of this
+repo is rejected by plugin-guard, so the subdirectory is the supported path.
+
+```bash
+hermes plugins install tapway/tapway-superpowers/hermes/plugin --enable
+```
+
+Skills load as `tapway-superpowers:<name>` (`skill_view("tapway-superpowers:tdd")`).
+They do **not** become bare `/tdd` slash commands and they do not collide with
+other installed copies of the same name. Use `install.sh` above when you want
+`/tapway` and per-skill slash commands.
+
+Remove with `hermes plugins remove tapway-superpowers`. A new Hermes session
+picks up the plugin.
+
 > **Individual skill:** Hermes auto-derives a `/skill-name` command from every
 > installed skill. You can also install one skill directly:
 > ```bash

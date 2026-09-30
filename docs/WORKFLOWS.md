@@ -171,3 +171,36 @@ bump is derived from conventional commits since the last tag for the same env.
 - No prior tag for the env → starts from 0.0.0 so the first conventional commit
   rolls to a sane version.
 - CHANGELOG has no top section → release notes fall back to the tag title.
+
+## Workflow: Install the Hermes plugin
+
+**Trigger:** A Hermes user wants Tapway skills without cloning this repo
+**Actor:** Developer + `hermes` CLI
+
+```mermaid
+sequenceDiagram
+  actor Dev
+  participant CLI as hermes plugins
+  participant GH as GitHub
+  participant Guard as plugin-guard
+  participant Home as HERMES_HOME/plugins
+
+  Dev->>CLI: hermes plugins install tapway/tapway-superpowers/hermes/plugin --enable
+  CLI->>GH: clone repo, keep hermes/plugin only
+  CLI->>Guard: scan that subdirectory
+  Guard-->>CLI: not DANGEROUS
+  CLI->>Home: install as tapway-superpowers
+  Dev->>Dev: new session, skill_view("tapway-superpowers:tdd")
+```
+
+**Description:**
+The subdirectory install is the supported path. Installing the repository root
+is rejected: plugin-guard marks hooks and installer docs DANGEROUS. Plugin
+skills are namespaced and do not create `/tdd`-style slash commands. Use
+`hermes/install.sh` for the `/tapway` bundle.
+
+**Edge Cases / Failure Modes:**
+- Install of the repo root → blocked. Retry with the `hermes/plugin` suffix.
+- Skill text drifts from `hermes/skills/` → `tests/test_hermes_plugin.py` fails.
+- Expecting `/brainstorming` from the plugin → it will not appear. Load
+  `tapway-superpowers:brainstorming`, or run `install.sh` for slash commands.

@@ -1,0 +1,37 @@
+name: Skills & Plugin Tests
+
+# The Hermes plugin and installer are plain Python scripts driven by
+# `python tests/<file>.py`. Without this workflow nothing in `tests/` runs on a
+# pull request, so the plugin's manifest/mirror guards could rot unnoticed.
+#
+# Checks that need a hermes-agent checkout (the real PluginContext, plugin-guard,
+# skill_view resolution) report SKIP here and run on a machine that has Hermes
+# installed; everything else is enforced in CI.
+
+on:
+  pull_request:
+    branches: [master, staging, prod]
+  push:
+    branches: [master]
+
+jobs:
+  skills:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: pip install pyyaml
+
+      - name: Hermes plugin package (manifest, mirror, guard)
+        run: python tests/test_hermes_plugin.py
+
+      - name: Hermes install script
+        run: python tests/test_hermes_install.py
+
+      - name: Docs consistency
+        run: python tests/check_docs_consistency.py

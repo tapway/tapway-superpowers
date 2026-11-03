@@ -40,11 +40,20 @@ bash install.sh        # macOS / Linux — installs all 31 skills + the /tapway 
 .\install.ps1
 ```
 
-This installs all **25** Tapway skills through Hermes's native skill hub and creates a
+This installs all **31** Tapway skills through Hermes's native skill hub and creates a
 `/tapway` skill bundle that loads the whole pipeline with one slash command. A few
 Claude-only pieces (commit hooks, secret scanning) don't auto-run
 in Hermes — the equivalent discipline is preserved by following the pipeline. Full details
 and the skill-to-Hermes mapping are in [`hermes/README.md`](hermes/README.md).
+
+To install the same skills as a Hermes plugin, without a clone:
+
+```bash
+hermes plugins install tapway/tapway-superpowers/hermes/plugin --enable
+```
+
+Plugin skills are namespaced (`tapway-superpowers:tdd`). They do not register
+bare slash commands. Use `install.sh` when you want `/tapway`.
 
 ---
 

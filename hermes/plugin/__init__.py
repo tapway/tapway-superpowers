@@ -17,18 +17,33 @@ def _frontmatter(skill_md: Path) -> dict:
     — it does not re-read the file for the tier-1 listing — so the description and
     frontmatter have to come from here or they arrive empty.
 
-    PyYAML is imported lazily: it is a hard Hermes dependency (config parsing), so
-    it is always present inside Hermes, while the test harness can load this
-    module without it and report the Hermes-only checks as skipped.
+    Inside Hermes this uses the runtime's own ``parse_frontmatter``
+    (``hermes_yaml``). The bundled Hermes interpreter does **not** ship PyYAML, so
+    importing ``yaml`` here would fail plugin registration outright — PyYAML is
+    only a fallback for running this module outside Hermes (tests, tooling).
     """
     text = skill_md.read_text(encoding="utf-8-sig")
     if not text.startswith("---"):
         return {}
+
+    try:  # the parser Hermes itself uses for every SKILL.md
+        from agent.skill_utils import parse_frontmatter
+    except Exception:
+        parse_frontmatter = None
+    if parse_frontmatter is not None:
+        data, _body = parse_frontmatter(text)
+        return data if isinstance(data, dict) else {}
+
     end = text.find("\n---", 3)
     if end == -1:
         return {}
-    import yaml
-
+    try:
+        import yaml
+    except ImportError:
+        raise RuntimeError(
+            f"{skill_md}: cannot parse frontmatter — no YAML parser available "
+            "(expected Hermes' agent.skill_utils)"
+        ) from None
     try:
         data = yaml.safe_load(text[3:end])
     except yaml.YAMLError as exc:

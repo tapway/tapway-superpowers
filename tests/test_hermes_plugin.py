@@ -238,6 +238,30 @@ def section_registration() -> None:
         check(payload.get("success") is True, f"skill_view(file_path={rel!r}) resolves")
 
 
+def section_without_pyyaml() -> None:
+    print("\n[7b] registration on a Hermes runtime without PyYAML")
+    if _hermes_api() is None:
+        skip("hermes-agent unavailable — cannot exercise the stock-runtime path")
+        return
+    script = f"""
+import importlib.util, os, sys, tempfile
+sys.modules["yaml"] = None  # the bundled Hermes runtime ships hermes_yaml, not PyYAML
+os.environ["HERMES_HOME"] = tempfile.mkdtemp(prefix="tapway-plugin-noyaml-")
+from hermes_cli.plugins import PluginContext, PluginManager
+from hermes_cli.plugins_manifest import PluginManifest
+spec = importlib.util.spec_from_file_location("p", {str(PLUGIN / "__init__.py")!r})
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+manager = PluginManager()
+mod.register(PluginContext(PluginManifest(name="tapway-superpowers", path={str(PLUGIN)!r}), manager))
+print(len(manager.list_plugin_skills("tapway-superpowers")))
+"""
+    proc = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120, env=dict(os.environ))
+    ok = proc.returncode == 0 and proc.stdout.strip().isdigit() and int(proc.stdout.strip()) > 0
+    detail = proc.stdout.strip() if ok else (proc.stderr.strip().splitlines() or ["?"])[-1]
+    check(ok, f"register() works without PyYAML ({detail})")
+
+
 def section_guard() -> None:
     print("\n[8] plugin-guard verdict")
     try:
@@ -278,6 +302,7 @@ def main() -> int:
     section_fail_loud()
     section_mirror()
     section_registration()
+    section_without_pyyaml()
     section_guard()
     section_docs()
     section_newlines()

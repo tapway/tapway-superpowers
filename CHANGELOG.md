@@ -6,6 +6,58 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.5.0] — 2026-11-03
+
+### Added — installable Hermes plugin
+
+`hermes/plugin/` publishes the Hermes skills as a plugin, so they install
+without cloning:
+
+```bash
+hermes plugins install tapway/tapway-superpowers/hermes/plugin --enable
+```
+
+Skills load as `tapway-superpowers:<name>` through `skill_view`. They are not
+copied into the profile's skills directory and do not become bare `/<name>`
+slash commands, so they cannot collide with another copy of the same skill.
+
+The plugin ships as a **subdirectory** rather than a root `plugin.yaml`:
+plugin-guard marks the repository root **dangerous** (304 findings, 18
+critical — `agent_config_mod_shell`, `echo_pipe_exec`, `read_secrets_file`)
+and the subdirectory **safe** (30 findings, none critical). Both are asserted
+in `tests/test_hermes_plugin.py`, not hand-checked.
+
+- Every skill registers with its parsed YAML frontmatter and description.
+  Hermes does not re-read `SKILL.md` for the tier-1 listing, so passing them at
+  registration is what makes `skills_list` and `<available_skills>` show a real
+  description instead of a blank one.
+- A broken install fails loudly: a missing `skills/` directory, a skill
+  directory without `SKILL.md`, or malformed frontmatter raises with the path
+  instead of registering zero skills and looking healthy.
+- `scripts/sync-hermes-plugin-skills.sh` refreshes the byte mirror from
+  `hermes/skills/`; `--check` exits non-zero on drift.
+- `api_version: 1` pins the plugin API generation.
+
+### Changed
+
+- `plugin.yaml`, `.claude-plugin/plugin.json` and the top `CHANGELOG.md` entry
+  are pinned to each other by test, so the versions cannot drift silently.
+- `.claude-plugin/marketplace.json`'s stale top-level `version` (2.2.1) is
+  reconciled with the release.
+- Linked skill files (`incident-runbook/templates/…`) are proven to resolve
+  through `skill_view(file_path=…)` against the registered plugin copy.
+
+### Testing
+
+- New `tests/test_hermes_plugin.py` registers into a **real** `PluginContext`
+  and runs the **real** plugin-guard — the previous suite used a permissive
+  mock, which could not fail the way the plugin fails. Without hermes-agent the
+  Hermes-only checks report SKIP; with it, 66/66 pass.
+- End-to-end: a real `hermes plugins install` into a throwaway `HERMES_HOME`
+  registers 31/31 skills with no empty descriptions.
+- `.github/workflows/skills-tests.yml` runs the plugin, install and docs
+  consistency scripts on every pull request.
+
 ## [2.4.0] — 2026-09-24
 
 ### Added — ponytail skill pack (vendored third-party, MIT)

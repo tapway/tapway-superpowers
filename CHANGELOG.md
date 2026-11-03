@@ -6,6 +6,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.5.1] — 2026-11-03
+
+### Fixed — the Hermes plugin registered no skills on a stock install
+
+`2.5.0` parsed each `SKILL.md` with `import yaml`. The Hermes runtime bundles
+`hermes_yaml`, not PyYAML, so plugin loading failed with `No module named
+'yaml'` and the profile listed zero plugin skills:
+
+```
+WARNING hermes_cli.plugins: Failed to load plugin 'tapway-superpowers': No module named 'yaml'
+```
+
+Registration now uses `agent.skill_utils.parse_frontmatter` — the parser Hermes
+itself uses for every `SKILL.md`, which also strips the BOM. PyYAML remains only
+as a fallback when this module runs outside Hermes.
+
+The `2.5.0` test suite could not catch this because it ran under the
+hermes-agent virtualenv, which does have PyYAML. A new check runs `register()`
+in a subprocess with `sys.modules["yaml"] = None`, reproducing the stock runtime.
+
+Verified end to end on a fresh Hermes profile installed from this repository:
+knowledge of `tapway-superpowers:brainstorming`, `:tdd` and `:repo-docs`
+returned by `skills_list`, and gbrain MCP tools answering from the shared brain.
+
 ## [2.5.0] — 2026-11-03
 
 ### Added — installable Hermes plugin

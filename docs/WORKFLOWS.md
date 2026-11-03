@@ -199,8 +199,18 @@ is rejected: plugin-guard marks hooks and installer docs DANGEROUS. Plugin
 skills are namespaced and do not create `/tdd`-style slash commands. Use
 `hermes/install.sh` for the `/tapway` bundle.
 
+The plugin ships its own copy of `hermes/skills/` so an install is
+self-contained. After adding or editing a skill, refresh the mirror:
+
+```bash
+./scripts/sync-hermes-plugin-skills.sh          # hermes/skills -> hermes/plugin/skills
+./scripts/sync-hermes-plugin-skills.sh --check  # exit 1 when the trees differ
+```
+
 **Edge Cases / Failure Modes:**
 - Install of the repo root → blocked. Retry with the `hermes/plugin` suffix.
-- Skill text drifts from `hermes/skills/` → `tests/test_hermes_plugin.py` fails.
+- Skill text drifts from `hermes/skills/` → run the sync script.
+  `tests/test_hermes_plugin.py` and `--check` both fail until the mirror is
+  refreshed.
 - Expecting `/brainstorming` from the plugin → it will not appear. Load
   `tapway-superpowers:brainstorming`, or run `install.sh` for slash commands.

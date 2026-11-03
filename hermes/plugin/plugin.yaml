@@ -1,5 +1,5 @@
 name: tapway-superpowers
-version: 2.5.0
+version: 2.5.1
 api_version: 1
 description: Tapway Superpowers skills for Hermes, namespaced to avoid slash-command collisions
 author: Tapway

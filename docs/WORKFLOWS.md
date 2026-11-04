@@ -214,3 +214,16 @@ self-contained. After adding or editing a skill, refresh the mirror:
   refreshed.
 - Expecting `/brainstorming` from the plugin → it will not appear. Load
   `tapway-superpowers:brainstorming`, or run `install.sh` for slash commands.
+
+
+## Hook-enforced contracts (v2.6.0)
+
+| Gate | Where | Blocks |
+|---|---|---|
+| Brainstorm grounding | `pre-brainstorm-ground` (Claude/Codex) + Hermes `pre_tool_call` | a write to `docs/brainstorming/*.md` whose option sections carry no `Grounding:` line |
+| Plan → issue | `pre-pr-contract` on `gh pr create`, plus `workflow-gate` CI | a `docs/plans/*.md` without `issue: <number>` frontmatter |
+| Payload shapes | `hooks/lib/hook_payload.py` | n/a — normalises Claude (`tool_input`), Hermes (`args`) and Codex (flat) so every gate reads one shape |
+
+The gates default **on under CodeMAX** (`CODEMAX_WORKFLOW=1` or a `.codemax.yml`)
+and off elsewhere. `TAPWAY_BRAINSTORM_GATE=0` and `TAPWAY_PR_GATE=0` are the
+documented per-run overrides; CI is still authoritative.

@@ -27,6 +27,12 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/dependency-audit/dependency-audit.sh\"",
             "if": "Bash(git commit:*)",
             "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-pr-contract/pre-pr-contract.sh\"",
+            "if": "Bash(gh pr create:*)",
+            "timeout": 30
           }
         ]
       },

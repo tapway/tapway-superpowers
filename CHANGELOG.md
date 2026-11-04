@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.6.0] — 2026-11-04
+
+### Added
+- `hooks/lib/hook_payload.py`: one normaliser for Claude (`tool_input`),
+  Hermes (`args`) and Codex (flat) payloads. The brainstorm gate had been a
+  no-op under Hermes because it only read `tool_input`.
+- Hermes `pre_tool_call` gate in the plugin (`hermes/plugin/gates.py`), so
+  grounding is enforced even without the shell hooks installed.
+- `pre-pr-contract` hook + `scripts/workflow_gate.py` + reusable
+  `workflow-gate` CI: blocks `gh pr create` when a plan lacks `issue: N` or a
+  brainstorm option lacks grounding.
+- Gates default on under CodeMAX (`.codemax.yml` / `CODEMAX_WORKFLOW=1`).
+
+### Tests
+- 21 tests: three payload shapes end-to-end through the shell hook, the
+  in-process gate, and the PR contract gate over a real temp git repo.
+
 All notable changes to tapway-superpowers are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).

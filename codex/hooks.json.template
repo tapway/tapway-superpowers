@@ -53,6 +53,12 @@
             "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/dependency-audit.sh\"",
             "timeout": 120,
             "statusMessage": "Auditing dependencies"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pre-pr-contract.sh\"",
+            "timeout": 30,
+            "statusMessage": "Checking PR contracts"
           }
         ]
       }

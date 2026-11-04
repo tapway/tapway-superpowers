@@ -22,8 +22,8 @@ checks.append(("hermes/README 'All **31**'", "All **31**" in h, "present" if "Al
 checks.append(("skills/ count=30", len(os.listdir("skills")) == 30, len(os.listdir("skills"))))
 checks.append(("hermes/skills/ count=31", len(os.listdir("hermes/skills")) == 31, len(os.listdir("hermes/skills"))))
 checks.append(("agents/ count=5", len(os.listdir("agents")) == 5, len(os.listdir("agents"))))
-hook_dirs = [x for x in os.listdir("hooks") if os.path.isdir(f"hooks/{x}")]
-checks.append(("hooks dirs=10 (+hooks.json)", len(hook_dirs) == 10, len(hook_dirs)))
+hook_dirs = [x for x in os.listdir("hooks") if os.path.isdir(f"hooks/{x}") and x != "lib"]
+checks.append(("hooks dirs=11 (+hooks.json, +lib)", len(hook_dirs) == 11, len(hook_dirs)))
 
 allok = True
 for label, ok, val in checks:

@@ -52,6 +52,20 @@ def _frontmatter(skill_md: Path) -> dict:
 
 
 def register(ctx):
+    # Hermes-side gates (B6): run even when the shell hooks are not installed.
+    # A hook that raises would take the tool call down with it, so the gate is
+    # loaded defensively and never blocks on its own failure mode except when
+    # the payload is a brainstorm write it cannot evaluate.
+    if hasattr(ctx, "register_hook"):
+        try:
+            from . import gates
+
+            ctx.register_hook("pre_tool_call", gates.on_pre_tool_call)
+        except Exception as exc:  # noqa: BLE001 - a missing hook must not break skills
+            import logging
+
+            logging.getLogger(__name__).warning("tapway-superpowers gates not registered: %s", exc)
+
     skills_dir = Path(__file__).parent / "skills"
     if not skills_dir.is_dir():
         raise RuntimeError(

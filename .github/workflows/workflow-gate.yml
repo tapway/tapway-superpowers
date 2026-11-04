@@ -1,0 +1,21 @@
+name: workflow-gate
+
+on:
+  pull_request:
+  workflow_call:
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check plan/issue and brainstorm grounding
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}" || true
+          base="origin/${{ github.base_ref }}"
+          files="$(git diff --name-only "$base"...HEAD || true)"
+          if [ -z "$files" ]; then echo "no changed files"; exit 0; fi
+          # shellcheck disable=SC2086
+          python3 scripts/workflow_gate.py $files

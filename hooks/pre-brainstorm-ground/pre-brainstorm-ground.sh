@@ -22,11 +22,20 @@ set -uo pipefail
 
 LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
 [ -f "$LIB/pre-brainstorm-ground-lib.sh" ] || LIB="$(dirname "$0")"
+HOOK_LIB="$(cd "$LIB/../lib" 2>/dev/null && pwd)"
+# shellcheck source=../lib/hook_payload.sh
+[ -f "$HOOK_LIB/hook_payload.sh" ] && . "$HOOK_LIB/hook_payload.sh"
 
-payload="$(cat)"
+# One shape for Claude (tool_input), Hermes (args) and Codex (flat).
+payload="$(cat | normalize_payload)"
 
-# gate disabled → allow (public-repo safety default)
-if [ "${TAPWAY_BRAINSTORM_GATE:-0}" != "1" ]; then
+# Default: on under CodeMAX (.codemax.yml or CODEMAX_WORKFLOW=1), off elsewhere
+# (this repo is public — external users must not be broken by our gate).
+gate="${TAPWAY_BRAINSTORM_GATE:-}"
+if [ -z "$gate" ]; then
+  if [ "${CODEMAX_WORKFLOW:-0}" = "1" ] || [ -f .codemax.yml ]; then gate=1; else gate=0; fi
+fi
+if [ "$gate" != "1" ]; then
   printf '{}\n'
   exit 0
 fi

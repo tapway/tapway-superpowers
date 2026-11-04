@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.6.1] — 2026-11-04
+
+### Fixed
+- The reusable `workflow-gate` workflow checks out `tapway-superpowers` for
+  `scripts/workflow_gate.py`; caller repos no longer need to vendor it.
+- Codex gets a self-contained `codex/hooks/pre-pr-contract.sh` (Codex installs
+  hooks one file at a time), wired in `codex/hooks.json.template`.
+
+### Added
+- `pr` and `brainstorming` skills document the hook gates and their one-run
+  overrides (`TAPWAY_PR_GATE`, `TAPWAY_BRAINSTORM_GATE`).
+
 ## [2.6.0] — 2026-11-04
 
 ### Added

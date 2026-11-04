@@ -216,3 +216,14 @@ git add docs/ && git commit -m "docs: update project docs for [change]"
 git push -u origin $(git branch --show-current)
 gh pr create --base "$TARGET" --title "feat(scope): ..." --body "..."
 ```
+
+
+## Hook gates (v2.6.0)
+
+`gh pr create` is blocked when the branch touches:
+
+- `docs/plans/*.md` without `issue: <number>` frontmatter — create the issue first;
+- `docs/brainstorming/*.md` whose option sections lack `Grounding:` lines.
+
+`TAPWAY_PR_GATE=0` is a one-run override. The same rules run in CI
+(`workflow-gate`), so an override does not bypass the merge gate.

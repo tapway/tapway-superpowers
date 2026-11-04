@@ -123,3 +123,12 @@ If proceeding, invoke the `writing-plans` skill next to turn the recommendation 
 - "I've done this before" — past solutions may not fit this context
 - "The user already told me what to do" — confirm you understand the *why*, not just the *what*
 - "I know the platform from memory" — you don't; read the pack. Facts are recorded, not remembered.
+
+
+## Grounding gate
+
+Writes to `docs/brainstorming/*.md` are blocked unless every `## Option`
+section carries `Grounding: <wiki/...>` (or an explicit
+`UNKNOWN (not retrieved: <reason>)`). The gate is on under CodeMAX
+(`.codemax.yml` / `CODEMAX_WORKFLOW=1`); `TAPWAY_BRAINSTORM_GATE=0` is a
+one-run override.

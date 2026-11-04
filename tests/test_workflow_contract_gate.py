@@ -71,3 +71,31 @@ def test_pre_pr_hook_ignores_other_commands(tmp_path: Path):
         env={"PATH": "/usr/local/bin:/usr/bin:/bin", "CLAUDE_PLUGIN_ROOT": str(ROOT)},
     )
     assert json.loads(result.stdout or "{}") == {}
+
+
+CODEX_HOOK = ROOT / "codex" / "hooks" / "pre-pr-contract.sh"
+
+
+def test_codex_hook_blocks_a_plan_without_issue(tmp_path: Path):
+    _git(tmp_path, "init", "-b", "staging")
+    (tmp_path / "docs" / "plans").mkdir(parents=True)
+    (tmp_path / "docs" / "plans" / "y.md").write_text("# base\n")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "add", "-A")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-m", "base")
+
+    _git(tmp_path, "checkout", "-b", "feat")
+    (tmp_path / "docs" / "plans" / "y.md").write_text("---\ntitle: no issue\n---\n\n# Y\n")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "add", "-A")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-m", "plan")
+
+    result = subprocess.run(
+        ["bash", str(CODEX_HOOK)],
+        input=json.dumps({"tool_name": "Bash", "args": {"command": "gh pr create --fill"}}),
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        env={"PATH": "/usr/local/bin:/usr/bin:/bin", "TAPWAY_PR_BASE": "staging"},
+    )
+    verdict = json.loads(result.stdout or "{}")
+    assert verdict.get("decision") == "block", verdict
+

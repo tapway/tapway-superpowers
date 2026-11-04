@@ -120,6 +120,7 @@ def main() -> int:
         "session-start.sh",
         "pre-execute-github-issue-check.sh",
         "pre-execute-github-issue-create.sh",
+        "pre-pr-contract.sh",
     ]
     for name in expected_hooks:
         hook = (HOOKS / name)

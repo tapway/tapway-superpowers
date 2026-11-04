@@ -11,6 +11,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # The gate lives in tapway-superpowers; caller repos do not vendor it.
+      - uses: actions/checkout@v4
+        with:
+          repository: tapway/tapway-superpowers
+          ref: master
+          path: .tapway-superpowers
+
       - name: Check plan/issue and brainstorm grounding
         run: |
           git fetch --no-tags origin "${{ github.base_ref }}" || true
@@ -18,4 +25,4 @@ jobs:
           files="$(git diff --name-only "$base"...HEAD || true)"
           if [ -z "$files" ]; then echo "no changed files"; exit 0; fi
           # shellcheck disable=SC2086
-          python3 scripts/workflow_gate.py $files
+          python3 .tapway-superpowers/scripts/workflow_gate.py $files

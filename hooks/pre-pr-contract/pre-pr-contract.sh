@@ -32,6 +32,11 @@ esac
 if [ "${TAPWAY_PR_GATE:-1}" != "1" ]; then printf '{}\n'; exit 0; fi
 
 base="${TAPWAY_PR_BASE:-origin/staging}"
+# `master -> staging` is a sync, not authorship: the base is stale by definition, so
+# every doc master gained since it forked shows up as "changed". Re-judging those docs
+# would block the very sync that repairs the base. Only the head branch `master` — a
+# feature branch never gets this exemption.
+if [ "$(git rev-parse --abbrev-ref HEAD 2>/dev/null)" = "master" ]; then printf '{}\n'; exit 0; fi
 # Run in the caller's repo, not the plugin directory.
 changed="$(git diff --name-only "$base"...HEAD 2>/dev/null || true)"
 if [ -z "$changed" ]; then

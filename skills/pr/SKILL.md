@@ -126,7 +126,22 @@ If `/repo-docs` made no changes (output says "no sections affected"), skip the c
 
 ---
 
-### Step 5b: Sync Living-Docs to gbrain (CodeMAX — optional)
+### Step 5b: Update the GitHub Wiki
+
+Run `/repo-wiki-writer` to refresh the repo's GitHub Wiki (Home, How it works, Technical Details) against what this PR actually changed. This is mandatory on every PR, no exceptions.
+
+- Clone `<repo>.wiki.git` next to the code repo if not already present.
+- Use `git log` since the wiki's last commit date plus `git diff --name-only origin/$TARGET` to scope the update — only touch the sections affected by this PR (new env vars, new endpoints, new services, removed features).
+- Never copy real secret values into wiki pages — document names and formats only (see the skill's "Secrets: never" rule).
+- Commit and push the wiki repo. This is a separate git repo from the code repo, so it is **not** part of the PR diff — note in the PR body that the wiki was updated (or why it wasn't, e.g. no wiki exists yet).
+
+If the wiki has no pages yet (first-ever PR for this repo), ask the user to create the Home page once in the GitHub UI, then retry — note this in the PR body as a one-time manual step instead of blocking the PR on it.
+
+If nothing in the changed files affects any wiki page, skip the wiki commit but note "wiki: no update needed" in the PR body.
+
+---
+
+### Step 5c: Sync Living-Docs to gbrain (CodeMAX — optional)
 
 **Optional.** Only run this if your team uses CodeMAX/gbrain. If you don't, or
 `CODEMAX_ENABLED` is not set, skip straight to Step 6 — nothing breaks.
@@ -237,6 +252,8 @@ git push
 - ❌ Never create a PR from the integration branch — always from a worktree
 - ❌ Never skip the rebase step — stale branches cause CI failures and reviewer confusion
 - ❌ Never skip `/repo-docs` — docs must be updated on every PR
+- ❌ Never skip the wiki update step — if changed files affect any wiki page, update and push the wiki repo before pushing the code branch
+- ❌ Never copy real secret values into the wiki — names and formats only
 - ❌ Never leave the work package checklist unchecked after the PR is open
 
 ---
@@ -257,6 +274,12 @@ cd frontend && npm test -- --watchAll=false && cd ..
 # Docs (mandatory)
 # /repo-docs
 git add docs/ && git commit -m "docs: update project docs for [change]"
+
+# Wiki (mandatory) — update affected pages in the sibling <repo>.wiki clone, then:
+cd ../<repo>.wiki && git add -A && git commit -m "docs(wiki): update for [change]" && git push && cd -
+
+# gbrain sync (optional, CodeMAX only)
+# codemax sync run --wiki-dir "$CODEMAX_WIKI_DIR" --gbrain-dir "$CODEMAX_GBRAIN_DIR"
 
 # Push and PR
 git push -u origin $(git branch --show-current)

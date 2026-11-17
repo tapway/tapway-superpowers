@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.6.2] — 2026-11-17
+
+### Added
+
+- **`/repo-wiki-writer` skill** — writes or refreshes a repo's GitHub Wiki as three plain-language pages (`Home.md`, `How-it-works.md`, `Technical-Details.md`) that a new teammate can read top to bottom. Clones the `<repo>.wiki.git` sibling repo, studies the code repo (README, entrypoints, config, interfaces, tests), and never copies real secret values — documents variable names and formats only, flagging unknowns with `> ❓ Ask the team: ...` instead of guessing.
+
+### Changed
+
+- **`/pr` skill** — added mandatory Step 5b (Update the GitHub Wiki), right after the existing `/repo-docs` step and before the optional CodeMAX gbrain sync (now Step 5c): runs `/repo-wiki-writer` scoped to this PR's diff against `$TARGET`, commits and pushes the wiki repo directly (it's a separate git repo from the code repo, so this isn't part of the PR diff itself), and notes the result in the PR body.
+- **`/autoship` skill** — Phase 4 now includes Step 3b (Update the GitHub Wiki), mirroring the same logic as `/pr`, before the E2E gate and before calling `/pr`.
+- **`repo-wiki-writer` skill** — its publish step now skips the second user-confirmation prompt when invoked from `/pr` or `/autoship`, since the user already confirmed by running that workflow; it summarizes the wiki diff alongside the doc update summary instead.
+- **README** — "What You Get" skills table now lists 31 skills; added `repo-wiki-writer` row, a `/repo-wiki-writer` slash-command row, and updated the `/pr` row and Individual-mode workflow description to mention the wiki update step.
+
+---
+
 ## [2.6.1] — 2026-11-04
 
 ### Fixed

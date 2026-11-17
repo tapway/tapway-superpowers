@@ -76,6 +76,67 @@ def test_pre_pr_hook_ignores_other_commands(tmp_path: Path):
 CODEX_HOOK = ROOT / "codex" / "hooks" / "pre-pr-contract.sh"
 
 
+def test_pre_pr_hook_skips_a_staging_sync_branch(tmp_path: Path):
+    """A staging<-master sync re-introduces history; it must not re-judge old docs.
+
+    The stale-base case: ``staging`` never had these docs, the branch carries them
+    plus 200 commits of unrelated history. Only a sync PR looks like this.
+    """
+    _git(tmp_path, "init", "-b", "staging")
+    (tmp_path / "README.md").write_text("# base\n")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "add", "-A")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-m", "base")
+
+    _git(tmp_path, "checkout", "-b", "master")
+    (tmp_path / "docs" / "plans").mkdir(parents=True)
+    (tmp_path / "docs" / "plans" / "x.md").write_text("# legacy plan, no frontmatter\n")
+    (tmp_path / "script.py").write_text("print('sync')\n")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "add", "-A")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-m", "sync")
+
+    result = subprocess.run(
+        ["bash", str(HOOK)],
+        input=json.dumps({"tool_name": "Bash", "tool_input": {"command": "gh pr create --fill"}}),
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        env={
+            "PATH": "/usr/local/bin:/usr/bin:/bin",
+            "CLAUDE_PLUGIN_ROOT": str(ROOT),
+            "TAPWAY_PR_BASE": "staging",
+        },
+    )
+    assert json.loads(result.stdout or "{}") == {}, result.stdout
+
+
+def test_pre_pr_hook_still_blocks_a_feature_branch(tmp_path: Path):
+    """The sync exemption must be narrow: a feature branch adding an ungrounded plan blocks."""
+    _git(tmp_path, "init", "-b", "staging")
+    (tmp_path / "README.md").write_text("# base\n")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "add", "-A")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-m", "base")
+
+    _git(tmp_path, "checkout", "-b", "feat/x")
+    (tmp_path / "docs" / "plans").mkdir(parents=True)
+    (tmp_path / "docs" / "plans" / "x.md").write_text("# legacy plan, no frontmatter\n")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "add", "-A")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-m", "plan")
+
+    result = subprocess.run(
+        ["bash", str(HOOK)],
+        input=json.dumps({"tool_name": "Bash", "tool_input": {"command": "gh pr create --fill"}}),
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        env={
+            "PATH": "/usr/local/bin:/usr/bin:/bin",
+            "CLAUDE_PLUGIN_ROOT": str(ROOT),
+            "TAPWAY_PR_BASE": "staging",
+        },
+    )
+    assert json.loads(result.stdout or "{}").get("decision") == "block", result.stdout
+
+
 def test_codex_hook_blocks_a_plan_without_issue(tmp_path: Path):
     _git(tmp_path, "init", "-b", "staging")
     (tmp_path / "docs" / "plans").mkdir(parents=True)

@@ -36,6 +36,15 @@ if os.environ.get("TAPWAY_PR_GATE", "1") != "1":
     raise SystemExit(0)
 
 base = os.environ.get("TAPWAY_PR_BASE", "origin/staging")
+# `master -> staging` is a sync, not authorship: the base is stale by definition, so
+# every doc master gained since it forked shows up as "changed". Re-judging those docs
+# would block the very sync that repairs the base. Only the head branch `master`.
+branch = subprocess.run(
+    ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True
+).stdout.strip()
+if branch == "master":
+    print("{}")
+    raise SystemExit(0)
 diff = subprocess.run(
     ["git", "diff", "--name-only", f"{base}...HEAD"], capture_output=True, text=True
 )

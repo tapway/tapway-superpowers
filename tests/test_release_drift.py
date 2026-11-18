@@ -79,5 +79,19 @@ class DriftTests(unittest.TestCase):
         self.assertEqual(out.returncode, 0, out.stdout)
 
 
+class WorkflowSyncTests(unittest.TestCase):
+    """The sync step must write every surface the drift check reads."""
+
+    def test_release_workflow_updates_the_hermes_manifest_too(self):
+        flow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        self.assertRegex(
+            flow,
+            r"sed -i .*hermes/plugin/plugin\.yaml",
+            "the sync step skipped plugin.yaml, so it stayed four releases behind",
+        )
+        self.assertIn("git add .claude-plugin/marketplace.json", flow)
+        self.assertIn("git diff --quiet -- .claude-plugin/ hermes/plugin/plugin.yaml", flow)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

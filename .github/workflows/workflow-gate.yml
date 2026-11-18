@@ -27,6 +27,13 @@ jobs:
             echo "staging<-master sync: docs are not re-judged"
             exit 0
           fi
+          # Promotion into master (base=master) copies documents that were already
+          # judged when they entered staging. Re-judging them here would block the
+          # promotion for a plan nobody is authoring on this branch.
+          if [ "${{ github.base_ref }}" = "master" ]; then
+            echo "promotion into master: contracts were judged on staging"
+            exit 0
+          fi
           git fetch --no-tags origin "${{ github.base_ref }}" || true
           base="origin/${{ github.base_ref }}"
           files="$(git diff --name-only "$base"...HEAD || true)"

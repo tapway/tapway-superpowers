@@ -122,7 +122,16 @@ jobs:
           # The changelog heading is part of the same invariant (the plugin guard
           # compares the manifests to the top CHANGELOG version).
           if grep -q '^## \[Unreleased\]' CHANGELOG.md; then
+            # The section already describes this release: rename it in place.
             sed -i -E "0,/^## \[Unreleased\]/s//## [${PLAIN}] — $(date -u +%Y-%m-%d)/" CHANGELOG.md
+          elif ! grep -q "^## \[${PLAIN}\]" CHANGELOG.md; then
+            # No Unreleased section (the previous one was already renamed): open a
+            # heading for this release so the changelog stays in release order.
+            awk -v hdr="## [${PLAIN}] — $(date -u +%Y-%m-%d)" '
+              !done && /^## \[/ { print hdr; print ""; print "_See the release notes._"; print ""; done = 1 }
+              { print }
+            ' CHANGELOG.md > /tmp/changelog.new
+            mv /tmp/changelog.new CHANGELOG.md
           fi
 
           if git diff --quiet -- .claude-plugin/ hermes/plugin/plugin.yaml CHANGELOG.md; then

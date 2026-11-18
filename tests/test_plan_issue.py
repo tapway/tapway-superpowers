@@ -276,6 +276,19 @@ class HermesGateTests(unittest.TestCase):
         os.environ["CODEMAX_WORKFLOW"] = "1"
         self.addCleanup(os.environ.pop, "CODEMAX_WORKFLOW", None)
 
+    def test_the_documented_codemax_enabled_switch_turns_the_gate_on(self):
+        os.environ.pop("CODEMAX_WORKFLOW", None)
+        os.environ["CODEMAX_ENABLED"] = "1"
+        self.addCleanup(os.environ.pop, "CODEMAX_ENABLED", None)
+        from hermes.plugin import gates
+
+        self.assertTrue(gates.enabled())
+        verdict = gates.on_pre_tool_call(
+            tool_name="terminal",
+            args={"command": "gh pr create --fill", "workdir": str(self.repo.root)},
+        )
+        self.assertEqual((verdict or {}).get("action"), "block")
+
     def test_hermes_blocks_gh_pr_create_when_the_plan_has_no_issue(self):
         from hermes.plugin import gates
 

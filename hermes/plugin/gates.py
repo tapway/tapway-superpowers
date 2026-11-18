@@ -32,11 +32,21 @@ GROUNDING_RE = re.compile(r"Grounding:\s*\S|UNKNOWN \(not retrieved", re.IGNOREC
 
 
 def enabled() -> bool:
-    """Explicit env wins; otherwise on under CodeMAX, off elsewhere (public repo)."""
+    """Explicit env wins; otherwise on under CodeMAX, off elsewhere (public repo).
+
+    ``CODEMAX_ENABLED`` is the switch the team guide tells people to export, and
+    ``plan_issue.codemax_repo`` already honoured it — the gate did not, so the
+    documented setup left the PR gate off.
+    """
     value = os.environ.get("TAPWAY_BRAINSTORM_GATE")
     if value is not None:
         return value == "1"
-    return os.environ.get("CODEMAX_WORKFLOW") == "1" or Path(".codemax.yml").is_file()
+    codemax = (
+        os.environ.get("CODEMAX_WORKFLOW") == "1"
+        or os.environ.get("CODEMAX_ENABLED") == "1"
+        or Path(".codemax.yml").is_file()
+    )
+    return codemax
 
 
 def _target(args: dict[str, Any]) -> tuple[str, str]:

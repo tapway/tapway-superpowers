@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.7.1] — 2026-11-18
+
+### Fixed
+
+- **`CODEMAX_ENABLED=1` now actually turns the Hermes gates on.** `gates.enabled()` only honoured `CODEMAX_WORKFLOW` and `.codemax.yml`, while `plan_issue.codemax_repo()` honoured `CODEMAX_ENABLED` — so a developer who followed the team guide (which tells them to export `CODEMAX_ENABLED`) got issue auto-creation but a dead PR gate. Both now read the same three switches.
+
 ## [2.7.0] — 2026-11-18
 
 ### Added

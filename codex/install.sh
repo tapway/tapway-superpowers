@@ -148,6 +148,10 @@ if [ -n "$TARGET_PROJECT" ] && [ "$DRY_RUN" != "1" ]; then
     cp "$hook" "$TARGET_PROJECT/.codex/hooks/" && chmod +x "$TARGET_PROJECT/.codex/hooks/$(basename "$hook")"
   done
 
+  # The plan→issue renderer the PostToolUse hook imports. Single source:
+  # hermes/plugin/plan_issue.py (also symlinked at codex/hooks/plan_issue.py).
+  cp "${SCRIPT_DIR}/../hermes/plugin/plan_issue.py" "${TARGET_PROJECT}/.codex/hooks/plan_issue.py"
+
   # AGENTS.md pipeline directive (never overwrite an existing one)
   if [ -f "$TARGET_PROJECT/AGENTS.md" ]; then
     echo "  • AGENTS.md exists — skipping template (pipeline already enforced)."

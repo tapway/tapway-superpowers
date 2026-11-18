@@ -11,7 +11,7 @@ checks.append(("plugin.json agents=5", len(d["agents"]) == 5, len(d["agents"])))
 
 readme = open("README.md").read()
 checks.append(("README '### 31 Skills'", "### 31 Skills" in readme, "present" if "### 31 Skills" in readme else "missing"))
-checks.append(("README '### 8 Guardrail'", "### 8 Guardrail Hooks" in readme, "present" if "### 8 Guardrail Hooks" in readme else "missing"))
+checks.append(("README '### 9 Guardrail'", "### 9 Guardrail Hooks" in readme, "present" if "### 9 Guardrail Hooks" in readme else "missing"))
 checks.append(("README '### 5 Specialized'", "### 5 Specialized Agents" in readme, "present" if "### 5 Specialized Agents" in readme else "missing"))
 checks.append(("README no stale 13 Skills ToC", "  - [13 Skills]" not in readme, "clean" if "  - [13 Skills]" not in readme else "STALE"))
 checks.append(("README Documentation index", "docs/ARCHITECTURE.md" in readme, "present" if "docs/ARCHITECTURE.md" in readme else "missing"))
@@ -23,7 +23,7 @@ checks.append(("skills/ count=31", len(os.listdir("skills")) == 31, len(os.listd
 checks.append(("hermes/skills/ count=31", len(os.listdir("hermes/skills")) == 31, len(os.listdir("hermes/skills"))))
 checks.append(("agents/ count=5", len(os.listdir("agents")) == 5, len(os.listdir("agents"))))
 hook_dirs = [x for x in os.listdir("hooks") if os.path.isdir(f"hooks/{x}") and x != "lib"]
-checks.append(("hooks dirs=11 (+hooks.json, +lib)", len(hook_dirs) == 11, len(hook_dirs)))
+checks.append(("hooks dirs=12 (+hooks.json, +lib)", len(hook_dirs) == 12, len(hook_dirs)))
 
 allok = True
 for label, ok, val in checks:

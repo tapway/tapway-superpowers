@@ -170,22 +170,31 @@ git commit -m "docs: add plan and work package checklist for [feature-name]"
 git push
 ```
 
-### 7b. Create the GitHub Issue (after plan, before execution)
-Now that the task is understood and the plan exists, create the GitHub issue — **this is what feeds the CodeMAX kanban**. Do this *after* brainstorming/planning and *before* executing, not at session start (an empty issue from a bare branch name is worthless).
+### 7b. The GitHub Issue Is Created Automatically
 
-If the tapway-superpowers hook is available (repo has `hooks/pre-execute-github-issue/`):
+Saving the plan creates the issue — you do not run anything. Both surfaces hook the plan write:
+
+- **Claude Code / Codex:** the `post-plan-issue` PostToolUse hook fires on every `docs/plans/*.md` write.
+- **Hermes:** the plugin's `post_tool_call` hook does the same in-process.
+
+Both call `hermes/plugin/plan_issue.py`, which:
+
+1. skips a plan that already carries `issue: <n>` — re-saving a plan never opens a second issue,
+2. reuses an existing `codemax` issue for the branch when one exists,
+3. otherwise opens one labelled `codemax`, with a readable body — Summary, Why, What changes (tasks as checkboxes), Acceptance criteria, Test plan, Files, Links, and the full plan collapsed — and
+4. writes `issue: <n>` back into the plan frontmatter.
+
+Only feature branches: `master`, `staging`, `main` and `prod` are skipped. It only runs in a CodeMAX-enabled repo (`CODEMAX_ENABLED=1` or `CODEMAX_WORKFLOW=1`, or a `.codemax.yml` in the repo root).
+
+Manual fallback (hook bypassed, or `TAPWAY_ISSUE_AUTOCREATE=0`):
+
 ```bash
-bash hooks/pre-execute-github-issue/create-issue.sh docs/plans/[feature-name].md
-```
-This creates (or reuses) a `codemax`-labeled issue with the full plan as the body, and sets `GITHUB_ISSUE_NUMBER` / `GITHUB_REPO`.
-
-If the hook is not present, create it directly (conversational — just do it):
-```
-Create a GitHub issue titled "⚙ [Feature Name]" labeled codemax in the current repo,
-with the plan from docs/plans/[feature-name].md as the body, and note the branch.
+python3 hermes/plugin/plan_issue.py docs/plans/[feature-name].md
 ```
 
-The resulting issue auto-syncs to the kanban via the CodeMAX webhook. Push incremental progress to it as you work (in_progress → review → done).
+If creation fails, the PR gate refuses `gh pr create` while the plan has no `issue:` — a broken create surfaces at PR time instead of silently.
+
+The issue auto-syncs to the kanban via the CodeMAX webhook. Push incremental progress to it as you work (in_progress → review → done).
 
 ### 7c. Route the docs the plan produces (wiki vs. repo)
 Each document the plan creates belongs either in the **shared wiki / brain** or in the **repo's own docs**. Decide before implementing, so a doc lands in the right home the first time — no churn later.

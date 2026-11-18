@@ -41,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull_requests: write   # the manifest sync opens a PR (the branch is protected)
 
     steps:
       - uses: actions/checkout@v4
@@ -50,18 +51,15 @@ jobs:
       - name: Compute next version
         id: ver
         run: |
-          set -e
+          set -euo pipefail
 
-          # Determine environment suffix:
-          #   - workflow_dispatch: use the input value
-          #   - push to prod branch: -prod
-          #   - push to staging branch (or anything else): -stg
+          # Stream suffix: master is unsuffixed, staging -stg, prod -prod.
+          # The streams are independent — scripts/next_version.sh filters tags so
+          # a -stg release can never bump the production line (release drift bug).
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             INPUT="${{ github.event.inputs.environment }}"
-            [ "$INPUT" = "production" ] && ENV="-prod" || ENV="-stg"
+            if [ "$INPUT" = "production" ]; then ENV=""; else ENV="-stg"; fi
           else
-            # master releases are UNSUFFIXED (historical tags are plain vMAJOR.MINOR.PATCH);
-            # staging -> -stg, prod -> -prod, anything else -> -stg.
             case "${GITHUB_REF_NAME}" in
               master|main) ENV="" ;;
               prod)        ENV="-prod" ;;
@@ -69,45 +67,10 @@ jobs:
             esac
           fi
 
-          # Latest semver tag for this env, e.g. v1.2.3-stg
-          LATEST=$(git tag -l "v*${ENV}" 2>/dev/null | sort -V | tail -1)
-
-          if [ -z "$LATEST" ]; then
-            # No release for this env yet — start at 0.0.0 so the first
-            # conventional commit below rolls us to 1.0.0 (feat) / 0.1.0.
-            MAJOR=0; MINOR=0; PATCH=0
-          else
-            # Parse MAJOR.MINOR.PATCH from "vX.Y.Z-env"
-            VER=${LATEST#v}
-            VER=${VER%%"${ENV}"}
-            MAJOR=$(echo "$VER" | cut -d. -f1)
-            MINOR=$(echo "$VER" | cut -d. -f2)
-            PATCH=$(echo "$VER" | cut -d. -f3)
-          fi
-
-          # Decide the bump from conventional commits since the last env tag
-          # (or the repo start if this is the first release for this env).
-          RANGE="${LATEST:-$(git rev-list --max-parents=0 HEAD)}..HEAD"
-
-          BUMP="patch"
-          if git log "${RANGE}" --format="%s%n%b" 2>/dev/null \
-             | grep -qE '(^feat!|BREAKING CHANGE)'; then
-            BUMP="major"
-          elif git log "${RANGE}" --format="%s" 2>/dev/null \
-             | grep -qE '^(feat|feat\()'; then
-            BUMP="minor"
-          fi
-
-          case "$BUMP" in
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH + 1)) ;;
-          esac
-
-          VERSION="v${MAJOR}.${MINOR}.${PATCH}${ENV}"
+          VERSION="$(bash scripts/next_version.sh "$ENV")"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "bump=${BUMP}"        >> "$GITHUB_OUTPUT"
-          echo "Computed version: ${VERSION} (${BUMP} bump)"
+          echo "stream=${ENV:-master}" >> "$GITHUB_OUTPUT"
+          echo "Computed version: ${VERSION} (scripts/next_version.sh)"
 
       - name: Tag and publish release
         env:
@@ -133,39 +96,55 @@ jobs:
             --target "${{ github.ref_name }}" \
             --notes-file /tmp/release-notes.md
 
-      - name: Sync plugin manifest versions (non-fatal)
-        id: sync
-        continue-on-error: true
+      - name: Sync plugin manifests (opens a PR; master stream only)
+        # Only the production stream owns the plain manifests — a -stg release
+        # must not publish its version to the marketplace resolver.
+        if: steps.ver.outputs.stream == 'master'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
+          set -euo pipefail
 
-          # Manifest "version" fields must never carry the -stg/-prod suffix —
-          # Claude Code's marketplace resolver reads these as plain SemVer.
           VERSION="${{ steps.ver.outputs.version }}"
-          PLAIN_VERSION="${VERSION#v}"
-          PLAIN_VERSION="${PLAIN_VERSION%-*}"
+          PLAIN="${VERSION#v}"
+          PLAIN="${PLAIN%-*}"
 
-          jq --arg v "$PLAIN_VERSION" \
+          jq --arg v "$PLAIN" \
             '.metadata.version = $v | .plugins[0].version = $v' \
             .claude-plugin/marketplace.json > /tmp/marketplace.json
           mv /tmp/marketplace.json .claude-plugin/marketplace.json
-
-          jq --arg v "$PLAIN_VERSION" '.version = $v' \
+          jq --arg v "$PLAIN" '.version = $v' \
             .claude-plugin/plugin.json > /tmp/plugin.json
           mv /tmp/plugin.json .claude-plugin/plugin.json
 
+          if git diff --quiet -- .claude-plugin/; then
+            echo "manifests already at ${PLAIN}"
+            exit 0
+          fi
+
+          BRANCH="chore/manifest-sync-${PLAIN}"
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add .claude-plugin/marketplace.json .claude-plugin/plugin.json
+          # [skip ci] in the title means merging this PR does not trigger another
+          # release (the merge commit carries the marker).
+          git commit -m "chore(release): sync plugin manifests to ${PLAIN} [skip ci]"
+          git push origin "$BRANCH"
 
-          if git diff --quiet -- .claude-plugin/; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            git add .claude-plugin/marketplace.json .claude-plugin/plugin.json
-            # [skip ci] prevents this push from re-triggering this workflow.
-            # If the branch ruleset rejects this bot push, the tag/release have
-            # already been published — the manifest sync lands via the next PR.
-            git commit -m "chore: sync plugin manifest version to ${PLAIN_VERSION} [skip ci]" \
-              && git push origin "HEAD:${GITHUB_REF_NAME}" \
-              || echo "::warning::manifest-sync push rejected (protected branch); version files updated in the release tag"
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+          if gh pr list --repo "${{ github.repository }}" --head "$BRANCH" \
+               --json number --jq '.[0].number // ""' | grep -q .; then
+            echo "manifest-sync PR already open for ${PLAIN}"
+            exit 0
           fi
+          gh pr create --repo "${{ github.repository }}" --base master --head "$BRANCH" \
+            --title "chore(release): sync plugin manifests to ${PLAIN} [skip ci]" \
+            --body "The Auto Release workflow tagged **${VERSION}**. \`master\` is protected, so the manifest bump lands through this PR instead of a bot push.
+
+          \`\`\`
+          plugin.yaml                 ${PLAIN}
+          .claude-plugin/plugin.json  ${PLAIN}
+          .claude-plugin/marketplace.json  ${PLAIN}
+          \`\`\`
+
+          Merging it does not re-trigger the release ([skip ci]). \`scripts/check-release-drift.sh\` reports RED until this lands."

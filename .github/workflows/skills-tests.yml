@@ -35,3 +35,9 @@ jobs:
 
       - name: Docs consistency
         run: python tests/check_docs_consistency.py
+
+      - name: Release version derivation
+        run: python tests/test_next_version.py
+
+      - name: Release drift detector
+        run: python tests/test_release_drift.py

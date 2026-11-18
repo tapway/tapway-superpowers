@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull_requests: write   # the manifest sync opens a PR (the branch is protected)
+      pull-requests: write   # the manifest sync opens a PR (the branch is protected)
 
     steps:
       - uses: actions/checkout@v4

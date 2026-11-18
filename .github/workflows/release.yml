@@ -119,8 +119,13 @@ jobs:
           # The Hermes plugin manifest is YAML; the sync step used to skip it, so
           # it stayed on 2.7.2 through four releases while the JSON files moved.
           sed -i -E "s/^version: .*/version: ${PLAIN}/" hermes/plugin/plugin.yaml
+          # The changelog heading is part of the same invariant (the plugin guard
+          # compares the manifests to the top CHANGELOG version).
+          if grep -q '^## \[Unreleased\]' CHANGELOG.md; then
+            sed -i -E "0,/^## \[Unreleased\]/s//## [${PLAIN}] — $(date -u +%Y-%m-%d)/" CHANGELOG.md
+          fi
 
-          if git diff --quiet -- .claude-plugin/ hermes/plugin/plugin.yaml; then
+          if git diff --quiet -- .claude-plugin/ hermes/plugin/plugin.yaml CHANGELOG.md; then
             echo "manifests already at ${PLAIN}"
             exit 0
           fi
@@ -130,7 +135,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
           git add .claude-plugin/marketplace.json .claude-plugin/plugin.json \
-            hermes/plugin/plugin.yaml
+            hermes/plugin/plugin.yaml CHANGELOG.md
           # [skip ci] in the title means merging this PR does not trigger another
           # release (the merge commit carries the marker).
           git commit -m "chore(release): sync plugin manifests to ${PLAIN} [skip ci]"

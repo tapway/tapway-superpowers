@@ -103,7 +103,7 @@ for surface, version in found.items():
 
 if fail:
     print("\nFix: merge the open `chore(release): sync plugin manifests` PR, or run")
-    print("     `bash scripts/next_version.sh` + update the three files in one PR.")
+    print("     `bash scripts/next_version.sh` + update all four fields in one PR.")
 print(f"== {'GREEN' if fail == 0 else 'RED'} ==")
 raise SystemExit(1 if fail else 0)
 PY

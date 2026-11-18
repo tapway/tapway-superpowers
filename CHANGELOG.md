@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.8.8] — 2026-11-18
+
+_See the release notes._
+
 ## [2.8.7] — 2026-11-18
 
 _See the release notes._

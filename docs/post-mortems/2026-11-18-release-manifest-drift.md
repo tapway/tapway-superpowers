@@ -51,6 +51,19 @@ above the production tag would have made `PATCH` non-numeric
   `Release drift` workflow runs it daily.
 - README: manifests are owned by the workflow; do not hand-bump in feature PRs.
 
+## What the fix itself got wrong (and how it was caught)
+
+- The first sync PR (#53) moved the two JSON manifests but not `hermes/plugin/plugin.yaml`;
+  the drift detector reported it on its first real run.
+- The second (#56) couldn't rename a CHANGELOG heading that did not exist, so the
+  heading lagged; the detector caught that too.
+- The PR-time guard `test_hermes_plugin.py` compared the manifests to the CHANGELOG
+  heading, which cannot hold between a release and its sync PR — it went red on every
+  PR in that window. It now compares the two manifests to each other; the tag-based
+  drift check is the authority for the CHANGELOG.
+
+Each of these was found by the check added in the same change, not by review.
+
 ## Regression tests
 
 - `tests/test_next_version.py::test_master_stream_ignores_staging_tags`

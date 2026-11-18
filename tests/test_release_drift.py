@@ -42,6 +42,8 @@ class DriftTests(unittest.TestCase):
         (self.repo / ".claude-plugin/marketplace.json").write_text(
             json.dumps({"metadata": {"version": "1.2.2"},
                         "plugins": [{"version": "1.2.2"}]}), encoding="utf-8")
+        (self.repo / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## [1.2.2] — 2026-01-01\n\n- initial\n", encoding="utf-8")
         _git(self.repo, "add", "-A")
         _git(self.repo, "commit", "-m", "chore: init")
         _git(self.repo, "tag", "v1.2.2")
@@ -64,14 +66,30 @@ class DriftTests(unittest.TestCase):
 
     def test_red_when_one_surface_disagrees(self):
         _git(self.repo, "tag", "v1.2.3")
-        (self.repo / "hermes/plugin/plugin.yaml").write_text(
-            "name: tapway-superpowers\nversion: 1.2.3\n", encoding="utf-8")
-        (self.repo / ".claude-plugin/plugin.json").write_text(
-            json.dumps({"version": "1.2.3"}), encoding="utf-8")
+        for rel, body in (
+            ("hermes/plugin/plugin.yaml", "name: tapway-superpowers\nversion: 1.2.3\n"),
+            (".claude-plugin/plugin.json", json.dumps({"version": "1.2.3"})),
+            ("CHANGELOG.md", "# Changelog\n\n## [1.2.3] — 2026-01-01\n"),
+        ):
+            (self.repo / rel).write_text(body, encoding="utf-8")
         # marketplace left behind on 1.2.2
         out = self.run_check()
         self.assertEqual(out.returncode, 1, out.stdout)
         self.assertIn("marketplace.json (metadata) = 1.2.2", out.stdout)
+
+    def test_red_when_the_changelog_has_only_an_unreleased_heading(self):
+        _git(self.repo, "tag", "v1.2.3")
+        for rel, body in (
+            ("hermes/plugin/plugin.yaml", "name: tapway-superpowers\nversion: 1.2.3\n"),
+            (".claude-plugin/plugin.json", json.dumps({"version": "1.2.3"})),
+            (".claude-plugin/marketplace.json",
+             json.dumps({"metadata": {"version": "1.2.3"}, "plugins": [{"version": "1.2.3"}]})),
+            ("CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n\n- pending\n"),
+        ):
+            (self.repo / rel).write_text(body, encoding="utf-8")
+        out = self.run_check()
+        self.assertEqual(out.returncode, 1, out.stdout)
+        self.assertIn("CHANGELOG.md (top released heading) = (no released heading)", out.stdout)
 
     def test_suffixed_tags_are_not_production(self):
         _git(self.repo, "tag", "v9.9.9-stg")

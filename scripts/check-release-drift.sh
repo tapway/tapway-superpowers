@@ -94,6 +94,10 @@ def jget(path, *keys):
 found[".claude-plugin/plugin.json"] = jget(plugin_path, "version")
 found[".claude-plugin/marketplace.json (metadata)"] = jget(market_path, "metadata", "version")
 found[".claude-plugin/marketplace.json (plugins[0])"] = jget(market_path, "plugins", 0, "version")
+changelog = root / "CHANGELOG.md"
+m = re.search(r"^## \[(\d+\.\d+\.\d+)\]", changelog.read_text(encoding="utf-8"), re.MULTILINE) \
+    if changelog.is_file() else None
+found["CHANGELOG.md (top released heading)"] = m.group(1) if m else "(no released heading)"
 
 for surface, version in found.items():
     if version == expected:

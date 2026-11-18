@@ -365,6 +365,26 @@ v2.0.0-stg   ← breaking change (MAJOR bump)
 v1.1.0-prod  ← promoted to prod (prod's own stream)
 ```
 
+### Plugin manifests (who owns the version)
+
+The **release workflow owns the `version` field**, in `hermes/plugin/plugin.yaml`,
+`.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`. Do **not**
+hand-bump them in a feature PR — `claude plugin update` reads those files, and a
+hand-bump competes with the derived tag (that is how `v2.8.3` shipped with
+manifests still saying `2.7.2`).
+
+After tagging, the workflow writes the plain `MAJOR.MINOR.PATCH` into the three
+manifests and opens a `chore(release): sync plugin manifests to X.Y.Z [skip ci]`
+PR — `master` is protected, so the bump lands through review like everything
+else. Only the production stream writes manifests; `-stg` releases keep their own
+tag line and never touch them.
+
+`scripts/check-release-drift.sh` compares the latest plain tag with the four
+manifest fields and exits RED on mismatch; the `Release drift` workflow runs it
+daily so a rejected or forgotten sync surfaces within a day. Version derivation
+lives in `scripts/next_version.sh` (tested in `tests/test_next_version.py`), which
+keeps the `-stg` tags out of the production line.
+
 ### Setup
 
 `release.yml` is created automatically by `/setup-project`. It requires only the built-in `GITHUB_TOKEN` — no extra secrets needed.

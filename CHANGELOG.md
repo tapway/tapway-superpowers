@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Release versions drifted from the tags.** `v2.8.3` shipped while all three manifests still said `2.7.2`, so `claude plugin update` resolved the old version. The manifest-sync step committed the bump and then had its push rejected (`GH013: Cannot update this protected ref`) because `master` requires a PR; `continue-on-error: true` turned that into a warning, and the warning claimed the tag carried the version — it did not.
+- **The manifest sync now opens a PR** instead of pushing to a protected branch (`pull_requests: write`), and only the production stream writes manifests — a `-stg` release no longer touches what clients install.
+- **Version derivation moved to `scripts/next_version.sh`** and is tested. The old inline glob (`git tag -l "v*"`) matched `-stg` tags while computing the master version, so a staging release could bump production.
+- **`scripts/check-release-drift.sh` + a daily `Release drift` workflow** detect tag/manifest mismatch instead of leaving it silent.
+
 ## [2.7.2] — 2026-11-18
 
 ### Fixed

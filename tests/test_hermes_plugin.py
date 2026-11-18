@@ -112,10 +112,14 @@ def section_manifest() -> None:
     text = manifest.read_text(encoding="utf-8") if manifest.is_file() else ""
     check("name: tapway-superpowers" in text, "plugin name is tapway-superpowers")
     check(bool(_manifest_version()), "plugin.yaml has a version")
+    # plugin.yaml and plugin.json are written together by the release sync, so
+    # they must always agree. The CHANGELOG heading trails by one release until
+    # the `chore(release): sync plugin manifests` PR merges — scripts/check-release-drift.sh
+    # is the authority for tag↔manifest↔changelog agreement (it runs daily).
     check(
-        _manifest_version() == _json_version() == _changelog_version(),
-        "version matches .claude-plugin/plugin.json and CHANGELOG "
-        f"({_manifest_version()} / {_json_version()} / {_changelog_version()})",
+        _manifest_version() == _json_version(),
+        "version matches .claude-plugin/plugin.json "
+        f"({_manifest_version()} / {_json_version()})",
     )
     check(bool(re.search(r"^api_version:\s*[1-9]\d*", text, re.MULTILINE)), "api_version declares the plugin API generation")
 

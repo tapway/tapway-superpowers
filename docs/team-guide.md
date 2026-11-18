@@ -118,7 +118,9 @@ Execute (tdd / autoship)  →  progress updates pushed to issue
 
 3. **Write the plan.** The agent produces `docs/plans/[feature].md` (+ checklist) and commits it. **This is the key step** — the plan is what becomes the GitHub issue.
 
-4. **Create the GitHub issue (automatic, after the plan).** Right after the plan is committed and *before* any code runs, the agent creates the GitHub issue — with the full plan as the body. This is what the CodeMAX kanban mirrors. You don't need to ask; the writing-plans skill does it automatically (or via `create-issue.sh`).
+4. **The GitHub issue is created for you (after the plan, before code).** Saving `docs/plans/*.md` fires the `post-plan-issue` hook (Claude Code/Codex `PostToolUse`) or the plugin's `post_tool_call` (Hermes). It opens a `codemax`-labelled issue whose body is written to be read: **Summary**, **Why**, **What changes** (tasks as checkboxes), **Acceptance criteria**, **Test plan**, **Files**, **Links**, with the full plan collapsed underneath — then writes `issue: <n>` back into the plan frontmatter.
+
+   It reuses an existing issue for the branch instead of opening a second one, skips `master`/`staging`/`main`/`prod`, and only runs in a CodeMAX-enabled repo. Nothing to remember; if it cannot run, the PR gate refuses `gh pr create` until the plan carries an `issue:` number.
 
 5. **Execute.** `tdd` / `autoship` implement the plan. Every step pushes a progress update to the GitHub issue (`in_progress → review`), which the webhook mirrors to the kanban board.
 

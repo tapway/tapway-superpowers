@@ -58,9 +58,12 @@ def register(ctx):
     # the payload is a brainstorm write it cannot evaluate.
     if hasattr(ctx, "register_hook"):
         try:
-            from . import gates
+            from . import gates, plan_issue
 
             ctx.register_hook("pre_tool_call", gates.on_pre_tool_call)
+            # Plan → issue (C2): the issue is created the moment the plan lands,
+            # so the repo never has a plan nobody can open a PR for.
+            ctx.register_hook("post_tool_call", plan_issue.on_post_tool_call)
         except Exception as exc:  # noqa: BLE001 - a missing hook must not break skills
             import logging
 

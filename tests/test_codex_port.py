@@ -116,6 +116,7 @@ def main() -> int:
         "pre-commit-gate.sh",
         "dependency-audit.sh",
         "post-write-lint.sh",
+        "post-plan-issue.sh",
         "post-commit-release-note.sh",
         "session-start.sh",
         "pre-execute-github-issue-check.sh",

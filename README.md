@@ -68,7 +68,7 @@ bare slash commands. Use `install.sh` when you want `/tapway`.
 - [Release Convention — Semantic Versioning](#release-convention--semantic-versioning)
 - [What You Get](#what-you-get)
   - [31 Skills](#31-skills)
-  - [8 Guardrail Hooks](#8-guardrail-hooks)
+  - [9 Guardrail Hooks](#9-guardrail-hooks)
   - [5 Specialized Agents](#5-specialized-agents)
 - [Slash Commands Reference](#slash-commands-reference)
 - [Hermes Support](#hermes-support)
@@ -431,7 +431,7 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 
 ---
 
-### 8 Guardrail Hooks
+### 9 Guardrail Hooks
 
 Automatic checks that fire on Claude Code lifecycle events.
 
@@ -443,6 +443,7 @@ Automatic checks that fire on Claude Code lifecycle events.
 | `dependency-audit` | PreToolUse (git commit) | Blocks the commit (`exit 2`) when critical/high vulnerabilities are found (osv-scanner / npm audit / pip-audit) |
 | `pre-commit` (backstop) | Git `pre-commit` hook | Platform-agnostic backstop installed by setup-project; catches lint/format/typecheck failures from any agent or human |
 | `post-write-lint` | PostToolUse (Write\|Edit) | Runs the project linter on changed files |
+| `post-plan-issue` | PostToolUse (Write\|Edit) | Creates the `codemax`-labelled GitHub issue the moment `docs/plans/*.md` is written and records `issue: <n>` in the plan frontmatter |
 | `session-start` | SessionStart | Displays project info, git status, and environment summary when Claude Code opens |
 | `post-commit-release-note` | PostToolUse (git commit) | Parses conventional commits and appends formatted entries to `CHANGELOG.unreleased.md` |
 

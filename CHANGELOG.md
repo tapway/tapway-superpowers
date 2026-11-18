@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.7.0] — 2026-11-18
+
+### Added
+
+- **Plan → GitHub issue, automatically.** A new `post-plan-issue` hook (Claude Code and Codex `PostToolUse`, Hermes `post_tool_call`) creates the `codemax`-labelled issue the moment `docs/plans/*.md` is written and records `issue: <n>` in the plan frontmatter. Issue creation used to be a prose instruction nobody ran: the session-start script was detect-only, `create-issue.sh` was only mentioned in a skill, and neither repo had a single `codemax`-labelled issue.
+- **Readable issues.** `hermes/plugin/plan_issue.py` renders every issue as Summary / Why / What changes (tasks as checkboxes) / Acceptance criteria / Test plan / Files / Links, with the full plan collapsed, and caps the body below GitHub's 65536-character limit.
+- **Hermes PR gate.** `hermes/plugin/gates.py` now blocks `gh pr create` when a committed `docs/plans/*.md` on the branch has no `issue:` frontmatter — the same rule the Claude/Codex `pre-pr-contract` hook applies, now enforced in-process for Hermes agents.
+
+### Changed
+
+- **`hooks.json` no longer misdescribes the session-start script.** The Codex/SessionStart entry claimed it "auto-creates if missing"; it is detect-only by design, and the description now says so.
+- **`/writing-plans` skill and `docs/team-guide.md`** describe the automatic path and keep `plan_issue.py <plan>` as the manual fallback.
+
+### Fixed
+
+- **Idempotent creation.** Re-saving a plan, or writing it again after a formatting fix, adopts the existing issue instead of opening a second one.
+
 ## [2.6.2] — 2026-11-17
 
 ### Added

@@ -65,6 +65,17 @@
     ],
     "PostToolUse": [
       {
+        "matcher": "apply_patch|^Edit$|^Write$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/post-plan-issue.sh\"",
+            "timeout": 60,
+            "statusMessage": "Creating the GitHub issue for this plan"
+          }
+        ]
+      },
+      {
         "matcher": "apply_patch",
         "hooks": [
           {

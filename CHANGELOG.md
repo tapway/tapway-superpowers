@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.7.2] — 2026-11-18
+
+### Fixed
+
+- **The Hermes PR gate no longer dies on its own import.** `gates._pr_contract_gate` did `from .plan_issue import issue_number`, which raises `ImportError: attempted relative import with no known parent package` whenever the plugin files are imported flat (tooling, tests, and any loader that does not give the plugin a package context). It now falls back to the absolute import; a regression test loads `gates.py` as a flat module and asserts the gate still blocks.
+
 ## [2.7.1] — 2026-11-18
 
 ### Fixed

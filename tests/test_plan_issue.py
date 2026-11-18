@@ -339,6 +339,35 @@ class HermesGateTests(unittest.TestCase):
         )
 
 
+class FlatModuleLoadTests(unittest.TestCase):
+    """The gate must work when the plugin files are imported without a package.
+
+    Hermes loads the plugin as a package, but tooling and tests import
+    `gates.py` on its own — a relative import there crashed at PR-gate time
+    (ImportError: attempted relative import with no known parent package).
+    """
+
+    def test_pr_gate_survives_a_flat_module_load(self):
+        import importlib.util
+
+        repo = PlanFile()
+        self.addCleanup(repo.cleanup)
+        os.environ["CODEMAX_ENABLED"] = "1"
+        self.addCleanup(os.environ.pop, "CODEMAX_ENABLED", None)
+        sys.path.insert(0, str(ROOT / "hermes" / "plugin"))
+        self.addCleanup(sys.path.remove, str(ROOT / "hermes" / "plugin"))
+
+        spec = importlib.util.spec_from_file_location("gates_flat", ROOT / "hermes" / "plugin"
+                                                      / "gates.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        verdict = mod.on_pre_tool_call(
+            tool_name="terminal",
+            args={"command": "gh pr create --fill", "workdir": str(repo.root)},
+        )
+        self.assertEqual((verdict or {}).get("action"), "block")
+
+
 class HermesPostToolTests(unittest.TestCase):
     """Hermes post_tool_call: same flow, in-process, never raises."""
 

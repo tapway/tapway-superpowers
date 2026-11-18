@@ -126,6 +126,19 @@ SHELL_TOOLS = {"terminal", "bash", "Bash", "shell", "run_command"}
 PR_CREATE_RE = re.compile(r"\bgh\s+pr\s+create\b")
 
 
+def _issue_number(text: str) -> int | None:
+    """Read `issue:` from a plan, whether this module is a package or a flat file.
+
+    Hermes imports plugins as packages (relative import works); tests and
+    ad-hoc tooling load `gates.py` as a top-level module, where it does not.
+    """
+    try:
+        from .plan_issue import issue_number
+    except ImportError:  # loaded as a flat module
+        from plan_issue import issue_number  # type: ignore[no-redef]
+    return issue_number(text)
+
+
 def _pr_contract_gate(tool_name: str, args: dict[str, Any]) -> dict[str, str] | None:
     if tool_name not in SHELL_TOOLS:
         return None
@@ -180,9 +193,7 @@ def _pr_contract_gate(tool_name: str, args: dict[str, Any]) -> dict[str, str] | 
         except OSError:
             continue
         if rel.startswith("docs/plans/"):
-            from .plan_issue import issue_number
-
-            if issue_number(text) is None:
+            if _issue_number(text) is None:
                 findings.append(
                     f"{rel}: plan has no 'issue: <number>' frontmatter "
                     "(create the GitHub issue first)"

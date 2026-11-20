@@ -651,6 +651,7 @@ def load_config(root: Path) -> dict:
     except re.error as exc:
         raise ConfigError(f"{CONFIG_NAME}: bad regex ({exc})") from exc
     config["_mutating"] = MUTATING_PLAIN | set(config["mutating_commands"])
+    config["_project"] = str(root)
     if config["secret_getters"]:
         names = "|".join(re.escape(g) for g in config["secret_getters"])
         config["_getters"] = re.compile(rf"(?<![\w-])({names})(?![\w-])")
@@ -999,6 +1000,35 @@ def check_secret_tokens(
 
 
 # --- protected branches -------------------------------------------------
+
+
+def git_toplevel(cwd: str | None) -> str | None:
+    try:
+        out = subprocess.run(
+            ["git", "-C", cwd or ".", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return str(Path(out.stdout.strip()).resolve()) if out.returncode == 0 else None
+
+
+def config_for(cwd: str, config: dict) -> dict:
+    """The config of the repo a `cd` lands in: its own .claude/tool-guard.json
+    (or the defaults). Asking never switches off on the way."""
+    top = git_toplevel(cwd)
+    if top is None or top == git_toplevel(config["_project"]):
+        return config
+    try:
+        other = load_config(Path(top))
+    except ConfigError as exc:
+        raise BlockedError(f"{top}: fix {exc}") from exc
+    other["ask_before_changes"] = (
+        other["ask_before_changes"] or config["ask_before_changes"]
+    )
+    return other
 
 
 def git_branch(cwd: str | None) -> str:
@@ -1687,7 +1717,9 @@ def check_command(cmd: str, config: dict, state: dict, depth: int = 0) -> bool:
             current.append(tok)
             continue
         if current:
-            changed |= check_simple_command(current, config, state, depth)
+            changed |= check_simple_command(
+                current, state.get("config", config), state, depth
+            )
             current = []
         if tok == "(":
             saved.append(dict(state))
@@ -1713,6 +1745,7 @@ def check_simple_command(
             base = Path(state["cwd"] or ".")
             state["cwd"] = str(base / os.path.expanduser(target))
             state["branch"] = git_branch(state["cwd"])
+            state["config"] = config_for(state["cwd"], config)
         return False
     if prog in SHELLS and "-c" in inner[1:]:
         idx = inner.index("-c") + 1

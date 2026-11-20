@@ -118,7 +118,9 @@ agent may still Read/Edit the broken file itself to fix it. Keys starting with
 | `redis_clients` / `sql_clients` / `minio_clients` | list | `[]` | Repo wrappers classified like `redis-cli` / `psql` / `mc` |
 
 The config is found through `CLAUDE_PROJECT_DIR` (set by Claude Code), else the
-payload's `cwd`.
+payload's `cwd`. A command that `cd`s into another git repo is judged by that
+repo's own config (or the defaults); `ask_before_changes` stays on if the
+starting repo had it.
 
 ## Tests
 

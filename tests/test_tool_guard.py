@@ -782,6 +782,23 @@ with tempfile.TemporaryDirectory() as tmp:
         "pytest > results.txt",
     ], "ask", plain, "ask-round2-change", extra_env=on)
 
+    print("\n[R13] cd into another repo applies that repo's config")
+    (tmp / "r3").mkdir()
+    repo3 = make_repo(tmp / "r3", ["main", "staging", "feat/x"], "feat/x")
+    write_config(repo3, {"protected_branches": ["main"], "pr_flow": {"main": "staging"}})
+    check(bash(f"cd {repo} && gh pr create --base master --head feat/x --title t", flow, cwd=repo2) == "allow",
+          "the project's pr_flow does not follow a cd into a repo that has none")
+    check(bash(f"cd {repo3} && gh pr create --base main --head feat/x --title t", flow, cwd=repo2) == "block",
+          "the target repo's own pr_flow applies after cd")
+    switch(repo, "main")
+    check(bash(f"cd {repo} && git commit -m x", flow, cwd=repo2) == "block",
+          "the target repo's protected branches (defaults: main) apply after cd")
+    check(bash(f"cd {repo} && rm -rf build", helpers, cwd=repo2) == "ask",
+          "asking never switches off when cd lands in a repo whose config does not ask")
+    write_config(repo3, "{")
+    check(bash(f"cd {repo3} && ls", flow, cwd=repo2) == "block",
+          "a broken config in the target repo blocks, like the project's own")
+
     print("\n[13] Without python3 the wrapper blocks instead of running unguarded")
     r = subprocess.run(["/bin/bash", str(HOOK)], input='{"tool_name":"Bash","tool_input":{"command":"ls"}}',
                        text=True, capture_output=True, env={"PATH": "/nonexistent"})

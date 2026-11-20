@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **`tool-guard` hook: secrets, protected branches, and ask-before-changes.** Runs before every Bash command and file-tool call.
+  - *Secrets:* blocks reading `.env` / `*.env` / `.envrc` and credential files (templates like `.env.example` stay readable), environment dumps (`printenv`, `env`, `/proc/*/environ`, `docker [compose] exec|run ... env`, `docker inspect` without a narrow `--format`, `docker compose config` without `--quiet`, `echo $..._TOKEN`, `print(os.environ)`), credential printers (`gh auth token`, `aws configure get`, `kubectl get secret -o`), and passwords on the command line (`curl -u`, `redis-cli -a`, `mysql -p…`, `user:pass@` URLs, `--password=`). `VAR=$(…)` captures are allowed: nothing reaches the transcript.
+  - *Branches:* blocks commits/pushes to protected branches (default `main`, `master`), force-pushes (`--force`, `-f`, `+refspec`), bulk pushes, and PRs that skip a repo's promotion flow.
+  - *Shell parsing:* sees through `\` continuations, comments, `bash -c`, `eval`, `$(…)` (quoted or not, not in single quotes), backticks, `sudo`/`env`/`timeout` wrappers, `if`/`for`/`{` keywords, subshell `cd`, redirections, and heredocs fed to shells, `ssh` or interpreters.
+  - *Fails closed* on anything it cannot parse, a broken config, a crash, a missing `python3`, or a command over 64 KB.
+  - *Asking* (`ask_before_changes`, or `TAPWAY_GUARD_ASK=1`) prompts before commands it recognises as changing a server, repo or database. Off by default so `/autoship` is not interrupted; servers turn it on. It is a list of known changing commands, not an allowlist (see "Known limits" in `hooks/tool-guard/README.md`).
+  - Per-repo settings in `.claude/tool-guard.json`. A command that `cd`s into another git repo is judged by that repo's config (asking never switches off on the way).
+- **Server template and guide.** `server/managed-settings.json` for `/etc/claude-code/managed-settings.json` force-installs tapway-superpowers and tapway-skills (auto-update on), allows only Tapway and official marketplaces, sets `TAPWAY_GUARD_ASK=1`, denies env-file and credential reads, and disables bypass mode. `docs/SERVER_GUARDRAILS.md` covers setup and how a merged change reaches a server.
+- **Skill eval harness with canary secrets.** `evals/lib/canary-env.sh` and `canary-repo.sh` build a fake repo whose env files hold `CANARY-` values; `evals/templates/case.yaml` carries the standard safety graders (no canary in the transcript or answer, no env file opened, edited or grepped, no changing command without approval); `scripts/skill-evals.sh` runs any repo's `.claude/skills` + `evals/` through `claude plugin eval` (the sandbox does not load the repo's hooks, so a case measures the skill text), nothing published and a cost cap.
+
+### Fixed
+
+- **`pre-bash-safety` never fired in Claude Code.** It read the command from `$1`, but Claude Code sends the tool call as JSON on stdin, so force-pushes, commits to `main` and `ALLOW_PROD`-gated commands all passed. It now reads the payload through `hooks/lib/hook_payload.sh`, checks one shell segment at a time (so `git push && tail -f log` is not a force-push), and uses POSIX patterns that behave the same with GNU and macOS grep. Now that the rules are live they were tightened so they do not block legitimate work: `feat/x-fix` is not a force-push, `products` / `reproduce` are not prod, reading `docker-compose.prod.yml` is fine (only changing compose commands are gated), and build tools' `--production` is allowed. The Codex copy carries the same rules.
+
+### Tests
+
+- `tests/test_tool_guard.py` (560 checks), `tests/test_pre_bash_safety.py` (95, Claude hook and Codex copy), `tests/test_skill_evals_harness.py` (105). All drive the hooks with real stdin payloads; CI runs them on Linux and macOS (`skills-tests.yml`).
+- Before release the engine went through two adversarial review passes (every finding is a regression test), 26,000 fuzzed commands with no crash, and mutation checks (8 deliberate bugs, each caught). It also reproduces all 202 guard cases of samurai-inspector's repo-local guard, which it replaces.
+
 ## [2.8.8] — 2026-11-18
 
 _See the release notes._

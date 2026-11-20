@@ -41,3 +41,35 @@ jobs:
 
       - name: Release drift detector
         run: python tests/test_release_drift.py
+
+      - name: tool-guard hook (secrets, branches, ask-before-changes)
+        run: python tests/test_tool_guard.py
+
+      - name: pre-bash-safety hook (stdin payload, Claude + Codex)
+        run: python tests/test_pre_bash_safety.py
+
+      - name: Skill-eval harness and server template
+        run: python tests/test_skill_evals_harness.py
+
+  # The hooks run on developers' Macs too: BSD grep and bash 3.2 must give the
+  # same answers as GNU grep on Linux.
+  hooks-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: pip install pyyaml
+
+      - name: tool-guard hook
+        run: python tests/test_tool_guard.py
+
+      - name: pre-bash-safety hook (BSD grep)
+        run: python tests/test_pre_bash_safety.py
+
+      - name: Skill-eval harness (BSD cp/grep)
+        run: python tests/test_skill_evals_harness.py

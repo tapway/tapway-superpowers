@@ -22,7 +22,7 @@ graph TD
   Claude -->|loads| Manifest[.claude-plugin/plugin.json]
   Manifest -->|discovers| Skills[23 Claude skills]
   Manifest -->|discovers| Agents[5 subagents]
-  Manifest -->|discovers| Hooks[8 guardrail hooks]
+  Manifest -->|discovers| Hooks[10 guardrail hooks]
   Hooks -->|fires on| Lifecycle[PreToolUse / PostToolUse / SessionStart / git commit]
 
   Hermes -->|installs via| Installer[hermes/install.sh + install.ps1]
@@ -45,9 +45,10 @@ graph TD
 - **`skills/`** — 23 SKILL.md files, each an instructional playbook an agent
   loads when its trigger phrases fire (e.g. `tdd` on "implement", `pr` on
   "create a PR").
-- **`hooks/`** — 8 lifecycle hooks that fire on tool use and git operations:
-  `pre-bash-safety`, `pre-commit-secrets`, `pre-commit-gate`, `dependency-audit`
-  (PreToolUse, `exit 2` to block), the git `pre-commit` backstop, `post-write-lint`,
+- **`hooks/`** — lifecycle hooks that fire on tool use and git operations:
+  `tool-guard` (secrets, protected branches, ask-before-changes; per-repo
+  `.claude/tool-guard.json`), `pre-bash-safety`, `pre-commit-secrets`,
+  `pre-commit-gate`, `dependency-audit` (PreToolUse, `exit 2` to block), the git `pre-commit` backstop, `post-write-lint`,
   `session-start`, `post-commit-release-note`.
 - **`agents/`** — 5 subagent definitions: `code-reviewer`, `test-writer`,
   `security-auditor`, `devops-sre`, `db-reviewer`.
@@ -71,6 +72,13 @@ graph TD
 - **`tests/`** — 6 TDD validation suites (216 checks) proving the skills, hooks,
   and wiring exist and behave.
 - **`docs/`** — team guide, legacy-refactor guide, design specs.
+
+### Servers and evals
+- **`server/managed-settings.json`** — template for `/etc/claude-code/managed-settings.json`:
+  force-installs this plugin and tapway-skills, sets `TAPWAY_GUARD_ASK=1`, denies
+  env-file reads, disables bypass mode. Guide: `docs/SERVER_GUARDRAILS.md`.
+- **`evals/` + `scripts/skill-evals.sh`** — canary-secret eval harness any repo
+  uses for its own skills (`claude plugin eval`; the sandbox does not load the repo's hooks).
 
 ## Data Flow
 

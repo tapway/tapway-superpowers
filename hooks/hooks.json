@@ -7,6 +7,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/tool-guard/tool-guard.sh\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-bash-safety/pre-bash-safety.sh\"",
             "timeout": 10
           },
@@ -33,6 +38,16 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-pr-contract/pre-pr-contract.sh\"",
             "if": "Bash(gh pr create:*)",
             "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Edit|Write|MultiEdit|Grep|Glob|NotebookEdit|NotebookRead",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/tool-guard/tool-guard.sh\"",
+            "timeout": 10
           }
         ]
       },

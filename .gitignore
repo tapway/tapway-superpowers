@@ -29,3 +29,6 @@ Thumbs.db
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Skill-eval workspace assembled by scripts/skill-evals.sh
+.eval-plugin/

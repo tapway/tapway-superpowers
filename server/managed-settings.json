@@ -1,0 +1,51 @@
+{
+  "extraKnownMarketplaces": {
+    "tapway-superpowers": {
+      "source": { "source": "github", "repo": "tapway/tapway-superpowers" },
+      "autoUpdate": true
+    },
+    "tapway-skills": {
+      "source": { "source": "github", "repo": "tapway/tapway-skills" },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "tapway-superpowers@tapway-superpowers": true,
+    "tapway-skills@tapway-skills": true
+  },
+  "strictKnownMarketplaces": [
+    { "source": "github", "repo": "tapway/*" },
+    { "source": "github", "repo": "anthropics/claude-plugins-official" }
+  ],
+  "env": {
+    "TAPWAY_GUARD_ASK": "1"
+  },
+  "permissions": {
+    "disableBypassPermissionsMode": "disable",
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Read(//**/.env)",
+      "Read(//**/.env.*)",
+      "Edit(//**/.env)",
+      "Edit(//**/.env.*)",
+      "Read(~/.aws/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.docker/config.json)",
+      "Read(~/.git-credentials)",
+      "Read(~/.netrc)",
+      "Read(~/.claude/.credentials.json)",
+      "Bash(printenv *)"
+    ],
+    "ask": [
+      "Bash(docker compose up *)",
+      "Bash(docker compose down *)",
+      "Bash(docker compose build *)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(gh pr merge *)"
+    ]
+  }
+}

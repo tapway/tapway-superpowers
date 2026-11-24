@@ -76,9 +76,27 @@ interrupted; secret and branch protection are always on.
 ## Per-repo config: `.claude/tool-guard.json`
 
 Optional. Every key is optional; unknown keys, wrong types and bad regexes
-block every call until fixed (so a typo cannot silently weaken the guard). The
-agent may still Read/Edit the broken file itself to fix it. Keys starting with
-`_` are comments.
+block every call until fixed (so a typo cannot silently weaken the guard). On a
+laptop the agent may still Read/Edit the broken file itself to fix it. Keys
+starting with `_` are comments.
+
+### Managed mode (servers): repo config can only tighten
+
+The agent can edit any file in the repo, including this config. So on machines
+where the guard must hold no matter what the agent does, set
+`TAPWAY_GUARD_MANAGED=1` (the [server template](../../server/managed-settings.json)
+does). Then:
+
+- `protect_env_files` is always `true`; `allowed_env_templates` can only drop
+  entries from the defaults; `protected_branches` is the defaults **plus** the
+  repo's list. Credential files, env dumps and secrets in argv are always
+  blocked anyway.
+- The agent cannot change the guard's own policy: Edit/Write/MultiEdit of
+  `.claude/tool-guard.json` or `.claude/settings*.json`, and shell commands that
+  write them (`>`, `sed -i`, `cp`, `mv`, `rm`, `tee`, inline Python), are
+  blocked; reading them is fine. The server template also denies these edits in
+  Claude Code's own permissions, so both layers hold.
+- A broken config is fixed by a human, not by the agent.
 
 ```json
 {

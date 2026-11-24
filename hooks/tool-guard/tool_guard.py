@@ -587,6 +587,26 @@ CURL_WRITE = re.compile(
     r"(?:^|\s)(?:-X\s*(?!GET\b|HEAD\b)\w+|--request\s+(?!GET\b|HEAD\b)\w+|-[a-zA-Z]*[dFT]\b"
     r"|--data\S*|--form\b|--upload-file|--json\b|-[a-zA-Z]*X\s*(?!GET\b|HEAD\b)[A-Z]+)"
 )
+# Files that set the guard's own policy. In managed mode the agent may read
+# them but not change them (TAPWAY_GUARD_MANAGED=1, set by the server template).
+POLICY_FILE = re.compile(
+    r"(?:^|[/'\"\s=])\.claude/(?:tool-guard\.json|settings(?:\.local)?\.json)(?![\w.-])"
+)
+WRITE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+POLICY_READERS = NAME_ONLY | {
+    "cat",
+    "less",
+    "more",
+    "head",
+    "tail",
+    "grep",
+    "egrep",
+    "rg",
+    "jq",
+    "diff",
+    "wc",
+    "file",
+}
 FILE_KEYS = ("file_path", "path", "notebook_path", "glob", "pattern")
 
 
@@ -641,6 +661,19 @@ def load_config(root: Path) -> dict:
                     f"{CONFIG_NAME}: 'pr_flow' maps branch names to branch names"
                 )
             config[key] = value
+    config["_managed"] = os.environ.get("TAPWAY_GUARD_MANAGED") == "1"
+    if config["_managed"]:
+        # Managed machines (servers): a repo config may add rules, never remove
+        # them. The agent can edit a repo, so the repo cannot switch these off.
+        config["protect_env_files"] = True
+        config["protected_branches"] = sorted(
+            set(DEFAULTS["protected_branches"]) | set(config["protected_branches"])
+        )
+        config["allowed_env_templates"] = [
+            t
+            for t in config["allowed_env_templates"]
+            if t in DEFAULTS["allowed_env_templates"]
+        ]
     if os.environ.get("TAPWAY_GUARD_ASK") == "1":
         config["ask_before_changes"] = True
     try:
@@ -965,6 +998,37 @@ def exempt_indices(head: str, argv: list[str]) -> set[int]:
     return exempt
 
 
+def names_policy_file(text: str) -> bool:
+    return bool(POLICY_FILE.search(text.replace("\\", "/")))
+
+
+def check_policy_tokens(
+    head: str, argv: list[str], out_idx: set[int], config: dict
+) -> None:
+    """Managed mode: the guard's policy files are read-only for the agent."""
+    if not config.get("_managed"):
+        return
+    hits = [i for i, t in enumerate(argv) if names_policy_file(t)]
+    if not hits:
+        return
+    rest = argv[1:]
+    reading = head in POLICY_READERS or (
+        head == "git"
+        and rest
+        and rest[0] in READ_ONLY_GIT
+        and rest[0] not in {"config", "stash"}
+    )
+    if (
+        reading
+        and not out_idx.intersection(hits)
+        and not (head == "sed" and any(a.startswith("-i") for a in rest))
+    ):
+        return
+    raise BlockedError(
+        "the guard's policy (.claude/tool-guard.json, .claude/settings*.json) is managed on this machine"
+    )
+
+
 def check_secret_tokens(
     head: str, argv: list[str], out_idx: set[int], config: dict
 ) -> None:
@@ -1223,6 +1287,7 @@ def check_segment(argv: list[str], config: dict) -> bool:
     )
     head = program(argv)
     check_secret_tokens(head, argv, out_idx, config)
+    check_policy_tokens(head, argv, out_idx, config)
     if not args:  # only redirections, e.g. `> file`
         return writes
     rest = args[1:]
@@ -1782,6 +1847,12 @@ def decide(payload: dict, config: dict) -> None:
         if check_command(cmd, config, state) and config["ask_before_changes"]:
             raise AskError("this command changes a server, repo or database")
         return
+    if config.get("_managed") and tool in WRITE_TOOLS:
+        target = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
+        if isinstance(target, str) and names_policy_file(target):
+            raise BlockedError(
+                f"{target} is managed on this machine; change it in the repo, not here"
+            )
     for key in FILE_KEYS:
         value = tool_input.get(key)
         # Grep's `pattern` is a regex, not a path; only Glob's pattern names files.
@@ -1804,7 +1875,8 @@ def main() -> int:
     except ConfigError as exc:
         tool_input = payload.get("tool_input")
         if (
-            payload.get("tool_name") != "Bash"
+            os.environ.get("TAPWAY_GUARD_MANAGED") != "1"
+            and payload.get("tool_name") != "Bash"
             and isinstance(tool_input, dict)
             and guard_config_path(tool_input)
         ):

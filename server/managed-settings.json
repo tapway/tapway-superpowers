@@ -1,11 +1,17 @@
 {
   "extraKnownMarketplaces": {
     "tapway-superpowers": {
-      "source": { "source": "github", "repo": "tapway/tapway-superpowers" },
+      "source": {
+        "source": "github",
+        "repo": "tapway/tapway-superpowers"
+      },
       "autoUpdate": true
     },
     "tapway-skills": {
-      "source": { "source": "github", "repo": "tapway/tapway-skills" },
+      "source": {
+        "source": "github",
+        "repo": "tapway/tapway-skills"
+      },
       "autoUpdate": true
     }
   },
@@ -14,11 +20,18 @@
     "tapway-skills@tapway-skills": true
   },
   "strictKnownMarketplaces": [
-    { "source": "github", "repo": "tapway/*" },
-    { "source": "github", "repo": "anthropics/claude-plugins-official" }
+    {
+      "source": "github",
+      "repo": "tapway/*"
+    },
+    {
+      "source": "github",
+      "repo": "anthropics/claude-plugins-official"
+    }
   ],
   "env": {
-    "TAPWAY_GUARD_ASK": "1"
+    "TAPWAY_GUARD_ASK": "1",
+    "TAPWAY_GUARD_MANAGED": "1"
   },
   "permissions": {
     "disableBypassPermissionsMode": "disable",
@@ -37,7 +50,13 @@
       "Read(~/.git-credentials)",
       "Read(~/.netrc)",
       "Read(~/.claude/.credentials.json)",
-      "Bash(printenv *)"
+      "Bash(printenv *)",
+      "Edit(**/.claude/tool-guard.json)",
+      "Edit(//**/.claude/tool-guard.json)",
+      "Edit(**/.claude/settings.json)",
+      "Edit(//**/.claude/settings.json)",
+      "Edit(**/.claude/settings.local.json)",
+      "Edit(//**/.claude/settings.local.json)"
     ],
     "ask": [
       "Bash(docker compose up *)",

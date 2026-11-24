@@ -799,6 +799,68 @@ with tempfile.TemporaryDirectory() as tmp:
     check(bash(f"cd {repo3} && ls", flow, cwd=repo2) == "block",
           "a broken config in the target repo blocks, like the project's own")
 
+    print("\n[R14] Managed mode (TAPWAY_GUARD_MANAGED=1, servers): repo config can only tighten")
+    managed = {"TAPWAY_GUARD_MANAGED": "1"}
+    loosened = tmp / "loosened"
+    (loosened / ".claude").mkdir(parents=True)
+    write_config(loosened, {"protect_env_files": False, "protected_branches": [],
+                            "allowed_env_templates": ["example", "local"]})
+    check(bash("cat .env", loosened, extra_env=managed) == "block",
+          "managed: protect_env_files=false cannot switch .env blocking off")
+    check(bash("cat .env.local", loosened, extra_env=managed) == "block",
+          "managed: allowed_env_templates cannot add non-template suffixes")
+    check(bash("cat .env.example", loosened, extra_env=managed) == "allow",
+          "managed: real templates stay readable")
+    switch(repo, "main")
+    check(bash("git commit -m x", loosened, cwd=repo, extra_env=managed) == "block",
+          "managed: protected_branches=[] cannot unprotect main/master")
+    check(bash("cat .env", loosened) == "allow",
+          "unmanaged (laptops): the repo's own choice still applies")
+    tight = tmp / "tight"
+    (tight / ".claude").mkdir(parents=True)
+    write_config(tight, {"protected_branches": ["develop"]})
+    (tmp / "r4").mkdir()
+    repo4 = make_repo(tmp / "r4", ["develop", "feat/y"], "develop")
+    check(bash("git commit -m x", tight, cwd=repo4, extra_env=managed) == "block",
+          "managed: a repo can still add protected branches")
+
+    print("\n[R15] Managed mode: the agent cannot change the guard's own policy")
+    pol = str(loosened / ".claude" / "tool-guard.json")
+    sett = str(loosened / ".claude" / "settings.json")
+    for tool, tool_input in [
+        ("Edit", {"file_path": pol, "old_string": "a", "new_string": "b"}),
+        ("Write", {"file_path": ".claude/tool-guard.json", "content": "{}"}),
+        ("MultiEdit", {"file_path": sett, "edits": []}),
+        ("Write", {"file_path": ".claude/settings.local.json", "content": "{}"}),
+    ]:
+        check(outcome(tool, tool_input, loosened, extra_env=managed) == "block",
+              f"managed: {tool} {tool_input.get('file_path')} -> block")
+    check(outcome("Read", {"file_path": pol}, loosened, extra_env=managed) == "allow",
+          "managed: reading the policy is fine")
+    check(outcome("Edit", {"file_path": pol, "old_string": "a", "new_string": "b"}, loosened) == "allow",
+          "unmanaged: editing the repo's own config is allowed")
+    expect([
+        "echo '{}' > .claude/tool-guard.json",
+        "sed -i 's/true/false/' .claude/tool-guard.json",
+        "cp /tmp/x.json .claude/settings.json",
+        "rm .claude/tool-guard.json",
+        "tee .claude/settings.local.json < x",
+        "python3 -c \"open('.claude/tool-guard.json','w').write('{}')\"",
+        "mv /tmp/x .claude/settings.json",
+    ], "block", loosened, "managed-policy-write", extra_env=managed)
+    expect([
+        "cat .claude/tool-guard.json",
+        "jq . .claude/settings.json",
+        "git diff .claude/settings.json",
+        "ls .claude/",
+    ], "allow", loosened, "managed-policy-read", extra_env=managed)
+    broken_managed = tmp / "broken-managed"
+    (broken_managed / ".claude").mkdir(parents=True)
+    write_config(broken_managed, "{")
+    check(outcome("Edit", {"file_path": str(broken_managed / ".claude" / "tool-guard.json"),
+                           "old_string": "{", "new_string": "{}"}, broken_managed, extra_env=managed) == "block",
+          "managed: a broken config is fixed by a human, not by the agent")
+
     print("\n[13] Without python3 the wrapper blocks instead of running unguarded")
     r = subprocess.run(["/bin/bash", str(HOOK)], input='{"tool_name":"Bash","tool_input":{"command":"ls"}}',
                        text=True, capture_output=True, env={"PATH": "/nonexistent"})

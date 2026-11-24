@@ -19,6 +19,8 @@ service off-line. This page sets up a server so that every Claude session there:
 /etc/claude-code/managed-settings.json  ← root-owned, overrides every user and repo setting
   ├─ installs + force-enables tapway-superpowers and tapway-skills
   ├─ TAPWAY_GUARD_ASK=1  (tool-guard asks before changes)
+  ├─ TAPWAY_GUARD_MANAGED=1  (repo config can only tighten; the agent cannot
+  │    edit .claude/tool-guard.json or .claude/settings*.json)
   ├─ deny: .env / credential files;  ask: deploy, commit, push
   └─ bypass mode disabled
 

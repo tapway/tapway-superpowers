@@ -1,19 +1,45 @@
 #!/bin/bash
 # Pre-bash safety check — blocks dangerous commands before Codex runs them.
 # Codex sends {tool_name, tool_input:{command}, ...} as JSON on stdin
-# (json.load reads tool_input.command below).
+# (json.loads reads tool_input.command below). Codex has no tool-guard behind
+# this hook, so it must fail closed on its own.
 
 SEGMENTS_PY='
 import json, re, sys
+raw = sys.stdin.read()
+if not raw.strip():
+    sys.exit(0)  # no tool call, nothing to check
 try:
-    cmd = json.load(sys.stdin).get("tool_input", {}).get("command", "")
-except ValueError:
-    cmd = ""
+    payload = json.loads(raw)
+    if not isinstance(payload, dict):
+        raise TypeError("payload is not an object")
+    # Claude: tool_input, Hermes: args, Codex: tool_input or a flat payload.
+    tool_input = payload.get("tool_input", payload.get("args"))
+    if tool_input is None and "command" in payload:
+        tool_input = payload
+    if not isinstance(tool_input, dict):
+        raise TypeError("tool_input is not an object")
+    cmd = tool_input.get("command", "")
+    if not isinstance(cmd, str):
+        raise TypeError("command is not a string")
+except Exception as exc:
+    print(f"unreadable tool call ({type(exc).__name__}: {exc})", file=sys.stderr)
+    sys.exit(3)
 cmd = re.sub(r"\\\r?\n", " ", cmd)
 print(re.sub(r"[;&|]+", "\n", cmd))
 '
+# Fails closed: a missing python3 or an unreadable tool call blocks instead of
+# letting every command through with no rule checked.
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "Blocked by pre-bash-safety: python3 is required" >&2
+  exit 2
+fi
 INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | python3 -c "$SEGMENTS_PY" 2>/dev/null)
+COMMAND=$(printf '%s' "$INPUT" | python3 -c "$SEGMENTS_PY")
+if [ $? -ne 0 ]; then
+  echo "Blocked by pre-bash-safety: could not read the tool call; refusing to guess" >&2
+  exit 2
+fi
 
 if [ -z "$COMMAND" ]; then
   exit 0

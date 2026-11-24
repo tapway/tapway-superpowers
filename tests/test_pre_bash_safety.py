@@ -118,12 +118,26 @@ with tempfile.TemporaryDirectory() as tmp:
         subprocess.run(["git", "-C", str(repo), "switch", "-q", "feat/x"], check=True)
         check(run(hook, "docker compose -f docker-compose.prod.yml up -d", repo, {"ALLOW_PROD": "1"}) == 0,
               f"{name}: ALLOW_PROD=1 lets a deliberate prod command through")
-        r = subprocess.run(["bash", str(hook)], input="not json", text=True, capture_output=True, cwd=repo)
-        check(r.returncode == 0, f"{name}: unreadable payload is ignored (tool-guard fails closed on it)")
+        for bad in ["not json", "[]", '{"tool_input": null}', '{"tool_input": "git push -f"}',
+                    '{"tool_input": {"command": 3}}']:
+            r = subprocess.run(["bash", str(hook)], input=bad, text=True, capture_output=True, cwd=repo)
+            check(r.returncode == 2 and "refusing to guess" in r.stderr,
+                  f"{name}: unreadable payload {bad!r} blocks (fails closed, no silent exit 0)")
+        r = subprocess.run(["bash", str(hook)], input="", text=True, capture_output=True, cwd=repo)
+        check(r.returncode == 0, f"{name}: an empty stdin (no tool call) passes")
+        r = subprocess.run(["/bin/bash", str(hook)], input='{"tool_input": {"command": "ls"}}',
+                           text=True, capture_output=True, cwd=repo, env={"PATH": "/nonexistent"})
+        check(r.returncode == 2 and "python3 is required" in r.stderr, f"{name}: no python3 blocks")
+        flat = '{"command": "git push --force origin feat/x"}'
+        check(subprocess.run(["bash", str(hook)], input=flat, text=True, capture_output=True,
+                             cwd=repo).returncode == 2, f"{name}: a flat (Codex-style) payload is read too")
 
 claude_text = HOOKS["claude"].read_text()
 check('COMMAND="$1"' not in claude_text, "claude hook no longer assigns COMMAND from $1")
-check("hook_payload.sh" in claude_text, "claude hook uses the shared payload adapter")
+check("hook_payload.sh\"" not in claude_text and ". \"$(dirname" not in claude_text,
+      "claude hook parses the payload itself (the adapter maps garbage to an empty call)")
+header = lambda p: p.read_text()[p.read_text().index("SEGMENTS_PY="):p.read_text().index("# The rules below")]  # noqa: E731
+check(header(HOOKS["claude"]) == header(HOOKS["codex"]), "Claude and Codex copies read the payload the same way")
 rules = lambda p: p.read_text()[p.read_text().index("# The rules below"):]  # noqa: E731
 check(rules(HOOKS["claude"]) == rules(HOOKS["codex"]), "Claude and Codex copies carry identical rules")
 

@@ -220,6 +220,9 @@ check("tapway-superpowers@tapway-superpowers" in ms.get("enabledPlugins", {}), "
 check("tapway-skills@tapway-skills" in ms.get("enabledPlugins", {}), "forces tapway-skills")
 check(all(m.get("autoUpdate") is True for m in markets.values()), "auto-updates the Tapway marketplaces")
 check(ms.get("env", {}).get("TAPWAY_GUARD_ASK") == "1", "turns on tool-guard's ask-before-changes")
+check(ms.get("env", {}).get("TAPWAY_GUARD_MANAGED") == "1", "turns on managed mode (repo config can only tighten)")
+for f in [".claude/tool-guard.json", ".claude/settings.json", ".claude/settings.local.json"]:
+    check(f"Edit(**/{f})" in ms["permissions"]["deny"], f"Claude Code itself denies editing {f}")
 perms = ms.get("permissions", {})
 check(perms.get("disableBypassPermissionsMode") == "disable", "disables bypass mode")
 for rule in ["Read(**/.env)", "Read(**/.env.*)", "Edit(**/.env)", "Edit(**/.env.*)", "Bash(printenv *)"]:

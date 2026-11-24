@@ -68,7 +68,7 @@ bare slash commands. Use `install.sh` when you want `/tapway`.
 - [Release Convention — Semantic Versioning](#release-convention--semantic-versioning)
 - [What You Get](#what-you-get)
   - [31 Skills](#31-skills)
-  - [9 Guardrail Hooks](#9-guardrail-hooks)
+  - [10 Guardrail Hooks](#10-guardrail-hooks)
   - [5 Specialized Agents](#5-specialized-agents)
 - [Slash Commands Reference](#slash-commands-reference)
 - [Hermes Support](#hermes-support)
@@ -88,6 +88,8 @@ Standardized technical documentation (generated via the `repo-docs` skill):
 - **[Workflows](docs/WORKFLOWS.md)** — sequence diagrams for feature build, autoship, legacy refactor, incident response, and release
 - **[Deployment](docs/DEPLOYMENT.md)** — install/publish for Claude Code + Hermes, adopting in a project, rollback, common issues
 - **Team guide** — [docs/team-guide.md](docs/team-guide.md)
+- **Running Claude Code on a server** — [docs/SERVER_GUARDRAILS.md](docs/SERVER_GUARDRAILS.md): managed settings, `tool-guard`, how updates reach a server
+- **Skill evals with canary secrets** — [evals/README.md](evals/README.md)
 - **Legacy refactor guide** — [docs/legacy-refactor-guide.md](docs/legacy-refactor-guide.md)
 
 > `DB_SCHEMA.md` is intentionally omitted — this is a tooling/plugin repo with no
@@ -451,13 +453,14 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 
 ---
 
-### 9 Guardrail Hooks
+### 10 Guardrail Hooks
 
 Automatic checks that fire on Claude Code lifecycle events.
 
 | Hook | Event | What it does |
 |---|---|---|
-| `pre-bash-safety` | PreToolUse (Bash) | Blocks force-push, hard-reset on `main`, direct commits to `main`. Blocks prod commands unless `ALLOW_PROD=1` is set. |
+| `tool-guard` | PreToolUse (Bash + Read/Edit/Write/Grep/Glob/Notebook) | Blocks reading `.env` and credential files, environment dumps, and passwords on the command line; blocks commits/pushes to protected branches and force-pushes; with `ask_before_changes` (or `TAPWAY_GUARD_ASK=1` on servers) asks before commands it recognises as changing a server, repo or database (a known list, not an allowlist). Per-repo config in `.claude/tool-guard.json` — see [hooks/tool-guard/README.md](hooks/tool-guard/README.md) |
+| `pre-bash-safety` | PreToolUse (Bash) | Blocks force-push, hard-reset on `main`, direct commits to `main`. Blocks prod commands unless `ALLOW_PROD=1` is set. Reads the command from the stdin payload (it read `$1` before, so it never fired). |
 | `pre-commit-secrets` | PreToolUse (git commit) | Scans staged files for secrets, keys, and credentials before allowing a commit |
 | `pre-commit-gate` | PreToolUse (git commit) | Blocks the commit (`exit 2`) when lint / format / typecheck / coverage fail — the progress quality gate |
 | `dependency-audit` | PreToolUse (git commit) | Blocks the commit (`exit 2`) when critical/high vulnerabilities are found (osv-scanner / npm audit / pip-audit) |
@@ -529,6 +532,8 @@ These ship with Claude Code — no installation needed. Several are wired into t
 These happen automatically — no commands needed:
 
 - **Can't commit to `main` directly** — the hook blocks it and tells you to create a branch
+- **Secrets never reach the transcript** — `tool-guard` blocks reading `.env`/credential files, `printenv`/`env` dumps, `docker inspect` env output and passwords in commands
+- **Servers ask before changes** — with `TAPWAY_GUARD_ASK=1` (set by [server/managed-settings.json](server/managed-settings.json)) deploys, migrations, writes and other recognised changing commands need an approval
 - **Can't run prod commands accidentally** — blocked unless `ALLOW_PROD=1` is set
 - **Secrets caught before commit** — staged files scanned for keys and credentials on every `git commit`
 - **Commits blocked on quality failures** — `pre-commit-gate` blocks (`exit 2`) a commit whose lint/format/typecheck/coverage fails

@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.11.5] — 2026-11-25
+
+_See the release notes._
+
 ## [2.11.4] — 2026-11-25
 
 _See the release notes._

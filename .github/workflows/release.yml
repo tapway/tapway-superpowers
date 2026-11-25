@@ -53,23 +53,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Stream suffix: master is unsuffixed, staging -stg, prod -prod.
-          # The streams are independent — scripts/next_version.sh filters tags so
-          # a -stg release can never bump the production line (release drift bug).
+          # Every release carries its environment: production (master/main/prod,
+          # or a manual "production" dispatch) is -prod, staging is -stg. The
+          # streams are independent — scripts/next_version.sh filters tags by
+          # suffix, so a -stg release can never bump the production line.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             INPUT="${{ github.event.inputs.environment }}"
-            if [ "$INPUT" = "production" ]; then ENV=""; else ENV="-stg"; fi
+            if [ "$INPUT" = "production" ]; then ENV="-prod"; STREAM="prod"; else ENV="-stg"; STREAM="stg"; fi
           else
             case "${GITHUB_REF_NAME}" in
-              master|main) ENV="" ;;
-              prod)        ENV="-prod" ;;
-              *)           ENV="-stg" ;;
+              master|main|prod) ENV="-prod"; STREAM="prod" ;;
+              *)                ENV="-stg";  STREAM="stg" ;;
             esac
           fi
 
           VERSION="$(bash scripts/next_version.sh "$ENV")"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "stream=${ENV:-master}" >> "$GITHUB_OUTPUT"
+          echo "stream=${STREAM}" >> "$GITHUB_OUTPUT"
           echo "Computed version: ${VERSION} (scripts/next_version.sh)"
 
       - name: Tag and publish release
@@ -83,9 +83,16 @@ jobs:
 
           # Previous tag of the SAME stream, read before the new tag exists.
           # Release notes cover what merged since it.
-          SUFFIX="${{ steps.ver.outputs.stream }}"
-          if [ "$SUFFIX" = "master" ]; then SUFFIX=""; fi
+          case "${{ steps.ver.outputs.stream }}" in
+            prod) SUFFIX="-prod" ;;
+            *)    SUFFIX="-stg" ;;
+          esac
           PREVIOUS="$(git tag -l 'v*' | { grep -E "^v[0-9]+\.[0-9]+\.[0-9]+${SUFFIX}$" || true; } | sort -V | tail -1)"
+          # First release on a new suffix: fall back to the last plain
+          # production tag so the notes still start from the previous release.
+          if [ -z "$PREVIOUS" ]; then
+            PREVIOUS="$(git tag -l 'v*' | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } | sort -V | tail -1)"
+          fi
 
           # Tag + release FIRST: these must succeed regardless of the manifest
           # sync below (the ruleset may reject the bot's push to a protected
@@ -101,10 +108,10 @@ jobs:
             --target "${{ github.ref_name }}" \
             --generate-notes ${PREVIOUS:+--notes-start-tag "$PREVIOUS"}
 
-      - name: Sync plugin manifests (opens a PR; master stream only)
+      - name: Sync plugin manifests (opens a PR; production stream only)
         # Only the production stream owns the plain manifests — a -stg release
         # must not publish its version to the marketplace resolver.
-        if: steps.ver.outputs.stream == 'master'
+        if: steps.ver.outputs.stream == 'prod'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

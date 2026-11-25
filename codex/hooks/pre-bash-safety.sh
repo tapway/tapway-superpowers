@@ -59,21 +59,75 @@ if echo "$COMMAND" | grep -E "(^|$S)git($S.*)?${S}push($S|\$)" \
   exit 2
 fi
 
+# Which branch does a git command act on? Not the hook's own directory: the
+# harness starts hooks in the project root, and in a git-worktree session that
+# is the main checkout (often on master) while the command runs in the worktree
+# on a feature branch. So start from the payload's `cwd`, follow a `cd DIR`
+# segment earlier in the same command, and honour `git -C DIR`.
+PAYLOAD_CWD=$(printf '%s' "$INPUT" | python3 -c '
+import json, sys
+try:
+    d = json.loads(sys.stdin.read())
+except Exception:
+    print("")
+    raise SystemExit(0)
+found = ""
+# cwd/workdir may be top-level (Claude), nested in tool_input, or in args
+# (Hermes sends {args: {command, workdir}}).
+for obj in (d, d.get("tool_input") if isinstance(d, dict) else None,
+            d.get("args") if isinstance(d, dict) else None):
+    if not isinstance(obj, dict):
+        continue
+    for key in ("cwd", "workdir"):
+        value = obj.get(key)
+        if isinstance(value, str) and value:
+            found = value
+            break
+    if found:
+        break
+print(found)
+')
+resolve_dir() {  # resolve_dir BASE TARGET -> TARGET made absolute against BASE
+  local t="${2}"
+  t="${t#[\"\']}"
+  t="${t%[\"\']}"
+  case "$t" in
+    /*|[A-Za-z]:*) printf '%s' "$t" ;;
+    "~") printf '%s' "$HOME" ;;
+    "~/"*) printf '%s/%s' "$HOME" "${t#??}" ;;
+    *) printf '%s/%s' "${1}" "$t" ;;
+  esac
+}
+# branches_for ERE: the branch each segment matching ERE runs on, one per line.
+branches_for() {
+  local dir="${PAYLOAD_CWD:-$PWD}" line gdir
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*\(?[[:space:]]*cd[[:space:]]+([^[:space:]]+)[[:space:]]*\)?[[:space:]]*$ ]]; then
+      dir=$(resolve_dir "$dir" "${BASH_REMATCH[1]}")
+      continue
+    fi
+    if echo "$line" | grep -qE "${1}"; then
+      gdir="$dir"
+      if [[ "$line" =~ git[[:space:]]+-C[[:space:]]+([^[:space:]]+) ]]; then
+        gdir=$(resolve_dir "$dir" "${BASH_REMATCH[1]}")
+      fi
+      git -C "$gdir" rev-parse --abbrev-ref HEAD 2>/dev/null
+    fi
+  done <<< "$COMMAND"
+}
+
 # Block hard resets on main
-if echo "$COMMAND" | grep -qE "(^|$S)git($S.*)?${S}reset$S+--hard" \
-   && git rev-parse --abbrev-ref HEAD 2>/dev/null | grep -qE "^(main|master)$"; then
+if branches_for "(^|$S)git($S.*)?${S}reset$S+--hard" | grep -qE "^(main|master)$"; then
   echo "ERROR: Hard reset on main/master is blocked." >&2
   exit 2
 fi
 
 # Block commits directly to main/master
-if echo "$COMMAND" | grep -qE "(^|$S)git($S.*)?${S}commit($S|\$)"; then
-  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-  if [[ "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
-    echo "ERROR: Commits to $CURRENT_BRANCH are blocked by project policy." >&2
-    echo "Create a feature branch: git checkout -b feat/<your-feature>" >&2
-    exit 2
-  fi
+CURRENT_BRANCH=$(branches_for "(^|$S)git($S.*)?${S}commit($S|\$)" | grep -E "^(main|master)$" | head -1)
+if [ -n "$CURRENT_BRANCH" ]; then
+  echo "ERROR: Commits to $CURRENT_BRANCH are blocked by project policy." >&2
+  echo "Create a feature branch: git checkout -b feat/<your-feature>" >&2
+  exit 2
 fi
 
 # Warn on rm -rf

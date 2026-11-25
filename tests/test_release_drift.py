@@ -91,10 +91,33 @@ class DriftTests(unittest.TestCase):
         self.assertEqual(out.returncode, 1, out.stdout)
         self.assertIn("CHANGELOG.md (top released heading) = (no released heading)", out.stdout)
 
-    def test_suffixed_tags_are_not_production(self):
+    def test_staging_tags_are_not_production(self):
         _git(self.repo, "tag", "v9.9.9-stg")
         out = self.run_check()
         self.assertEqual(out.returncode, 0, out.stdout)
+
+    def test_prod_tag_is_production(self):
+        """From the -prod convention on, the production tag carries the suffix."""
+        _git(self.repo, "tag", "v1.2.3-prod")
+        out = self.run_check()
+        self.assertEqual(out.returncode, 1, out.stdout)
+        self.assertIn("want 1.2.3", out.stdout)
+
+    def test_latest_prod_tag_outranks_an_older_plain_tag(self):
+        _git(self.repo, "tag", "v1.2.3-prod")
+        _git(self.repo, "tag", "v1.2.4-prod")
+        out = self.run_check()
+        self.assertEqual(out.returncode, 1, out.stdout)
+        self.assertIn("latest production tag is v1.2.4-prod", out.stdout)
+
+
+class ReleaseWorkflowTests(unittest.TestCase):
+    def test_master_and_manual_production_release_as_prod(self):
+        flow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        self.assertIn('master|main|prod) ENV="-prod"', flow)
+        self.assertIn('if [ "$INPUT" = "production" ]; then ENV="-prod"', flow)
+        self.assertIn("stream == 'prod'", flow,
+                      "the manifest sync must still key off the production stream")
 
 
 class WorkflowSyncTests(unittest.TestCase):

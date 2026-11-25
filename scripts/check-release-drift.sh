@@ -46,7 +46,8 @@ def repo_from_git():
 
 
 def vkey(tag):
-    return tuple(int(p) for p in tag.lstrip("v").split("."))
+    core = tag.lstrip("v").split("-", 1)[0]
+    return tuple(int(p) for p in core.split("."))
 
 
 repo = sys.argv[1] or repo_from_git()
@@ -58,12 +59,15 @@ for line in sh(["git", "ls-remote", "--tags", "--refs", "origin"]).splitlines():
         names.append(line.rsplit("refs/tags/", 1)[1])
 if not names:
     names = sh(["git", "tag", "-l"]).splitlines()
-plain = [n for n in names if re.fullmatch(r"v\d+\.\d+\.\d+", n)]
-if not plain:
-    bad("no unsuffixed release tag found (vX.Y.Z)")
+# Production releases are `-prod`; tags cut before the suffix convention are
+# plain `vX.Y.Z`. Accept both, newest core wins, so the first -prod release
+# supersedes the legacy line without making the check flap during transition.
+prod = [n for n in names if re.fullmatch(r"v\d+\.\d+\.\d+(?:-prod)?", n)]
+if not prod:
+    bad("no production release tag found (vX.Y.Z-prod)")
     print("== RED ==")
     raise SystemExit(1)
-latest = max(plain, key=vkey)
+latest = max(prod, key=vkey)
 expected = latest.lstrip("v")
 ok(f"latest production tag is {latest}")
 
@@ -107,7 +111,7 @@ for surface, version in found.items():
 
 if fail:
     print("\nFix: merge the open `chore(release): sync plugin manifests` PR, or run")
-    print("     `bash scripts/next_version.sh` + update all five fields in one PR.")
+    print("     `bash scripts/next_version.sh -prod` + update all five fields in one PR.")
 print(f"== {'GREEN' if fail == 0 else 'RED'} ==")
 raise SystemExit(1 if fail else 0)
 PY

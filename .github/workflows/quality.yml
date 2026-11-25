@@ -9,8 +9,9 @@ on:
 jobs:
   quality:
     # Template for product repos. A plugin/skills repo has no backend/ or
-    # frontend/ tree, and the steps below assume at least one of them exists.
-    if: ${{ hashFiles('backend/requirements.txt', 'backend/pyproject.toml', 'frontend/package-lock.json') != '' }}
+    # frontend/ tree; every app-specific step below is guarded, so the job is a
+    # no-op there. hashFiles() is not available at job level (no checkout yet),
+    # which is why the guard sits on the steps rather than on the job.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

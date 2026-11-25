@@ -132,6 +132,20 @@ class NextVersionTests(unittest.TestCase):
         self.repo.commit("feat: next")
         self.assertEqual(self.repo.next_version("-prod"), "v2.13.0-prod")
 
+    def test_non_ancestor_baseline_bumps_patch(self):
+        """A rewritten history makes commit classification meaningless.
+
+        staging was squashed forward from master, so the baseline tag is not an
+        ancestor of HEAD. Walking `tag..HEAD` then sees the whole old branch and
+        a stray `feat!` there promoted the first staging release to v3.0.0-stg.
+        """
+        self.repo.tag("v2.0.0")
+        _git(self.repo.path, "checkout", "--orphan", "rewritten")
+        (self.repo.path / "f.txt").write_text("rewritten", encoding="utf-8")
+        _git(self.repo.path, "add", "-A")
+        _git(self.repo.path, "commit", "-m", "feat!: unrelated old history")
+        self.assertEqual(self.repo.next_version("-stg"), "v2.0.1-stg")
+
     def test_only_commits_since_the_matching_tag_count(self):
         self.repo.tag("v1.0.0")
         self.repo.commit("feat: counted")

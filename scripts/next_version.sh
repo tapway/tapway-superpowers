@@ -74,10 +74,17 @@ else
 fi
 
 BUMP="patch"
-if git log "$RANGE" --format="%s%n%b" 2>/dev/null | grep -qE '(^feat!:|BREAKING CHANGE)'; then
-  BUMP="major"
-elif git log "$RANGE" --format="%s" 2>/dev/null | grep -qE '^(feat|feat\()'; then
-  BUMP="minor"
+# A baseline tag that is not an ancestor means the branch history was rewritten
+# (a squashed staging sync). `tag..HEAD` then reaches the abandoned history and
+# an old `feat!` there would force a major bump for an unrelated release. With
+# no trustworthy commit range, take the conservative patch bump from the line
+# being continued; subsequent releases see their own tag as an ancestor again.
+if [ -z "$LATEST" ] || git merge-base --is-ancestor "$LATEST" HEAD 2>/dev/null; then
+  if git log "$RANGE" --format="%s%n%b" 2>/dev/null | grep -qE '(^feat!:|BREAKING CHANGE)'; then
+    BUMP="major"
+  elif git log "$RANGE" --format="%s" 2>/dev/null | grep -qE '^(feat|feat\()'; then
+    BUMP="minor"
+  fi
 fi
 
 case "$BUMP" in

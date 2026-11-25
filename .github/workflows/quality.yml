@@ -8,6 +8,9 @@ on:
 
 jobs:
   quality:
+    # Template for product repos. A plugin/skills repo has no backend/ or
+    # frontend/ tree, and the steps below assume at least one of them exists.
+    if: ${{ hashFiles('backend/requirements.txt', 'backend/pyproject.toml', 'frontend/package-lock.json') != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,6 +20,7 @@ jobs:
           python-version: '3.12'
 
       - uses: actions/setup-node@v4
+        if: ${{ hashFiles('frontend/package-lock.json') != '' }}
         with:
           node-version: 20
           cache: npm
@@ -24,6 +28,7 @@ jobs:
 
       # --- Backend: lint + typecheck + coverage + format ---
       - name: Install backend deps
+        if: ${{ hashFiles('backend/requirements.txt', 'backend/pyproject.toml') != '' }}
         run: |
           cd backend
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
@@ -31,15 +36,19 @@ jobs:
           pip install pytest pytest-cov ruff mypy
 
       - name: Backend lint (ruff)
+        if: ${{ hashFiles('backend/requirements.txt', 'backend/pyproject.toml') != '' }}
         run: cd backend && ruff check .
 
       - name: Backend format check (ruff format --check)
+        if: ${{ hashFiles('backend/requirements.txt', 'backend/pyproject.toml') != '' }}
         run: cd backend && ruff format --check .
 
       - name: Backend typecheck (mypy)
+        if: ${{ hashFiles('backend/requirements.txt', 'backend/pyproject.toml') != '' }}
         run: cd backend && mypy src/ --ignore-missing-imports
 
       - name: Backend tests + coverage gate
+        if: ${{ hashFiles('backend/requirements.txt', 'backend/pyproject.toml') != '' }}
         run: |
           cd backend
           # pytest picks up addopts (including --cov-fail-under) from pyproject.toml

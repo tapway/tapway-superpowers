@@ -20,6 +20,21 @@ claude plugin install tapway-superpowers@tapway-superpowers
 
 Skills and hooks activate immediately. No restart, no config files.
 
+### Enable auto-update (once)
+
+Claude Code leaves auto-update off for third-party marketplaces. In a terminal `claude` session, run `/plugin`, open **Marketplaces**, select `tapway-superpowers` and enable auto-update. Or add this to `~/.claude/settings.json`:
+
+```json
+"extraKnownMarketplaces": {
+  "tapway-superpowers": {
+    "source": { "source": "git", "url": "https://github.com/tapway/tapway-superpowers.git" },
+    "autoUpdate": true
+  }
+}
+```
+
+The check runs within about ten minutes of your first message. New versions apply after `/reload-plugins` or on the next launch. An update arrives only when the plugin's `version` changes.
+
 **Recommended companion plugins:**
 ```bash
 claude plugin install andrej-karpathy-skills@karpathy-skills

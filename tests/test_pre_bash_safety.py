@@ -136,10 +136,17 @@ with tempfile.TemporaryDirectory() as tmp:
                             "feat/wt-" + name, str(wt)], check=True)
         subprocess.run(["git", "-C", str(repo), "switch", "-q", "main"], check=True)
 
-        def run_cwd(command: str, payload_cwd: str | None) -> int:
-            body = {"tool_name": "Bash", "tool_input": {"command": command}}
-            if payload_cwd is not None:
-                body["cwd"] = payload_cwd
+        def run_cwd(command: str, payload_cwd: str | None, style: str = "claude") -> int:
+            if style == "hermes":
+                # Hermes: {tool_name, args: {command, workdir}}
+                args = {"command": command}
+                if payload_cwd is not None:
+                    args["workdir"] = payload_cwd
+                body = {"tool_name": "Bash", "args": args}
+            else:
+                body = {"tool_name": "Bash", "tool_input": {"command": command}}
+                if payload_cwd is not None:
+                    body["cwd"] = payload_cwd
             return subprocess.run(["bash", str(hook)], input=json.dumps(body), text=True,
                                   capture_output=True, cwd=repo).returncode
 
@@ -158,6 +165,12 @@ with tempfile.TemporaryDirectory() as tmp:
               f"{name}: commit blocked after `cd` from a worktree into a main checkout")
         check(run_cwd(f"git -C {repo_s} commit -m x", wt_s) == 2,
               f"{name}: commit blocked with `git -C <main checkout>` from a worktree")
+        check(run_cwd(f"(cd {wt_s} && git commit -m x)", None) == 0,
+              f"{name}: commit allowed inside a subshell `(cd <worktree> && ...)`")
+        check(run_cwd(f"git -C {repo_s} reset --hard HEAD~1", wt_s) == 2,
+              f"{name}: hard reset blocked with `git -C <main checkout>` from a worktree")
+        check(run_cwd("git commit -m x", wt_s, style="hermes") == 0,
+              f"{name}: commit allowed when the Hermes payload carries args.workdir")
         check(run_cwd("git commit -m x", None) == 2,
               f"{name}: no payload cwd falls back to the hook's own directory (main)")
         subprocess.run(["git", "-C", str(repo), "switch", "-q", "feat/x"], check=True)

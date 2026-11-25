@@ -72,10 +72,24 @@ PAYLOAD_CWD=$(printf '%s' "$INPUT" | python3 -c '
 import json, sys
 try:
     d = json.loads(sys.stdin.read())
-    c = d.get("cwd") if isinstance(d, dict) else None
-    print(c if isinstance(c, str) else "")
 except Exception:
     print("")
+    raise SystemExit(0)
+found = ""
+# cwd/workdir may be top-level (Claude), nested in tool_input, or in args
+# (Hermes sends {args: {command, workdir}}).
+for obj in (d, d.get("tool_input") if isinstance(d, dict) else None,
+            d.get("args") if isinstance(d, dict) else None):
+    if not isinstance(obj, dict):
+        continue
+    for key in ("cwd", "workdir"):
+        value = obj.get(key)
+        if isinstance(value, str) and value:
+            found = value
+            break
+    if found:
+        break
+print(found)
 ')
 resolve_dir() {  # resolve_dir BASE TARGET -> TARGET made absolute against BASE
   local t="${2}"
@@ -92,7 +106,7 @@ resolve_dir() {  # resolve_dir BASE TARGET -> TARGET made absolute against BASE
 branches_for() {
   local dir="${PAYLOAD_CWD:-$PWD}" line gdir
   while IFS= read -r line; do
-    if [[ "$line" =~ ^[[:space:]]*cd[[:space:]]+([^[:space:]]+)[[:space:]]*$ ]]; then
+    if [[ "$line" =~ ^[[:space:]]*\(?[[:space:]]*cd[[:space:]]+([^[:space:]]+)[[:space:]]*\)?[[:space:]]*$ ]]; then
       dir=$(resolve_dir "$dir" "${BASH_REMATCH[1]}")
       continue
     fi

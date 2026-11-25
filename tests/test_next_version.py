@@ -107,6 +107,45 @@ class NextVersionTests(unittest.TestCase):
         self.repo.commit("feat: staging only")
         self.assertEqual(self.repo.next_version("-stg"), "v0.1.0-stg")
 
+    def test_production_stream_seeds_from_the_latest_plain_tag(self):
+        """The first -prod release must continue the existing production line.
+
+        Before this convention the production stream was untagged (`v2.11.3`).
+        Starting -prod from 0.0.0 would publish v0.0.1-prod over a 2.x product.
+        """
+        self.repo.tag("v2.11.3")
+        self.repo.commit("fix: a fix")
+        self.assertEqual(self.repo.next_version("-prod"), "v2.11.4-prod")
+
+    def test_staging_stream_prefers_a_newer_plain_baseline(self):
+        """An old v1.x -stg tag must not outrank the live 2.x production line."""
+        self.repo.tag("v1.2.0-stg")
+        self.repo.commit("chore: shared")
+        self.repo.tag("v2.11.3")
+        self.repo.commit("fix: a fix")
+        self.assertEqual(self.repo.next_version("-stg"), "v2.11.4-stg")
+
+    def test_stream_tag_wins_when_it_is_ahead_of_plain(self):
+        self.repo.tag("v2.11.3")
+        self.repo.commit("chore: shared")
+        self.repo.tag("v2.12.0-prod")
+        self.repo.commit("feat: next")
+        self.assertEqual(self.repo.next_version("-prod"), "v2.13.0-prod")
+
+    def test_non_ancestor_baseline_bumps_patch(self):
+        """A rewritten history makes commit classification meaningless.
+
+        staging was squashed forward from master, so the baseline tag is not an
+        ancestor of HEAD. Walking `tag..HEAD` then sees the whole old branch and
+        a stray `feat!` there promoted the first staging release to v3.0.0-stg.
+        """
+        self.repo.tag("v2.0.0")
+        _git(self.repo.path, "checkout", "--orphan", "rewritten")
+        (self.repo.path / "f.txt").write_text("rewritten", encoding="utf-8")
+        _git(self.repo.path, "add", "-A")
+        _git(self.repo.path, "commit", "-m", "feat!: unrelated old history")
+        self.assertEqual(self.repo.next_version("-stg"), "v2.0.1-stg")
+
     def test_only_commits_since_the_matching_tag_count(self):
         self.repo.tag("v1.0.0")
         self.repo.commit("feat: counted")

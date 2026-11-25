@@ -30,6 +30,10 @@ print(tool_input.get("file_path") or tool_input.get("path") or raw.get("file_pat
 ' 2>/dev/null)"
 
 [ -n "$FILE_PATH" ] || exit 0
+# Windows harnesses send backslash paths. Normalise once, before routing, so
+# the routing case, the file lookup below and the renderer all see the same
+# path — a forward-slash copy used only by `case` leaves the lookup failing.
+FILE_PATH="${FILE_PATH//\\//}"
 case "$FILE_PATH" in
   *docs/plans/*.md) ;;
   *docs/brainstorming/*.md) ;;

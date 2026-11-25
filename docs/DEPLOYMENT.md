@@ -48,6 +48,23 @@ claude plugin install claude-code-setup@claude-plugins-official
 Verify with `/hooks` (Claude Code shows every configured hook) and by checking
 the skills load when you use a trigger phrase.
 
+**Auto-update (opt in once).** Claude Code does not auto-update third-party
+marketplaces by default, and it only installs a new version when the plugin's
+computed version changes (the release workflow bumps it). Enable the marketplace
+in `~/.claude/settings.json`:
+
+```json
+"extraKnownMarketplaces": {
+  "tapway-superpowers": {
+    "source": { "source": "github", "repo": "tapway/tapway-superpowers" },
+    "autoUpdate": true
+  }
+}
+```
+
+Or run `/plugin` → Marketplaces → `tapway-superpowers` → turn auto-update on.
+Updates apply on `/reload-plugins` or the next launch.
+
 ## Install — Hermes Agent (port)
 
 From inside a clone of this repo:
@@ -67,6 +84,20 @@ hermes plugins install tapway/tapway-superpowers/hermes/plugin --enable
 
 Do not install the repository root as a plugin. Plugin-guard marks that tree
 DANGEROUS. `hermes/plugin/` is the scanned, self-contained package.
+
+**Planned — native auto-update (issue #67).** The subdirectory install above is
+a copy without `.git`, so `hermes plugins update` reports provenance drift and
+cannot update it. The release pipeline will publish the same tree at the root of
+`tapway/tapway-superpowers-hermes`; install from there instead once it exists:
+
+```bash
+hermes plugins install tapway/tapway-superpowers-hermes --enable
+hermes plugins auto-update on      # once per profile
+```
+
+That repo is a generated mirror (`git subtree split`), so its history is
+disposable and its content must never be edited directly. See
+[brainstorming/native-auto-update.md](brainstorming/native-auto-update.md).
 
 Preview without installing: `HERMES_DRY_RUN=1 bash install.sh`
 
@@ -114,6 +145,12 @@ gh release create v1.7.0 \
 
 The plugin marketplace and Hermes installers both fetch from the repo's latest
 release/tag, so publishing a tag is what makes a version available to users.
+
+**Planned (issue #67):** the release workflow will also (a) assert that the
+version in every manifest matches the tag, and (b) publish the
+`hermes/plugin` mirror to `tapway-superpowers-hermes` with the same tag, after
+checking the split tree hash equals the source subtree hash. A mismatch fails
+the release instead of leaving a stale mirror.
 
 ## Health Check & Verification
 

@@ -19,6 +19,7 @@ parser does not recognise still gets those sections, just with thinner content.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -38,6 +39,8 @@ ACCEPTED_STATUSES = {"accepted", "approved"}
 BRAINSTORM_LINK_RE = re.compile(r"brainstorming/([^)\s`]+\.md)")
 TITLE_PREFIX_RE = re.compile(r"^(brainstorm|design|rfc)\s*:\s*", re.IGNORECASE)
 ISSUE_RE = re.compile(r"^issue:\s*(\d+)\s*$", re.MULTILINE)
+ISSUE_SCAN_LIMIT = 100  # newest labelled issues; bodies are needed for exact match
+BRANCH_MARKER_RE = re.compile(r"^\s*[-*]\s*\*\*Branch:\*\*\s*`?([^`\s]+)`?\s*$", re.MULTILINE)
 H1_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 H2_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 H3_RE = re.compile(r"^###\s+(.+?)\s*$", re.MULTILINE)
@@ -377,6 +380,32 @@ def linked_brainstorm_issue(plan_path: Path | str, text: str) -> int | None:
     return None
 
 
+def issue_branch(body: str) -> str:
+    """The branch recorded in an issue body by ``render_body``, if any."""
+    match = BRANCH_MARKER_RE.search(body or "")
+    return match.group(1).strip() if match else ""
+
+
+def issues_on_branch(listed, branch: str) -> list[int]:
+    """Numbers from ``gh issue list --json number,body`` whose marker is exact."""
+    if getattr(listed, "returncode", 1) != 0:
+        return []
+    try:
+        data = json.loads(listed.stdout or "[]")
+    except (ValueError, TypeError):
+        return []
+    numbers: list[int] = []
+    for item in data if isinstance(data, list) else []:
+        if not isinstance(item, dict) or issue_branch(item.get("body") or "") != branch:
+            continue
+        number = item.get("number")
+        if isinstance(number, int):
+            numbers.append(number)
+        elif isinstance(number, str) and number.isdigit():
+            numbers.append(int(number))
+    return numbers
+
+
 def ensure_issue(
     plan_path: Path | str,
     *,
@@ -421,20 +450,21 @@ def ensure_issue(
     if not repo:
         return IssueResult(skipped="no-repo", message="no GitHub origin remote")
 
-    search = run(
+    # Do not use `gh --search` here: it is tokenised ("feat/a-b" matches
+    # "feat/a-b-c") and its index lags creation (a seconds-old issue is still
+    # invisible), so it both adopts another branch's issue and misses its own.
+    # List the label's newest issues and match the branch marker exactly.
+    listed = run(
         [
             "gh", "issue", "list", "--repo", repo, "--label", label, "--state", "all",
-            "--search", f"label:{label} in:body {branch}", "--json", "number",
-            "--jq", '.[0].number // ""',
+            "--limit", str(ISSUE_SCAN_LIMIT), "--json", "number,body",
         ],
         cwd,
     )
-    adopted = (search.stdout or "").strip()
-    if search.returncode == 0 and adopted.isdigit():
-        number = int(adopted)
+    for number in issues_on_branch(listed, branch):
         record_issue(plan, number)
         return IssueResult(number=number, url=f"https://github.com/{repo}/issues/{number}",
-                           message=f"reused existing issue #{number}")
+                           message=f"reused existing issue #{number} on this branch")
 
     title = render_title(text, branch)
     body = render_body(text, plan_path=str(plan).replace(os.sep, "/"), branch=branch, repo=repo,

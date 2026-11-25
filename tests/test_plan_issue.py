@@ -118,10 +118,14 @@ class FakeGh:
     """Records every gh invocation and answers like the real CLI."""
 
     def __init__(self, *, create_number: int = 77, existing: int | None = None,
+                 existing_branch: str = "", issues: list[dict] | None = None,
                  fail: bool = False) -> None:
         self.calls: list[list[str]] = []
         self.create_number = create_number
-        self.existing = existing
+        self.issues = issues if issues is not None else (
+            [{"number": existing, "body": f"- **Branch:** `{existing_branch}`\n"}]
+            if existing else []
+        )
         self.fail = fail
         self.body_file: str | None = None
 
@@ -129,7 +133,7 @@ class FakeGh:
         self.calls.append(list(args))
         joined = " ".join(args)
         if "issue list" in joined:
-            out = str(self.existing) if self.existing else ""
+            out = json.dumps(self.issues)
         elif "issue create" in joined:
             if self.fail:
                 return subprocess.CompletedProcess(args, 1, "", "label not found")
@@ -274,13 +278,42 @@ class EnsureIssueTests(unittest.TestCase):
         self.assertEqual(plan_issue.issue_number(self.repo.plan.read_text()), 77)
 
     def test_reuses_an_existing_issue_instead_of_creating_a_second(self):
-        gh = FakeGh(existing=31)
+        gh = FakeGh(existing=31, existing_branch="feat/plan-issue")
         result = plan_issue.ensure_issue(self.repo.plan, repo="tapway/fake",
                                          branch="feat/plan-issue", runner=gh)
         self.assertFalse(result.created)
         self.assertEqual(result.number, 31)
         self.assertFalse([c for c in gh.calls if "issue create" in " ".join(c)])
         self.assertEqual(plan_issue.issue_number(self.repo.plan.read_text()), 31)
+
+    def test_does_not_adopt_an_issue_from_another_branch(self):
+        """Branch names share tokens; adoption must compare the exact branch."""
+        other = plan_issue.render_body(
+            self.repo.plan.read_text(), plan_path="docs/plans/x.md",
+            branch="feat/plan-issue-autocreate", repo="tapway/fake",
+        )
+        gh = FakeGh(issues=[{"number": 31, "body": other}])
+        result = plan_issue.ensure_issue(self.repo.plan, repo="tapway/fake",
+                                         branch="feat/plan-issue", runner=gh)
+        self.assertTrue(result.created)
+        self.assertEqual(result.number, 77)
+        self.assertEqual(plan_issue.issue_number(self.repo.plan.read_text()), 77)
+
+    def test_adopts_the_exact_branch_among_overlapping_issues(self):
+        other = plan_issue.render_body(
+            self.repo.plan.read_text(), plan_path="docs/plans/x.md",
+            branch="feat/plan-issue-autocreate", repo="tapway/fake",
+        )
+        mine = plan_issue.render_body(
+            self.repo.plan.read_text(), plan_path="docs/plans/x.md",
+            branch="feat/plan-issue", repo="tapway/fake",
+        )
+        gh = FakeGh(issues=[{"number": 31, "body": other}, {"number": 32, "body": mine}])
+        result = plan_issue.ensure_issue(self.repo.plan, repo="tapway/fake",
+                                         branch="feat/plan-issue", runner=gh)
+        self.assertFalse(result.created)
+        self.assertEqual(result.number, 32)
+        self.assertFalse([c for c in gh.calls if "issue create" in " ".join(c)])
 
     def test_failed_create_leaves_the_plan_untouched(self):
         before = self.repo.plan.read_text()

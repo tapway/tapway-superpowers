@@ -384,11 +384,16 @@ PR — `master` is protected, so the bump lands through review like everything
 else. Only the production stream writes manifests; `-stg` releases keep their own
 tag line and never touch them.
 
-`scripts/check-release-drift.sh` compares the latest plain tag with the four
-manifest fields and exits RED on mismatch; the `Release drift` workflow runs it
-daily so a rejected or forgotten sync surfaces within a day. Version derivation
-lives in `scripts/next_version.sh` (tested in `tests/test_next_version.py`), which
-keeps the `-stg` tags out of the production line.
+Every release is suffixed: merges to `staging` publish `-stg`, merges to
+`master`/`prod` publish `-prod`. The first `-prod` release continues from the
+last plain tag (`v2.11.3` → `v2.11.4-prod`), so switching convention does not
+reset the version line.
+
+`scripts/check-release-drift.sh` compares the latest production tag (`-prod`, or
+a legacy plain tag) with the four manifest fields and exits RED on mismatch; the
+`Release drift` workflow runs it daily so a rejected or forgotten sync surfaces
+within a day. Version derivation lives in `scripts/next_version.sh` (tested in
+`tests/test_next_version.py`), which keeps `-stg` tags out of the production line.
 
 ### Setup
 

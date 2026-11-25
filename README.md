@@ -87,6 +87,7 @@ Standardized technical documentation (generated via the `repo-docs` skill):
 - **[Architecture](docs/ARCHITECTURE.md)** — system diagram, component breakdown, key design decisions
 - **[Workflows](docs/WORKFLOWS.md)** — sequence diagrams for feature build, autoship, legacy refactor, incident response, and release
 - **[Deployment](docs/DEPLOYMENT.md)** — install/publish for Claude Code + Hermes, adopting in a project, rollback, common issues
+- **[Native auto-update](docs/brainstorming/native-auto-update.md)** — how releases reach Claude Code and Hermes without a PR; companion mirrors and the drift guards
 - **Team guide** — [docs/team-guide.md](docs/team-guide.md)
 - **Running Claude Code on a server** — [docs/SERVER_GUARDRAILS.md](docs/SERVER_GUARDRAILS.md): managed settings, `tool-guard`, how updates reach a server
 - **Skill evals with canary secrets** — [evals/README.md](evals/README.md)

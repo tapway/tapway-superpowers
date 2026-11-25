@@ -172,6 +172,14 @@ bump is derived from conventional commits since the last tag for the same env.
   rolls to a sane version.
 - CHANGELOG has no top section → release notes fall back to the tag title.
 
+**Planned — nightly auto-update (issue #67).** The PR-based skill sync is
+replaced by a nightly release: commit to `main`, bump the version in every
+manifest a harness reads, tag, publish. Claude Code consumes it through its
+marketplace auto-update (opt-in per user); Hermes consumes generated companion
+repos (`tapway-superpowers-hermes`, `tapway-skills-hermes`) whose root is the
+plugin, so `plugins.auto_apply` can update them. Design and the anti-drift
+invariants: [docs/brainstorming/native-auto-update.md](brainstorming/native-auto-update.md).
+
 ## Workflow: Install the Hermes plugin
 
 **Trigger:** A Hermes user wants Tapway skills without cloning this repo

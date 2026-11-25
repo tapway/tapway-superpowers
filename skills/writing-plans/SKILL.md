@@ -172,17 +172,20 @@ git push
 
 ### 7b. The GitHub Issue Is Created Automatically
 
-Saving the plan creates the issue — you do not run anything. Both surfaces hook the plan write:
+Saving the plan — or an accepted design doc — creates the issue; you do not run anything. Both surfaces hook the write:
 
-- **Claude Code / Codex:** the `post-plan-issue` PostToolUse hook fires on every `docs/plans/*.md` write.
+- **Claude Code / Codex:** the `post-plan-issue` PostToolUse hook fires on every `docs/plans/*.md` write, and on a `docs/brainstorming/*.md` whose frontmatter says `status: accepted`.
 - **Hermes:** the plugin's `post_tool_call` hook does the same in-process.
 
 Both call `hermes/plugin/plan_issue.py`, which:
 
-1. skips a plan that already carries `issue: <n>` — re-saving a plan never opens a second issue,
+1. skips a doc that already carries `issue: <n>` — re-saving it never opens a second issue,
 2. reuses an existing `codemax` issue for the branch when one exists,
-3. otherwise opens one labelled `codemax`, with a readable body — Summary, Why, What changes (tasks as checkboxes), Acceptance criteria, Test plan, Files, Links, and the full plan collapsed — and
-4. writes `issue: <n>` back into the plan frontmatter.
+3. lets a plan that links an issued design doc (for example `**Decision:** [Option B](../brainstorming/x.md)`) inherit that number instead of opening a second issue for the same decision,
+4. otherwise opens one labelled `codemax`, with a readable body — Summary, Why, What changes (tasks as checkboxes), Acceptance criteria, Test plan, Files, Links, and the full document collapsed (a design doc is labelled "Full design", and a leading "Brainstorm:" is stripped from the title) — and
+5. writes `issue: <n>` back into the frontmatter.
+
+A brainstorm that is `proposed`, `draft`, or has no frontmatter creates nothing: only an accepted design enters the issue loop.
 
 Only feature branches: `master`, `staging`, `main` and `prod` are skipped. It only runs in a CodeMAX-enabled repo (`CODEMAX_ENABLED=1` or `CODEMAX_WORKFLOW=1`, or a `.codemax.yml` in the repo root).
 

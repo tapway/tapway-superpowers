@@ -80,9 +80,13 @@ BUMP="patch"
 # no trustworthy commit range, take the conservative patch bump from the line
 # being continued; subsequent releases see their own tag as an ancestor again.
 if [ -z "$LATEST" ] || git merge-base --is-ancestor "$LATEST" HEAD 2>/dev/null; then
-  if git log "$RANGE" --format="%s%n%b" 2>/dev/null | grep -qE '(^feat!:|BREAKING CHANGE)'; then
+  # First-parent only: a promotion/sync merge brings another branch's whole
+  # history into `tag..HEAD`, and an old `feat!` there must not classify this
+  # release. Squash merges land as a single first-parent commit, so their
+  # conventional title is still read.
+  if git log --first-parent "$RANGE" --format="%s%n%b" 2>/dev/null | grep -qE '(^feat!:|BREAKING CHANGE)'; then
     BUMP="major"
-  elif git log "$RANGE" --format="%s" 2>/dev/null | grep -qE '^(feat|feat\()'; then
+  elif git log --first-parent "$RANGE" --format="%s" 2>/dev/null | grep -qE '^(feat|feat\()'; then
     BUMP="minor"
   fi
 fi

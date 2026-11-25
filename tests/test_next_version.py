@@ -146,6 +146,25 @@ class NextVersionTests(unittest.TestCase):
         _git(self.repo.path, "commit", "-m", "feat!: unrelated old history")
         self.assertEqual(self.repo.next_version("-stg"), "v2.0.1-stg")
 
+    def test_promotion_merge_ignores_foreign_history(self):
+        """A promotion merge drags the whole merged branch into `tag..HEAD`.
+
+        Only commits that landed on the trunk (first parent) may classify the
+        release; otherwise an old feat! inside the promoted branch forces a
+        major bump — that is how a promotion of four fixes cut v3.0.0-prod.
+        """
+        self.repo.tag("v2.0.0")
+        _git(self.repo.path, "checkout", "-q", "-b", "side")
+        (self.repo.path / "side.txt").write_text("side", encoding="utf-8")
+        _git(self.repo.path, "add", "-A")
+        _git(self.repo.path, "commit", "-m", "feat!: breaking work on the side branch")
+        _git(self.repo.path, "checkout", "-q", "master")
+        (self.repo.path / "trunk.txt").write_text("trunk", encoding="utf-8")
+        _git(self.repo.path, "add", "-A")
+        _git(self.repo.path, "commit", "-m", "chore: trunk work")
+        _git(self.repo.path, "merge", "--no-ff", "side", "-m", "Merge pull request #99 from side")
+        self.assertEqual(self.repo.next_version("-prod"), "v2.0.1-prod")
+
     def test_only_commits_since_the_matching_tag_count(self):
         self.repo.tag("v1.0.0")
         self.repo.commit("feat: counted")

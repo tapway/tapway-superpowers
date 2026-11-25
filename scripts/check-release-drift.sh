@@ -68,7 +68,9 @@ if not prod:
     print("== RED ==")
     raise SystemExit(1)
 latest = max(prod, key=vkey)
-expected = latest.lstrip("v")
+# The manifests carry the plain version: `-prod` names the release stream, it
+# is not part of what `claude plugin update` compares.
+expected = latest.lstrip("v").split("-", 1)[0]
 ok(f"latest production tag is {latest}")
 
 root = Path.cwd()

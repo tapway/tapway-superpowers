@@ -101,7 +101,9 @@ class DriftTests(unittest.TestCase):
         _git(self.repo, "tag", "v1.2.3-prod")
         out = self.run_check()
         self.assertEqual(out.returncode, 1, out.stdout)
-        self.assertIn("want 1.2.3", out.stdout)
+        # Manifests carry the plain version; comparing against `1.2.3-prod`
+        # made every -prod release permanently RED.
+        self.assertIn("plugin.yaml = 1.2.2 (want 1.2.3)", out.stdout)
 
     def test_latest_prod_tag_outranks_an_older_plain_tag(self):
         _git(self.repo, "tag", "v1.2.3-prod")
@@ -109,6 +111,7 @@ class DriftTests(unittest.TestCase):
         out = self.run_check()
         self.assertEqual(out.returncode, 1, out.stdout)
         self.assertIn("latest production tag is v1.2.4-prod", out.stdout)
+        self.assertIn("plugin.yaml = 1.2.2 (want 1.2.4)", out.stdout)
 
 
 class ReleaseWorkflowTests(unittest.TestCase):

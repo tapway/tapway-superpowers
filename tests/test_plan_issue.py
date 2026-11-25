@@ -62,6 +62,28 @@ PLAN = textwrap.dedent(
 )
 
 
+ACCEPTED_DESIGN = textwrap.dedent(
+    """\
+    ---
+    status: accepted
+    title: Accepted design
+    ---
+
+    # Brainstorm: accepted design
+
+    **Problem:** An accepted design must open one issue.
+
+    ## Recommendation
+
+    - Open the issue from the design doc.
+
+    ## Acceptance criteria
+
+    - Exactly one issue is created.
+    """
+)
+
+
 def _git(cwd: Path, *args: str) -> None:
     subprocess.run(
         ["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True
@@ -435,6 +457,7 @@ class HookTests(unittest.TestCase):
     """The Claude/Codex side: a PostToolUse payload in, a real issue out."""
 
     HOOK = ROOT / "hooks" / "post-plan-issue" / "post-plan-issue.sh"
+    CODEX_HOOK = ROOT / "codex" / "hooks" / "post-plan-issue.sh"
 
     def setUp(self):
         self.repo = PlanFile()
@@ -454,7 +477,7 @@ class HookTests(unittest.TestCase):
         self.log = self.bin / "gh.log"
         self.log.write_text("", encoding="utf-8")
 
-    def _run(self, payload: dict, env: dict | None = None):
+    def _run(self, payload: dict, env: dict | None = None, hook: Path | None = None):
         full_env = {
             "PATH": f"{self.bin}:/usr/local/bin:/usr/bin:/bin",
             "CLAUDE_PLUGIN_ROOT": str(ROOT),
@@ -463,7 +486,7 @@ class HookTests(unittest.TestCase):
         }
         full_env.update(env or {})
         return subprocess.run(
-            ["bash", str(self.HOOK)],
+            ["bash", str(hook or self.HOOK)],
             input=json.dumps(payload),
             capture_output=True,
             text=True,
@@ -475,6 +498,38 @@ class HookTests(unittest.TestCase):
         result = self._run({"tool_name": "Write", "tool_input": {"file_path": "src/app.py"}})
         self.assertEqual(result.returncode, 0)
         self.assertEqual(self.log.read_text().strip(), "")
+
+    def test_accepted_brainstorm_creates_one_issue_on_every_surface(self):
+        """An accepted design reaches gh through the shell hooks, not only in-process."""
+        rel = "docs/brainstorming/design.md"
+        doc = self.repo.root / rel
+        doc.parent.mkdir(parents=True, exist_ok=True)
+        for surface, hook in (("claude", self.HOOK), ("codex", self.CODEX_HOOK)):
+            with self.subTest(surface=surface):
+                doc.write_text(ACCEPTED_DESIGN, encoding="utf-8")
+                self.log.write_text("", encoding="utf-8")
+                result = self._run(
+                    {"tool_name": "Write", "tool_input": {"file_path": rel}}, hook=hook
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                calls = [line for line in self.log.read_text().splitlines() if "issue create" in line]
+                self.assertEqual(len(calls), 1, f"{surface}: {self.log.read_text()}")
+                self.assertEqual(plan_issue.issue_number(doc.read_text()), 77, surface)
+
+    def test_proposed_brainstorm_is_ignored_on_every_surface(self):
+        rel = "docs/brainstorming/design.md"
+        doc = self.repo.root / rel
+        doc.parent.mkdir(parents=True, exist_ok=True)
+        for surface, hook in (("claude", self.HOOK), ("codex", self.CODEX_HOOK)):
+            with self.subTest(surface=surface):
+                doc.write_text(ACCEPTED_DESIGN.replace("status: accepted", "status: proposed"),
+                               encoding="utf-8")
+                self.log.write_text("", encoding="utf-8")
+                result = self._run(
+                    {"tool_name": "Write", "tool_input": {"file_path": rel}}, hook=hook
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.log.read_text().strip(), "", surface)
 
     def test_plan_write_creates_one_issue_and_records_it(self):
         result = self._run(

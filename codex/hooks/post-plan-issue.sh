@@ -1,6 +1,9 @@
 #!/bin/bash
 # post-plan-issue.sh (Codex port) — create the GitHub issue after a plan write.
 #
+# Accepts docs/plans/*.md, plus docs/brainstorming/*.md whose frontmatter says
+# status: accepted (or approved) — the renderer decides, this gate only routes.
+#
 # Codex installs hooks one file at a time, so this hook ships its own copy of the
 # renderer next to it (.codex/hooks/plan_issue.py, copied from
 # hermes/plugin/plan_issue.py by codex/install.sh). Self-contained otherwise:
@@ -29,6 +32,7 @@ print(tool_input.get("file_path") or tool_input.get("path") or raw.get("file_pat
 [ -n "$FILE_PATH" ] || exit 0
 case "$FILE_PATH" in
   *docs/plans/*.md) ;;
+  *docs/brainstorming/*.md) ;;
   *) exit 0 ;;
 esac
 

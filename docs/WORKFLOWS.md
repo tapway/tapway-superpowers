@@ -29,6 +29,7 @@ sequenceDiagram
   end
   Agent->>Agent: e2e-playwright (frontend+backend, conditional)
   Agent->>Agent: simplify → three-tier review
+  Agent->>Agent: verify → repo-docs impact review of the final diff
   Agent->>CI: /pr → push → pull request
   CI->>CI: quality.yml + playwright.yml gates
   CI-->>Dev: green checks / merge
@@ -45,6 +46,44 @@ vulnerability, is blocked before it happens (`exit 2` on PreToolUse).
 - `/review` finds Critical issues → fixed before the PR opens.
 - E2E gate skips when only docs/config changed (conditional file detection).
 - A commit with failing quality gates → blocked by the hook; agent fixes and re-commits.
+
+## Workflow: Docs impact review (advisory pilot)
+
+**Trigger:** A coding task is completed, or a Superpowers PR is opened, updated,
+reopened, or has its description edited. **Actor:** Author, reviewer, and GitHub Actions.
+
+```mermaid
+sequenceDiagram
+  participant Author
+  participant CI as Docs impact check
+  participant Reviewer
+  Author->>Author: Review the final diff with repo-docs
+  Author->>CI: Submit one docs disposition in the PR body
+  CI->>CI: Compare the PR base and head with Git
+  CI-->>Reviewer: Report updated, no impact, not applicable, or a warning
+  Reviewer->>Reviewer: Check the named docs or explanation against the diff
+```
+
+Review behavior, interfaces, schemas, workflows, configuration, and deployment.
+Change only the affected docs. For a code PR, add one plain line:
+
+- `Docs: updated — docs/WORKFLOWS.md` (use the actual paths, comma-separated).
+- `Docs: no impact — Refactored Git fixture setup; documented behavior is unchanged.`
+
+`README.md` and Markdown under `docs/` are eligible; plans, brainstorms,
+checklists, specs, and post-mortems do not count as maintained docs for this check.
+A deleted doc cannot be the only evidence of an update. Docs-only PRs are not
+applicable and do not need a line. CI checks the declaration and diff; it does
+not attest skill invocation or the accuracy of a no-impact explanation.
+
+The **Docs impact** job is advisory for this repository: a missing or invalid
+line produces a warning, not a policy failure. An unreadable event or Git diff
+fails the check rather than reporting a review it could not do. Other callers
+are unchanged unless they explicitly pass `enforce_docs_impact: true` to the
+reusable `workflow-gate.yml` and subscribe to PR-description edits in their
+calling workflow. Requiring the job at merge is a separate GitHub ruleset step;
+do not require the advisory job. To end the pilot without enforcing it, remove
+the Superpowers-only advisory enablement without changing the existing contracts job.
 
 ## Workflow: Automated Ship (autoship)
 

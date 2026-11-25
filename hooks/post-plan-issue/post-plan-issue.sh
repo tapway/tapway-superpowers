@@ -7,6 +7,8 @@
 #
 #   docs/plans/*.md  →  gh issue create --label codemax  →  `issue: <n>` written
 #                       back into the plan frontmatter
+#   docs/brainstorming/*.md  →  same, but only when frontmatter says status:
+#                               accepted (or approved); drafts stay silent.
 #
 # Off switch: TAPWAY_ISSUE_AUTOCREATE=0. It only runs in a CodeMAX repo
 # (CODEMAX_ENABLED/CODEMAX_WORKFLOW=1, or a .codemax.yml in the repo root).
@@ -32,6 +34,7 @@ print(data.get("file_path") or data.get("path") or data.get("filename") or "")
 [ -n "$FILE_PATH" ] || exit 0
 case "$FILE_PATH" in
   *docs/plans/*.md) ;;
+  *docs/brainstorming/*.md) ;;
   *) exit 0 ;;
 esac
 [ "${TAPWAY_ISSUE_AUTOCREATE:-1}" = "1" ] || exit 0

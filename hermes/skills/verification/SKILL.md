@@ -31,6 +31,13 @@ metadata:
 
 ## Verification Checklist
 
+**Docs before completion:** After verifying a coding change (including fixes,
+refactors, and behavior-bearing config), load `tapway-superpowers:repo-docs`
+(or the installed standalone `repo-docs` skill) and run incremental mode on
+the final task diff. Report what was updated or why existing docs still apply,
+even if no commit or PR was requested. Skip for read-only work and intermediate
+edits; redo the review if later changes alter the diff.
+
 ### 1. Static Verification (always run first)
 
 - [ ] All tests pass: `cd backend && pytest -q` / `cd frontend && npm test -- --watchAll=false`

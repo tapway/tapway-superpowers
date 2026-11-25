@@ -101,10 +101,8 @@ The git `pre-commit` backstop (`hooks/pre-commit/git-pre-commit.sh`, installed b
 it via `setup-project` before opening the PR.
 
 ### Step 5: Update Docs (mandatory)
-Run the `repo-docs` skill — this is mandatory on every PR, no exceptions:
-```
-/repo-docs
-```
+Load `tapway-superpowers:repo-docs` (or the installed standalone `repo-docs`
+skill). Run its incremental review for every code PR.
 `repo-docs` will generate `docs/ARCHITECTURE.md`, `docs/WORKFLOWS.md`, `docs/DB_SCHEMA.md` (if applicable), `docs/DEPLOYMENT.md` from scratch if they don't exist, or update only the sections affected by this branch if docs already exist.
 
 After `repo-docs` completes, commit any doc changes:
@@ -112,7 +110,9 @@ After `repo-docs` completes, commit any doc changes:
 git add docs/
 git commit -m "docs: update project docs for [feature/change]"
 ```
-If `repo-docs` made no changes (output says "no sections affected"), note "docs: no changes" in the PR body.
+Include the review's single plain `Docs: updated — …` or `Docs: no impact — …`
+line in the PR body for coding changes. Reuse an earlier result only if it
+covers the current PR diff. Do not commit unchanged docs.
 
 ### Step 6: Push the Branch
 ```bash
@@ -187,7 +187,7 @@ git push
 - ❌ Never open a PR with failing tests
 - ❌ Never create a PR from the integration branch — always from a feature branch
 - ❌ Never skip the rebase step — stale branches cause CI failures and reviewer confusion
-- ❌ Never skip `repo-docs` — docs must be updated on every PR
+- ❌ Never skip `repo-docs` for a code PR — review docs impact even if no edits are needed
 - ❌ Never leave the work package checklist unchecked after the PR is open
 
 ## Quick Reference

@@ -25,7 +25,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install test dependencies
-        run: pip install pyyaml
+        run: pip install pyyaml pytest
 
       - name: Hermes plugin package (manifest, mirror, guard)
         run: python tests/test_hermes_plugin.py
@@ -35,6 +35,8 @@ jobs:
 
       - name: Docs consistency
         run: python tests/check_docs_consistency.py
+      - name: Docs impact policy
+        run: python -m pytest -q tests/test_docs_impact.py
 
       - name: Release version derivation
         run: python tests/test_next_version.py

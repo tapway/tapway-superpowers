@@ -32,6 +32,11 @@ PROTECTED_BRANCHES = {"master", "main", "staging", "prod"}
 MAX_BODY = 60000  # GitHub rejects >65536; leave room for the call site's own edits
 
 PLAN_RE = re.compile(r"(^|/)docs/plans/[^/\\]+\.md$")
+BRAINSTORM_RE = re.compile(r"(^|/)docs/brainstorming/[^/\\]+\.md$")
+STATUS_RE = re.compile(r"^status:\s*[\"']?([A-Za-z][\w-]*)", re.MULTILINE)
+ACCEPTED_STATUSES = {"accepted", "approved"}
+BRAINSTORM_LINK_RE = re.compile(r"brainstorming/([^)\s`]+\.md)")
+TITLE_PREFIX_RE = re.compile(r"^(brainstorm|design|rfc)\s*:\s*", re.IGNORECASE)
 ISSUE_RE = re.compile(r"^issue:\s*(\d+)\s*$", re.MULTILINE)
 H1_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 H2_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
@@ -69,6 +74,42 @@ class IssueResult:
 # --------------------------------------------------------------------------- #
 def is_plan_path(path: str | os.PathLike[str]) -> bool:
     return bool(PLAN_RE.search(str(path).replace("\\", "/")))
+
+
+def is_brainstorm_path(path: str | os.PathLike[str]) -> bool:
+    return bool(BRAINSTORM_RE.search(str(path).replace("\\", "/")))
+
+
+def doc_kind(path: str | os.PathLike[str]) -> str | None:
+    """Return "plan", "brainstorm", or None — by path only."""
+    if is_plan_path(path):
+        return "plan"
+    if is_brainstorm_path(path):
+        return "brainstorm"
+    return None
+
+
+def doc_status(text: str) -> str:
+    block, _ = split_frontmatter(text)
+    match = STATUS_RE.search(block)
+    return match.group(1).lower() if match else ""
+
+
+def is_accepted_brainstorm(text: str) -> bool:
+    return doc_status(text) in ACCEPTED_STATUSES
+
+
+def is_issue_doc(path: str | os.PathLike[str]) -> bool:
+    """A plan, or a design doc whose frontmatter marks it accepted."""
+    kind = doc_kind(path)
+    if kind == "plan":
+        return True
+    if kind != "brainstorm":
+        return False
+    try:
+        return is_accepted_brainstorm(Path(path).read_text(encoding="utf-8"))
+    except OSError:
+        return False
 
 
 def split_frontmatter(text: str) -> tuple[str, str]:
@@ -122,6 +163,7 @@ def render_title(plan_text: str, branch: str) -> str:
     match = H1_RE.search(body)
     title = match.group(1).strip() if match else ""
     title = BOILERPLATE_RE.sub("", title).strip()
+    title = TITLE_PREFIX_RE.sub("", title).strip()
     if not title:
         title = _slug_words(branch)
     prefix = BRANCH_TYPES.get(branch.split("/", 1)[0].lower())
@@ -199,7 +241,8 @@ def _files(body: str) -> list[str]:
     return [f"- `{path}` — {disposition}" for path, disposition in found[:40]]
 
 
-def render_body(plan_text: str, *, plan_path: str, branch: str, repo: str) -> str:
+def render_body(plan_text: str, *, plan_path: str, branch: str, repo: str,
+                kind: str = "plan") -> str:
     _meta, body = split_frontmatter(plan_text)
     sections = _sections(body)
     h1 = H1_RE.search(body)
@@ -215,8 +258,12 @@ def render_body(plan_text: str, *, plan_path: str, branch: str, repo: str) -> st
     if len(summary) > 1200:
         summary = summary[:1200].rsplit(" ", 1)[0] + " …"
 
+    preferred = (
+        [s for s in sections if re.search(r"recommendation|chosen design|decision|approach|architecture", s[0], re.IGNORECASE)]
+        if kind == "brainstorm" else []
+    )
     changes: list[str] = []
-    for heading, block in sections:
+    for heading, block in (preferred or sections):
         if re.search(r"test|acceptance|verif|out of scope|testing", heading, re.IGNORECASE):
             continue
         tasks = [m.group(1).strip() for m in H3_RE.finditer(block)]
@@ -228,6 +275,8 @@ def render_body(plan_text: str, *, plan_path: str, branch: str, repo: str) -> st
             if bullets:
                 changes.append(f"- **{heading}**")
                 changes.extend(f"  - [ ] {item}" for item in bullets)
+    if not changes and kind == "brainstorm":
+        changes = ["- [ ] Implement the design (no recommendation bullets found — see the collapsed doc)"]
     if not changes:
         changes = ["- [ ] Implement the plan (no task headings found — see the collapsed plan)"]
 
@@ -246,7 +295,9 @@ def render_body(plan_text: str, *, plan_path: str, branch: str, repo: str) -> st
         f"- {item.lstrip('-* ').strip()}" for item in test_items
     )
 
-    files_md = "\n".join(_files(body)) or "- (no file list in the plan)"
+    files_md = "\n".join(_files(body)) or (
+        "- (no file list in the design doc)" if kind == "brainstorm" else "- (no file list in the plan)"
+    )
     links = [f"- **Plan:** `{plan_path}`", f"- **Branch:** `{branch}`", f"- **Repo:** `{repo}`"]
 
     head = "\n\n".join(
@@ -268,7 +319,9 @@ def render_body(plan_text: str, *, plan_path: str, branch: str, repo: str) -> st
         ]
     )
 
-    footer = "\n\n---\n\n_Auto-created from the plan by tapway-superpowers (plan → issue contract)._"
+    source = "design doc" if kind == "brainstorm" else "plan"
+    summary_word = "Full design" if kind == "brainstorm" else "Full plan"
+    footer = f"\n\n---\n\n_Auto-created from the {source} by tapway-superpowers (plan → issue contract)._"
     budget = MAX_BODY - len(head) - len(footer) - 80
     if budget < 200:
         return head[:MAX_BODY]
@@ -276,7 +329,7 @@ def render_body(plan_text: str, *, plan_path: str, branch: str, repo: str) -> st
     if len(plan_block) > budget:
         plan_block = plan_block[:budget].rsplit("\n", 1)[0] + "\n\n… (truncated)"
     return (
-        f"{head}\n\n<details><summary>Full plan</summary>\n\n{plan_block}\n\n</details>{footer}"
+        f"{head}\n\n<details><summary>{summary_word}</summary>\n\n{plan_block}\n\n</details>{footer}"
     )
 
 
@@ -309,6 +362,21 @@ def branch_from_git(directory: Path) -> str:
     return out.stdout.strip() if out.returncode == 0 else ""
 
 
+def linked_brainstorm_issue(plan_path: Path | str, text: str) -> int | None:
+    """Issue number of a design doc this plan links to, when it already has one."""
+    plan = Path(plan_path)
+    for match in BRAINSTORM_LINK_RE.finditer(text):
+        name = match.group(1)
+        for base in plan.parents:
+            candidate = base / "docs" / "brainstorming" / name
+            if candidate.is_file():
+                try:
+                    return issue_number(candidate.read_text(encoding="utf-8"))
+                except OSError:
+                    return None
+    return None
+
+
 def ensure_issue(
     plan_path: Path | str,
     *,
@@ -321,11 +389,31 @@ def ensure_issue(
     """Create (or adopt) the issue for this plan and record its number."""
     run = runner or _default_runner
     plan = Path(plan_path)
+    kind = doc_kind(plan)
+    if kind is None:
+        return IssueResult(skipped="not-an-issue-doc")
     text = plan.read_text(encoding="utf-8")
+
+    if kind == "brainstorm" and not is_accepted_brainstorm(text):
+        return IssueResult(
+            skipped="not-accepted",
+            message=f"design doc status is {doc_status(text) or 'unset'}; only an accepted design opens an issue",
+        )
 
     existing = issue_number(text)
     if existing is not None:
-        return IssueResult(number=existing, message=f"plan already records issue #{existing}")
+        source = "design doc" if kind == "brainstorm" else "plan"
+        return IssueResult(number=existing, message=f"{source} already records issue #{existing}")
+
+    if kind == "plan":
+        inherited = linked_brainstorm_issue(plan, text)
+        if inherited is not None:
+            record_issue(plan, inherited)
+            return IssueResult(
+                number=inherited,
+                url=f"https://github.com/{repo}/issues/{inherited}" if repo else None,
+                message=f"reused issue #{inherited} from the linked design doc",
+            )
 
     if not branch or branch in PROTECTED_BRANCHES:
         return IssueResult(skipped="protected-branch",
@@ -349,7 +437,8 @@ def ensure_issue(
                            message=f"reused existing issue #{number}")
 
     title = render_title(text, branch)
-    body = render_body(text, plan_path=str(plan).replace(os.sep, "/"), branch=branch, repo=repo)
+    body = render_body(text, plan_path=str(plan).replace(os.sep, "/"), branch=branch, repo=repo,
+                       kind=kind)
     with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as handle:
         handle.write(body)
         body_file = handle.name
@@ -404,7 +493,7 @@ def on_post_tool_call(
         if os.environ.get("TAPWAY_ISSUE_AUTOCREATE") == "0":
             return None
         path = args.get("file_path") or args.get("path")
-        if not isinstance(path, str) or not is_plan_path(path):
+        if not isinstance(path, str) or doc_kind(path) is None:
             return None
         if not os.path.isabs(path):
             base = args.get("workdir") or os.getcwd()
@@ -425,8 +514,8 @@ def on_post_tool_call(
 def handle_plan_write(path: Path | str, runner: Runner | None = None) -> IssueResult:
     """Entry point for both hook surfaces. Never raises."""
     plan = Path(path)
-    if not plan.is_file() or not is_plan_path(plan):
-        return IssueResult(skipped="not-a-plan")
+    if not plan.is_file() or not is_issue_doc(plan):
+        return IssueResult(skipped="not-an-issue-doc")
     directory = plan.resolve().parent
     try:
         top = subprocess.run(["git", "-C", str(directory), "rev-parse", "--show-toplevel"],
@@ -449,7 +538,7 @@ def handle_plan_write(path: Path | str, runner: Runner | None = None) -> IssueRe
 
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
-        print("usage: plan_issue.py <plan-file>", flush=True)
+        print("usage: plan_issue.py <plan-or-design-file>", flush=True)
         return 2
     result = handle_plan_write(argv[1])
     if result.error:

@@ -502,5 +502,178 @@ class HookTests(unittest.TestCase):
         self.assertEqual(self.log.read_text().strip(), "")
 
 
+BRAINSTORM = textwrap.dedent(
+    """\
+    ---
+    status: accepted
+    title: Native auto-update
+    ---
+
+    # Brainstorm: Native auto-update on Claude Code and Hermes
+
+    Intro paragraph for the design.
+
+    ## 1. Problem
+
+    Harness updates are manual today.
+
+    ## 2. Options
+
+    - Option A: generated mirrors
+    - Option B: git submodules
+
+    ## 3. Recommendation
+
+    - Publish generated mirrors from the release job
+    - Bump the version at release time
+
+    ## 4. Acceptance criteria
+
+    - A fresh install needs no manual update
+    """
+)
+
+PROPOSED = BRAINSTORM.replace("status: accepted", "status: proposed")
+
+
+class DocRepo:
+    """A throwaway git checkout with arbitrary docs committed on a branch."""
+
+    def __init__(self, files: dict[str, str], branch: str = "feat/brainstorm-issue") -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        _git(self.root, "init", "-b", "staging")
+        _git(self.root, "remote", "add", "origin", "https://github.com/tapway/fake.git")
+        (self.root / "README.md").write_text("base\n", encoding="utf-8")
+        _git(self.root, "-c", "user.name=t", "-c", "user.email=t@t", "add", "-A")
+        _git(self.root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-m", "base")
+        _git(self.root, "update-ref", "refs/remotes/origin/staging", "HEAD")
+        _git(self.root, "checkout", "-b", branch)
+        for rel, content in files.items():
+            path = self.root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+        _git(self.root, "-c", "user.name=t", "-c", "user.email=t@t", "add", "-A")
+        _git(self.root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-m", "docs")
+
+    def path(self, rel: str) -> Path:
+        return self.root / rel
+
+    def cleanup(self) -> None:
+        self._tmp.cleanup()
+
+
+class BrainstormTests(unittest.TestCase):
+    """An accepted design doc opens one issue; a draft or a plan does not duplicate it."""
+
+    def setUp(self):
+        self.repo = DocRepo({"docs/brainstorming/design.md": BRAINSTORM})
+        self.addCleanup(self.repo.cleanup)
+        self.doc = self.repo.path("docs/brainstorming/design.md")
+
+    def test_title_strips_the_brainstorm_prefix(self):
+        self.assertEqual(
+            plan_issue.render_title(BRAINSTORM, "docs/native-auto-update"),
+            "docs: Native auto-update on Claude Code and Hermes",
+        )
+
+    def test_body_maps_problem_and_recommendation(self):
+        body = plan_issue.render_body(
+            BRAINSTORM,
+            plan_path="docs/brainstorming/design.md",
+            branch="docs/native-auto-update",
+            repo="tapway/fake",
+            kind="brainstorm",
+        )
+        self.assertIn("## Summary", body)
+        self.assertIn("Harness updates are manual today.", body)
+        self.assertIn("Publish generated mirrors from the release job", body)
+        self.assertIn("## Acceptance criteria", body)
+        self.assertIn("<summary>Full design</summary>", body)
+
+    def test_accepted_brainstorm_creates_one_issue_and_records_it(self):
+        gh = FakeGh(create_number=91)
+        result = plan_issue.ensure_issue(
+            self.doc, repo="tapway/fake", branch="feat/brainstorm-issue", runner=gh
+        )
+        self.assertTrue(result.created)
+        self.assertEqual(result.number, 91)
+        self.assertEqual(plan_issue.issue_number(self.doc.read_text()), 91)
+        creates = [c for c in gh.calls if "issue create" in " ".join(c)]
+        self.assertEqual(len(creates), 1)
+        self.assertIn("feat: Native auto-update on Claude Code and Hermes", " ".join(creates[0]))
+
+    def test_second_pass_is_idempotent(self):
+        gh = FakeGh(create_number=91)
+        plan_issue.ensure_issue(self.doc, repo="tapway/fake", branch="feat/brainstorm-issue", runner=gh)
+        again = plan_issue.ensure_issue(
+            self.doc, repo="tapway/fake", branch="feat/brainstorm-issue", runner=gh
+        )
+        self.assertEqual(again.number, 91)
+        self.assertFalse(again.created)
+        self.assertEqual(len([c for c in gh.calls if "issue create" in " ".join(c)]), 1)
+
+    def test_proposed_brainstorm_is_skipped(self):
+        self.doc.write_text(PROPOSED, encoding="utf-8")
+        gh = FakeGh()
+        result = plan_issue.ensure_issue(
+            self.doc, repo="tapway/fake", branch="feat/brainstorm-issue", runner=gh
+        )
+        self.assertEqual(gh.calls, [])
+        self.assertEqual(result.skipped, "not-accepted")
+
+    def test_brainstorm_without_frontmatter_is_skipped(self):
+        self.doc.write_text("# Brainstorm: no status\n\n## 1. Problem\n\nx\n", encoding="utf-8")
+        gh = FakeGh()
+        result = plan_issue.ensure_issue(
+            self.doc, repo="tapway/fake", branch="feat/brainstorm-issue", runner=gh
+        )
+        self.assertEqual(gh.calls, [])
+        self.assertEqual(result.skipped, "not-accepted")
+
+    def test_plan_reuses_the_linked_brainstorm_issue(self):
+        plan = textwrap.dedent(
+            """\
+            ---
+            title: Build it
+            ---
+
+            # Build it — Implementation Plan
+
+            **Decision:** [Option B](../brainstorming/design.md).
+
+            ### Task 1.1: Do the thing
+
+            **Files:**
+            - Modify: `a.py`
+            """
+        )
+        plan_path = self.repo.root / "docs" / "plans" / "build.md"
+        plan_path.parent.mkdir(parents=True, exist_ok=True)
+        plan_path.write_text(plan, encoding="utf-8")
+        self.doc.write_text(plan_issue.record_issue_text(BRAINSTORM, 42), encoding="utf-8")
+        gh = FakeGh(create_number=99)
+        result = plan_issue.ensure_issue(
+            plan_path, repo="tapway/fake", branch="feat/brainstorm-issue", runner=gh
+        )
+        self.assertEqual(result.number, 42)
+        self.assertFalse(result.created)
+        self.assertEqual(gh.calls, [])
+        self.assertEqual(plan_issue.issue_number(plan_path.read_text()), 42)
+
+    def test_hook_ignores_a_proposed_brainstorm(self):
+        os.environ["CODEMAX_WORKFLOW"] = "1"
+        self.addCleanup(os.environ.pop, "CODEMAX_WORKFLOW", None)
+        self.doc.write_text(PROPOSED, encoding="utf-8")
+        gh = FakeGh()
+        plan_issue.on_post_tool_call(
+            tool_name="write_file",
+            args={"file_path": "docs/brainstorming/design.md", "workdir": str(self.repo.root)},
+            runner=gh,
+        )
+        self.assertEqual(gh.calls, [])
+        self.assertIsNone(plan_issue.issue_number(self.doc.read_text()))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

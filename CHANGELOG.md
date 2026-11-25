@@ -1,5 +1,9 @@
 # Changelog
 
+## [3.0.0] — 2026-11-25
+
+_See the release notes._
+
 ## [2.11.3] — 2026-11-25
 
 _See the release notes._

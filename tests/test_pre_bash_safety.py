@@ -128,6 +128,53 @@ with tempfile.TemporaryDirectory() as tmp:
         r = subprocess.run(["/bin/bash", str(hook)], input='{"tool_input": {"command": "ls"}}',
                            text=True, capture_output=True, cwd=repo, env={"PATH": "/nonexistent"})
         check(r.returncode == 2 and "python3 is required" in r.stderr, f"{name}: no python3 blocks")
+        # Worktree regression: the harness starts the hook in the main checkout
+        # (on main) while the command runs in a worktree on a feature branch.
+        wt = repo.parent / (repo.name + "-wt-" + name)
+        if not wt.exists():
+            subprocess.run(["git", "-C", str(repo), "worktree", "add", "-q", "-b",
+                            "feat/wt-" + name, str(wt)], check=True)
+        subprocess.run(["git", "-C", str(repo), "switch", "-q", "main"], check=True)
+
+        def run_cwd(command: str, payload_cwd: str | None, style: str = "claude") -> int:
+            if style == "hermes":
+                # Hermes: {tool_name, args: {command, workdir}}
+                args = {"command": command}
+                if payload_cwd is not None:
+                    args["workdir"] = payload_cwd
+                body = {"tool_name": "Bash", "args": args}
+            else:
+                body = {"tool_name": "Bash", "tool_input": {"command": command}}
+                if payload_cwd is not None:
+                    body["cwd"] = payload_cwd
+            return subprocess.run(["bash", str(hook)], input=json.dumps(body), text=True,
+                                  capture_output=True, cwd=repo).returncode
+
+        wt_s, repo_s = wt.as_posix(), repo.as_posix()
+        check(run_cwd("git commit -m x", wt_s) == 0,
+              f"{name}: commit allowed when payload cwd is a worktree on a feature branch")
+        check(run_cwd("git reset --hard HEAD~1", wt_s) == 0,
+              f"{name}: hard reset allowed when payload cwd is a worktree on a feature branch")
+        check(run_cwd(f"cd {wt_s} && git commit -m x", None) == 0,
+              f"{name}: commit allowed after `cd <worktree> &&`")
+        check(run_cwd(f"git -C {wt_s} commit -m x", None) == 0,
+              f"{name}: commit allowed with `git -C <worktree>`")
+        check(run_cwd("git commit -m x", repo_s) == 2,
+              f"{name}: commit still blocked when payload cwd is on main")
+        check(run_cwd(f"cd {repo_s} && git commit -m x", wt_s) == 2,
+              f"{name}: commit blocked after `cd` from a worktree into a main checkout")
+        check(run_cwd(f"git -C {repo_s} commit -m x", wt_s) == 2,
+              f"{name}: commit blocked with `git -C <main checkout>` from a worktree")
+        check(run_cwd(f"(cd {wt_s} && git commit -m x)", None) == 0,
+              f"{name}: commit allowed inside a subshell `(cd <worktree> && ...)`")
+        check(run_cwd(f"git -C {repo_s} reset --hard HEAD~1", wt_s) == 2,
+              f"{name}: hard reset blocked with `git -C <main checkout>` from a worktree")
+        check(run_cwd("git commit -m x", wt_s, style="hermes") == 0,
+              f"{name}: commit allowed when the Hermes payload carries args.workdir")
+        check(run_cwd("git commit -m x", None) == 2,
+              f"{name}: no payload cwd falls back to the hook's own directory (main)")
+        subprocess.run(["git", "-C", str(repo), "switch", "-q", "feat/x"], check=True)
+
         flat = '{"command": "git push --force origin feat/x"}'
         check(subprocess.run(["bash", str(hook)], input=flat, text=True, capture_output=True,
                              cwd=repo).returncode == 2, f"{name}: a flat (Codex-style) payload is read too")

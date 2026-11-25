@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.11.0] — 2026-11-25
+
+_See the release notes._
+
 ## [2.10.1] — 2026-11-25
 
 ### Added

@@ -128,6 +128,14 @@ git add docs/brainstorming/[topic-slug].md
 git commit -m "docs: add brainstorming output for [topic]"
 ```
 
+Start the file with this frontmatter:
+```
+---
+status: proposed
+---
+```
+Change it to `status: accepted` only after the user approves the recommendation. In a CodeMAX repo, that edit is what opens the GitHub issue, so make it with the file edit tool (not a shell command), on a feature branch. Commit the file again afterwards, including the `issue:` line the hook adds.
+
 ### 7. Hand off
 
 If proceeding, invoke the `writing-plans` skill next to turn the recommendation into an implementation plan.

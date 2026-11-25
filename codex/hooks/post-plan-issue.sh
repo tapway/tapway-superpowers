@@ -30,7 +30,8 @@ print(tool_input.get("file_path") or tool_input.get("path") or raw.get("file_pat
 ' 2>/dev/null)"
 
 [ -n "$FILE_PATH" ] || exit 0
-case "$FILE_PATH" in
+# Windows harnesses send backslash paths; route on a forward-slash copy.
+case "${FILE_PATH//\\//}" in
   *docs/plans/*.md) ;;
   *docs/brainstorming/*.md) ;;
   *) exit 0 ;;

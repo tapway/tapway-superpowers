@@ -549,6 +549,27 @@ class HookTests(unittest.TestCase):
                 self.assertEqual(len(calls), 1, f"{surface}: {self.log.read_text()}")
                 self.assertEqual(plan_issue.issue_number(doc.read_text()), 77, surface)
 
+    def test_windows_backslash_path_is_routed_on_every_surface(self):
+        """Windows sends backslash paths; the shell gate must not drop them."""
+        rel = "docs/brainstorming/design.md"
+        doc = self.repo.root / rel
+        doc.parent.mkdir(parents=True, exist_ok=True)
+        # POSIX CI treats a backslash as part of the file name, so put a file
+        # under that literal name too. On Windows it is the same file as `doc`.
+        windows = rel.replace("/", "\\")
+        literal = self.repo.root / windows
+        for surface, hook in (("claude", self.HOOK), ("codex", self.CODEX_HOOK)):
+            with self.subTest(surface=surface):
+                doc.write_text(ACCEPTED_DESIGN, encoding="utf-8")
+                literal.write_text(ACCEPTED_DESIGN, encoding="utf-8")
+                self.log.write_text("", encoding="utf-8")
+                result = self._run(
+                    {"tool_name": "Write", "tool_input": {"file_path": windows}}, hook=hook
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                calls = [line for line in self.log.read_text().splitlines() if "issue create" in line]
+                self.assertEqual(len(calls), 1, f"{surface}: {self.log.read_text()}")
+
     def test_proposed_brainstorm_is_ignored_on_every_surface(self):
         rel = "docs/brainstorming/design.md"
         doc = self.repo.root / rel

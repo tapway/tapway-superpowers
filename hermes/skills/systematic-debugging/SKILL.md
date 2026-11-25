@@ -102,7 +102,7 @@ For any bug that took >30 min or affected users in production:
 ## Bug Post-mortem: [Bug title]
 **Root cause:** [what caused it]
 **Why it wasn't caught:** [what test/check was missing]
-**Prevention:** [add test / update linting / update CLAUDE.md convention]
+**Prevention:** [add test / update linting / update project agent guide convention]
 **Regression test:** [test function name and file path]
 ```
 

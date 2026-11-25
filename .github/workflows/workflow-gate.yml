@@ -1,0 +1,82 @@
+name: workflow-gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  workflow_call:
+    inputs:
+      enforce_docs_impact:
+        description: Fail code PRs without a valid docs-impact disposition
+        type: boolean
+        default: false
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # The gate lives in tapway-superpowers; caller repos do not vendor it.
+      - uses: actions/checkout@v4
+        with:
+          repository: tapway/tapway-superpowers
+          ref: master
+          path: .tapway-superpowers
+
+      - name: Check plan/issue and brainstorm grounding
+        env:
+          PR_HEAD_REF: ${{ github.head_ref }}
+          PR_BASE_REF: ${{ github.base_ref }}
+        run: |
+          # staging<-master sync: the base is stale by definition, so the diff lists every
+          # doc master gained since it forked — judging those blocks the sync that repairs
+          # the base. Only the head branch `master`; feature branches are still judged.
+          if [ "$PR_HEAD_REF" = "master" ]; then
+            echo "staging<-master sync: docs are not re-judged"
+            exit 0
+          fi
+          # Promotion into master (base=master) copies documents that were already
+          # judged when they entered staging. Re-judging them here would block the
+          # promotion for a plan nobody is authoring on this branch.
+          if [ "$PR_BASE_REF" = "master" ]; then
+            echo "promotion into master: contracts were judged on staging"
+            exit 0
+          fi
+          git fetch --no-tags origin "$PR_BASE_REF" || true
+          base="origin/$PR_BASE_REF"
+          files="$(git diff --name-only "$base"...HEAD || true)"
+          if [ -z "$files" ]; then echo "no changed files"; exit 0; fi
+          # shellcheck disable=SC2086
+          python3 .tapway-superpowers/scripts/workflow_gate.py $files
+
+  docs-impact:
+    name: Docs impact
+    if: github.event_name == 'pull_request' && (github.repository == 'tapway/tapway-superpowers' || inputs.enforce_docs_impact)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        if: github.repository != 'tapway/tapway-superpowers'
+        with:
+          repository: tapway/tapway-superpowers
+          ref: master
+          path: .tapway-superpowers
+          persist-credentials: false
+      - name: Review docs disposition
+        env:
+          PILOT_REPO: ${{ github.repository == 'tapway/tapway-superpowers' }}
+          ENFORCE_DOCS_IMPACT: ${{ inputs.enforce_docs_impact }}
+        run: |
+          if [ "$PILOT_REPO" != "true" ]; then
+            python3 .tapway-superpowers/scripts/docs_impact.py "$GITHUB_EVENT_PATH"
+          elif [ "$ENFORCE_DOCS_IMPACT" = "true" ]; then
+            python3 scripts/docs_impact.py "$GITHUB_EVENT_PATH"
+          else
+            python3 scripts/docs_impact.py "$GITHUB_EVENT_PATH" --advisory
+          fi

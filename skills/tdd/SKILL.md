@@ -151,7 +151,8 @@ When every task in your work package is complete, run these in order before open
 1. **`/cleanup`** *(only if using [tapway-claude-template](https://github.com/tapway/tapway-claude-template))* — removes scaffold placeholders and boilerplate left by the template. Skip this if you're not on a template-based project.
 2. **`/simplify`** — Claude Code built-in; reviews changed code for reuse, simplification, and efficiency improvements and applies them. Always run this.
 3. **`/review`** — self code-review (three-tier: Critical / Warnings / Suggestions); fix any Critical findings before continuing.
-4. **`/pr`** — rebase, full test run, push, open PR, update checklist to 🟢.
+4. **E2E gate** — run `git diff --name-only main...HEAD` and classify changed files. *If any frontend file changed* (`*.tsx`, `*.jsx`, `**/pages/**`, `**/app/**`, `**/components/**`, `*.css`, etc.), run the `e2e-playwright` skill's frontend section: write `e2e/<feature>.spec.ts`, run `npx playwright test`. *If any backend file changed* (`*.py`, `**/backend/**`, `**/api/**`), run the `e2e-playwright` skill's backend section: write `backend/tests/integration/` + `backend/tests/e2e/` tests, run `pytest tests/integration/ tests/e2e/`. **If only docs/config files changed, skip — the E2E gate does not apply.**
+5. **`/pr`** — rebase, full test run, push, open PR, update checklist to 🟢.
 
 The PR that teammates see should already be simplified and self-reviewed before it's opened.
 

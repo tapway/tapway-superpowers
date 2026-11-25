@@ -1,0 +1,130 @@
+name: E2E & Integration Tests
+
+on:
+  push:
+    branches: [staging, prod]
+    paths:
+      - 'frontend/**'
+      - 'e2e/**'
+      - 'playwright.config.*'
+      - 'backend/**'
+      - '.github/workflows/playwright.yml'
+  pull_request:
+    branches: [staging, prod]
+    paths:
+      - 'frontend/**'
+      - 'e2e/**'
+      - 'playwright.config.*'
+      - 'backend/**'
+      - '.github/workflows/playwright.yml'
+
+jobs:
+  frontend-e2e:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    env:
+      E2E_BASE_URL: http://localhost:3000
+      E2E_USER: ${{ secrets.E2E_USER }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Check for frontend changes
+        id: check-frontend
+        run: |
+          if git diff --name-only origin/${{ github.base_ref || 'staging' }}...HEAD | grep -qE '\.(tsx|jsx|vue|css|scss)$|/(pages|app|components|public)/|playwright\.config'; then
+            echo "frontend-changed=true" >> $GITHUB_OUTPUT
+            echo "Frontend files detected — running Playwright E2E tests"
+          else
+            echo "frontend-changed=false" >> $GITHUB_OUTPUT
+            echo "No frontend files detected — skipping Playwright E2E tests"
+          fi
+
+      - name: Install frontend dependencies
+        if: steps.check-frontend.outputs.frontend-changed == 'true'
+        run: cd frontend && npm ci
+
+      - name: Install Playwright browsers + OS deps
+        if: steps.check-frontend.outputs.frontend-changed == 'true'
+        run: cd frontend && npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        if: steps.check-frontend.outputs.frontend-changed == 'true'
+        run: cd frontend && npx playwright test
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() && steps.check-frontend.outputs.frontend-changed == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 5
+
+      - name: Upload test results (traces, videos, screenshots)
+        if: ${{ failure() && steps.check-frontend.outputs.frontend-changed == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: frontend/test-results/
+          retention-days: 5
+
+  backend-e2e:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for backend changes
+        id: check-backend
+        run: |
+          if git diff --name-only origin/${{ github.base_ref || 'staging' }}...HEAD | grep -qE '\.py$|/(backend|api)/'; then
+            echo "backend-changed=true" >> $GITHUB_OUTPUT
+            echo "Backend files detected — running pytest integration/E2E tests"
+          else
+            echo "backend-changed=false" >> $GITHUB_OUTPUT
+            echo "No backend files detected — skipping pytest integration/E2E tests"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.check-backend.outputs.backend-changed == 'true'
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        if: steps.check-backend.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          elif [ -f pyproject.toml ]; then
+            pip install -e .
+          fi
+          pip install pytest httpx pytest-asyncio
+
+      - name: Run pytest integration & E2E tests
+        if: steps.check-backend.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          # Only run if test directories exist (first-time setup may not have them yet)
+          ARGS=""
+          [ -d tests/integration ] && ARGS="$ARGS tests/integration/"
+          [ -d tests/e2e ] && ARGS="$ARGS tests/e2e/"
+          if [ -n "$ARGS" ]; then
+            pytest $ARGS --tb=short -q
+          else
+            echo "No integration/E2E test directories found — skipping"
+          fi
+
+      - name: Upload pytest results
+        if: ${{ failure() && steps.check-backend.outputs.backend-changed == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: backend/.pytest_cache/
+          retention-days: 5

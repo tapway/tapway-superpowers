@@ -1,0 +1,77 @@
+name: Skills & Plugin Tests
+
+# The Hermes plugin and installer are plain Python scripts driven by
+# `python tests/<file>.py`. Without this workflow nothing in `tests/` runs on a
+# pull request, so the plugin's manifest/mirror guards could rot unnoticed.
+#
+# Checks that need a hermes-agent checkout (the real PluginContext, plugin-guard,
+# skill_view resolution) report SKIP here and run on a machine that has Hermes
+# installed; everything else is enforced in CI.
+
+on:
+  pull_request:
+    branches: [master, staging, prod]
+  push:
+    branches: [master]
+
+jobs:
+  skills:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: pip install pyyaml pytest
+
+      - name: Hermes plugin package (manifest, mirror, guard)
+        run: python tests/test_hermes_plugin.py
+
+      - name: Hermes install script
+        run: python tests/test_hermes_install.py
+
+      - name: Docs consistency
+        run: python tests/check_docs_consistency.py
+      - name: Docs impact policy
+        run: python -m pytest -q tests/test_docs_impact.py
+
+      - name: Release version derivation
+        run: python tests/test_next_version.py
+
+      - name: Release drift detector
+        run: python tests/test_release_drift.py
+
+      - name: tool-guard hook (secrets, branches, ask-before-changes)
+        run: python tests/test_tool_guard.py
+
+      - name: pre-bash-safety hook (stdin payload, Claude + Codex)
+        run: python tests/test_pre_bash_safety.py
+
+      - name: Skill-eval harness and server template
+        run: python tests/test_skill_evals_harness.py
+
+  # The hooks run on developers' Macs too: BSD grep and bash 3.2 must give the
+  # same answers as GNU grep on Linux.
+  hooks-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: pip install pyyaml
+
+      - name: tool-guard hook
+        run: python tests/test_tool_guard.py
+
+      - name: pre-bash-safety hook (BSD grep)
+        run: python tests/test_pre_bash_safety.py
+
+      - name: Skill-eval harness (BSD cp/grep)
+        run: python tests/test_skill_evals_harness.py

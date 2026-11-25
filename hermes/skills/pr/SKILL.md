@@ -21,7 +21,7 @@ metadata:
 
 **When to invoke:** When a work package or feature is complete and ready for review. Always run from a feature branch, never from the integration branch.
 
-> **Hermes note:** This uses the `github` skill's `gh`/git+curl commands. The `gh` CLI is preferred; fall back to `git` + `curl` with a `GITHUB_TOKEN` if `gh` isn't authenticated.
+> **Hermes note:** Prefer the `gh` CLI (`gh auth login`). Do not embed API tokens in shell examples.
 
 ## Core Principle
 > One branch = one PR. Never work directly on `staging` (or your project's integration branch).
@@ -38,13 +38,17 @@ git checkout -b feat/[feature-name]
 ```
 
 ### Step 2: Determine Target Branch
-Read the project's integration branch from a project context file (`CLAUDE.md`,
-`AGENTS.md`, or `.hermes.md`) or a `TARGET_BRANCH` entry. Default to `staging` if unset
-(Hermes projects that don't create `CLAUDE.md` will pick up `AGENTS.md` / `.hermes.md`
-instead):
+Read the project's integration branch from agent context files at the repo root
+(`AGENTS.md`, `.hermes.md`) looking for a `TARGET_BRANCH` entry. Default to
+`staging` if unset. If the repo also keeps a Claude Code project guide, read
+`TARGET_BRANCH` from that file the same way (first non-empty wins):
 ```bash
-# Check CLAUDE.md, then AGENTS.md, then .hermes.md (first hit wins)
-TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md AGENTS.md .hermes.md 2>/dev/null | head -1 | awk '{print $2}')
+TARGET=""
+for f in AGENTS.md .hermes.md; do
+  [ -f "$f" ] || continue
+  TARGET=$(grep "^TARGET_BRANCH:" "$f" 2>/dev/null | head -1 | awk '{print $2}')
+  [ -n "$TARGET" ] && break
+done
 TARGET=${TARGET:-staging}
 echo "Targeting: $TARGET"
 ```
@@ -71,11 +75,34 @@ Run the test suite for every discipline that was touched:
 
 All tests must be green before pushing. If a test that passed before your changes now fails, fix it before continuing.
 
+### Step 4b: Verification-Before-Commit Gate
+
+Before creating the PR, run the verification gates so every commit and the final PR are clean:
+
+```bash
+# 1. Quality gate: lint + format + typecheck + coverage (same as the git pre-commit backstop)
+ruff check . && ruff format --check . 2>/dev/null   # backend, if ruff installed
+npx prettier --check . && npx tsc --noEmit          # frontend, if node present
+
+# 2. Dependency audit: supply-chain scan
+osv-scanner . ; npm audit --audit-level=high ; pip-audit
+
+# 3. Full test suite (Step 4)
+pytest --tb=short -q      # backend
+npm test -- --watchAll=false  # frontend
+```
+
+- [ ] All quality-gate checks pass (complete the `verification` skill's checklist)
+- [ ] Dependency audit reports no critical/high vulnerabilities (see `dependency-audit` skill)
+- [ ] Every `git commit` in this branch passed the pre-commit gate (lint/format/typecheck)
+
+The git `pre-commit` backstop (`hooks/pre-commit/git-pre-commit.sh`, installed by
+`setup-project`) enforces the quality gate on every commit. If it's not installed, install
+it via `setup-project` before opening the PR.
+
 ### Step 5: Update Docs (mandatory)
-Run the `repo-docs` skill — this is mandatory on every PR, no exceptions:
-```
-/repo-docs
-```
+Load `tapway-superpowers:repo-docs` (or the installed standalone `repo-docs`
+skill). Run its incremental review for every code PR.
 `repo-docs` will generate `docs/ARCHITECTURE.md`, `docs/WORKFLOWS.md`, `docs/DB_SCHEMA.md` (if applicable), `docs/DEPLOYMENT.md` from scratch if they don't exist, or update only the sections affected by this branch if docs already exist.
 
 After `repo-docs` completes, commit any doc changes:
@@ -83,7 +110,9 @@ After `repo-docs` completes, commit any doc changes:
 git add docs/
 git commit -m "docs: update project docs for [feature/change]"
 ```
-If `repo-docs` made no changes (output says "no sections affected"), note "docs: no changes" in the PR body.
+Include the review's single plain `Docs: updated — …` or `Docs: no impact — …`
+line in the PR body for coding changes. Reuse an earlier result only if it
+covers the current PR diff. Do not commit unchanged docs.
 
 ### Step 6: Push the Branch
 ```bash
@@ -135,12 +164,9 @@ EOF
 )"
 ```
 
-If `gh` is unavailable, create via API:
-```bash
-curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" \
-  https://api.github.com/repos/$OWNER/$REPO/pulls \
-  -d "{\"base\":\"$TARGET\",\"head\":\"$(git branch --show-current)\",\"title\":\"feat(scope): description\",\"body\":\"...\"}"
-```
+If `gh` is unavailable, authenticate it first (`gh auth login`) or use the
+Hermes `github` skill's REST helper. **Do not** paste personal access tokens
+into one-off shell one-liners.
 
 ### Step 8: Update the Work Package Checklist (teams)
 After the PR is open:
@@ -161,13 +187,18 @@ git push
 - ❌ Never open a PR with failing tests
 - ❌ Never create a PR from the integration branch — always from a feature branch
 - ❌ Never skip the rebase step — stale branches cause CI failures and reviewer confusion
-- ❌ Never skip `repo-docs` — docs must be updated on every PR
+- ❌ Never skip `repo-docs` for a code PR — review docs impact even if no edits are needed
 - ❌ Never leave the work package checklist unchecked after the PR is open
 
 ## Quick Reference
 ```bash
-# Read target branch (CLAUDE.md / AGENTS.md / .hermes.md, default staging)
-TARGET=$(grep "^TARGET_BRANCH:" CLAUDE.md AGENTS.md .hermes.md 2>/dev/null | head -1 | awk '{print $2}')
+# Read target branch (AGENTS.md / .hermes.md, default staging)
+TARGET=""
+for f in AGENTS.md .hermes.md; do
+  [ -f "$f" ] || continue
+  TARGET=$(grep "^TARGET_BRANCH:" "$f" 2>/dev/null | head -1 | awk '{print $2}')
+  [ -n "$TARGET" ] && break
+done
 TARGET=${TARGET:-staging}
 
 # Sync
@@ -185,3 +216,14 @@ git add docs/ && git commit -m "docs: update project docs for [change]"
 git push -u origin $(git branch --show-current)
 gh pr create --base "$TARGET" --title "feat(scope): ..." --body "..."
 ```
+
+
+## Hook gates (v2.6.0)
+
+`gh pr create` is blocked when the branch touches:
+
+- `docs/plans/*.md` without `issue: <number>` frontmatter — create the issue first;
+- `docs/brainstorming/*.md` whose option sections lack `Grounding:` lines.
+
+`TAPWAY_PR_GATE=0` is a one-run override. The same rules run in CI
+(`workflow-gate`), so an override does not bypass the merge gate.

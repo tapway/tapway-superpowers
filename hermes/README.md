@@ -6,48 +6,98 @@ A port of the [Tapway Superpowers](https://github.com/tapway/tapway-superpowers)
 
 ## Install
 
-All **18** Tapway skills are installed through Hermes's **native skill hub** — one
-command scaffolds the whole skillpack, no local file copying. The installer also
-creates a **`/tapway` skill bundle** so the entire strict pipeline loads with a
-single slash command.
+All **31** Tapway skills install into Hermes via `install.sh` / `install.ps1`.
+The installer also creates a **`/tapway` skill bundle** so the entire strict
+pipeline loads with a single slash command.
 
-**macOS / Linux:**
+**Preferred (from a git checkout — pin-able, offline-safe):**
 ```bash
-bash install.sh            # installs all 18 skills + the /tapway bundle
-bash install.sh <category> # optional: custom skills category (default: tapway)
+git fetch --tags && git checkout vX.Y.Z   # optional pin
+cd hermes
+bash install.sh                           # category default: tapway
+bash install.sh tapway-superpowers        # keep an existing category name
+```
 
-# Preview without installing anything:
-HERMES_DRY_RUN=1 bash install.sh
+When `hermes/skills/` is present beside the installer (normal checkout),
+**auto mode copies locally** into `$HERMES_HOME/skills/<category>/`. That
+avoids Hermes skill-hub `skills-guard` false positives on first-party docs
+and pins exactly to the commit/tag you checked out.
+
+**Modes:**
+```bash
+HERMES_INSTALL_MODE=auto  bash install.sh   # default: local if available, else hub
+HERMES_INSTALL_MODE=local bash install.sh   # force copy from this checkout
+HERMES_INSTALL_MODE=hub   bash install.sh   # force hermes skills install (GitHub)
+HERMES_DRY_RUN=1          bash install.sh   # preview only
 ```
 
 **Windows (PowerShell):**
 ```powershell
+cd hermes
 .\install.ps1
-# Preview: $env:HERMES_DRY_RUN = "1"; .\install.ps1
+.\install.ps1 tapway-superpowers
+$env:HERMES_INSTALL_MODE = "local"; .\install.ps1
+$env:HERMES_DRY_RUN = "1"; .\install.ps1
 ```
 
-The installer resolves each skill by its GitHub identifier
-(`tapway/tapway-superpowers/hermes/skills/<name>`) via `hermes skills install`, so
-it works from anywhere and stays in sync with this repo. Authenticate GitHub
-(`gh auth login` or a `GITHUB_TOKEN`) to avoid unauthenticated API rate limits.
+**Hub-only (no checkout):** the installer can still call
+`hermes skills install tapway/tapway-superpowers/hermes/skills/<name>`.
+Authenticate GitHub (`gh auth login` or `GITHUB_TOKEN`) to avoid rate limits.
+If the hub scanner blocks a skill, re-run from a checkout with
+`HERMES_INSTALL_MODE=local` — see [INSTALL_ISSUES.md](./INSTALL_ISSUES.md).
 
 Then verify:
 ```bash
-hermes skills list | grep tapway   # 18 tapway/* skills present
-hermes bundles list                # "tapway" bundle present
+ls "$HERMES_HOME/skills/tapway" | wc -l    # expect 31 (or your category path)
+hermes skills list | grep -E 'tapway'
+hermes bundles list                        # "tapway" bundle present
 ```
 
-> **No installer needed?** Because Hermes auto-derives a `/skill-name` command
-> from every installed skill, you can also install an individual skill directly:
+## Install as a Hermes plugin
+
+No clone and no `install.sh`. Hermes copies only `hermes/plugin/` (a
+`plugin.yaml` plus a byte mirror of `hermes/skills/`). A root install of this
+repo is rejected by plugin-guard, so the subdirectory is the supported path.
+
+```bash
+hermes plugins install tapway/tapway-superpowers/hermes/plugin --enable
+```
+
+Skills load as `tapway-superpowers:<name>` (`skill_view("tapway-superpowers:tdd")`).
+They do **not** become bare `/tdd` slash commands and they do not collide with
+other installed copies of the same name. Use `install.sh` above when you want
+`/tapway` and per-skill slash commands.
+
+Remove with `hermes plugins remove tapway-superpowers`. A new Hermes session
+picks up the plugin.
+
+> **Individual skill:** Hermes auto-derives a `/skill-name` command from every
+> installed skill. You can also install one skill directly:
 > ```bash
 > hermes skills install tapway/tapway-superpowers/hermes/skills/tdd --category tapway
 > ```
+> If hub install is blocked, copy `hermes/skills/tdd` into
+> `$HERMES_HOME/skills/tapway/tdd` instead.
 
-### What you get: 18 skills
+### Known caveats
+
+- **Name collisions:** Hermes also ships `writing-plans` and
+  `systematic-debugging` under other categories. Both copies can exist on
+  disk; list UIs may show one bare name. Prefer `/tapway` or the category
+  path when disambiguating.
+- **Category drift:** older installs used category `tapway-superpowers`; the
+  installer default is `tapway`. Pass your existing category name to avoid a
+  second tree.
+- **Claude plugin ≠ Hermes skills:** updating the Claude Code plugin does
+  **not** refresh Hermes skills — run this installer separately.
+
+Field report from the v1.8.2 update: [INSTALL_ISSUES.md](./INSTALL_ISSUES.md).
+
+### What you get: 31 skills
 
 discovery/planning | implementation | quality/gates | process/infra
 ---|---|---|---
-`interview`, `brainstorming`, `writing-plans` | `tdd`, `autoship`, `refactor`, `systematic-debugging` | `code-review`, `pre-review-cleanup`, `security-audit`, `verification`, `doubt`, `observe`, `deprecate` | `pr`, `repo-docs`, `git-worktrees`, `setup-project`
+`interview`, `brainstorming`, `writing-plans` | `tdd`, `e2e-playwright`, `quality-gates`, `dependency-audit`, `api-contract-testing`, `db-migration-testing`, `autoship`, `refactor`, `systematic-debugging` | `code-review`, `pre-review-cleanup`, `security-audit`, `verification`, `doubt`, `observe`, `deprecate`, `incident-runbook` | `pr`, `repo-docs`, `git-worktrees`, `setup-project`, `codemax-gbrain`
 
 ## The Strict Pipeline
 
@@ -87,8 +137,11 @@ These rely on Claude Code's hook/command system and have no Hermes equivalent th
 - Pre-commit secret scanning
 - Auto-changelog on conventional commits
 - Post-edit auto-lint
-- `@claude` PR fix comments (GitHub Actions workflow)
 - `/cleanup`, `/release`, `/upgrade-skills` (template/CI-bound commands)
+
+> Tapway no longer ships a GitHub Actions PR-review workflow (`claude.yml` / `@claude`).
+> Code review is done inside the AI agent (`requesting-code-review` / the `/review` skill)
+> before a PR is opened, so there is no GitHub Actions review to port anyway.
 
 The **discipline** behind them is preserved by the manual pipeline above.
 

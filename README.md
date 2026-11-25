@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Claude Code plugin (and now a Hermes Agent port) with 17 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development (Next.js 14 + Python FastAPI). The plugin enforces best practices structurally — TDD via agent boundaries, mandatory PR gates, docs on every push — so good habits happen automatically.
+A Claude Code plugin (and now a Hermes Agent port) with 24 AI skills, 5 guardrail hooks, and specialized subagents for full-stack development (Next.js 14 + Python FastAPI). The plugin enforces best practices structurally — TDD via agent boundaries, mandatory PR gates, docs on every push — so good habits happen automatically. The optional **codemax-gbrain** skill also folds a shared gbrain brain into the dev loop — pull context at task start, sync docs back at task end — so context never drifts. **CodeMAX is fully optional:** it's off by default and only activates if your team runs a CodeMAX instance (set `CODEMAX_ENABLED=1`).
 
 **Pick your tool:**
 - **Claude Code users** → install the plugin below (slash commands + hooks).
@@ -20,6 +20,8 @@ claude plugin install tapway-superpowers@tapway-superpowers
 
 Skills and hooks activate immediately. No restart, no config files.
 
+**Auto-update is off by default.** [Turn it on once](docs/DEPLOYMENT.md#install--claude-code-plugin) to receive new releases.
+
 **Recommended companion plugins:**
 ```bash
 claude plugin install andrej-karpathy-skills@karpathy-skills
@@ -35,31 +37,41 @@ Prefer **Hermes Agent** over Claude Code? A port of these skills ships in this r
 ```bash
 # From inside the cloned repo:
 cd hermes
-bash install.sh        # macOS / Linux — installs all 18 skills + the /tapway bundle
+bash install.sh        # macOS / Linux — installs all 31 skills + the /tapway bundle
 # or, on Windows (PowerShell):
 .\install.ps1
 ```
 
-This installs all **18** Tapway skills through Hermes's native skill hub and creates a
+This installs all **31** Tapway skills through Hermes's native skill hub and creates a
 `/tapway` skill bundle that loads the whole pipeline with one slash command. A few
-Claude-only pieces (commit hooks, secret scanning, `@claude` PR comments) don't auto-run
+Claude-only pieces (commit hooks, secret scanning) don't auto-run
 in Hermes — the equivalent discipline is preserved by following the pipeline. Full details
 and the skill-to-Hermes mapping are in [`hermes/README.md`](hermes/README.md).
+
+To install the same skills as a Hermes plugin, without a clone:
+
+```bash
+hermes plugins install tapway/tapway-superpowers/hermes/plugin --enable
+```
+
+Plugin skills are namespaced (`tapway-superpowers:tdd`). They do not register
+bare slash commands. Use `install.sh` when you want `/tapway`.
 
 ---
 
 ## Table of Contents
 
+- [Documentation](#documentation)
 - [Modes](#modes)
   - [Individual — solo feature or bug fix](#individual--solo-feature-or-bug-fix)
   - [Team Collaboration — parallel work packages](#team-collaboration--parallel-work-packages)
   - [Legacy Refactor — existing repo without tests](#legacy-refactor--existing-repo-without-tests)
-- [GitHub Actions — AI-Powered PR Review](#github-actions--ai-powered-pr-review)
-- [Release Convention — YYYY.WW.XX.YY](#release-convention--yyyywwxxyy)
+- [Code Review — Inside the Agent](#code-review--inside-the-agent)
+- [Release Convention — Semantic Versioning](#release-convention--semantic-versioning)
 - [What You Get](#what-you-get)
-  - [13 Skills](#13-skills)
-  - [5 Guardrail Hooks](#5-guardrail-hooks)
-  - [4 Specialized Agents](#4-specialized-agents)
+  - [31 Skills](#31-skills)
+  - [10 Guardrail Hooks](#10-guardrail-hooks)
+  - [5 Specialized Agents](#5-specialized-agents)
 - [Slash Commands Reference](#slash-commands-reference)
 - [Hermes Support](#hermes-support)
 - [Built-in Claude Code Skills](#built-in-claude-code-skills)
@@ -67,6 +79,24 @@ and the skill-to-Hermes mapping are in [`hermes/README.md`](hermes/README.md).
 - [Upgrading](#upgrading)
 - [For Template Users](#for-template-users)
 - [Uninstalling](#uninstalling)
+
+---
+
+## Documentation
+
+Standardized technical documentation (generated via the `repo-docs` skill):
+
+- **[Architecture](docs/ARCHITECTURE.md)** — system diagram, component breakdown, key design decisions
+- **[Workflows](docs/WORKFLOWS.md)** — sequence diagrams for feature build, autoship, legacy refactor, incident response, and release
+- **[Deployment](docs/DEPLOYMENT.md)** — install/publish for Claude Code + Hermes, adopting in a project, rollback, common issues
+- **[Native auto-update](docs/brainstorming/native-auto-update.md)** — how releases reach Claude Code and Hermes without a PR; companion mirrors and the drift guards
+- **Team guide** — [docs/team-guide.md](docs/team-guide.md)
+- **Running Claude Code on a server** — [docs/SERVER_GUARDRAILS.md](docs/SERVER_GUARDRAILS.md): managed settings, `tool-guard`, how updates reach a server
+- **Skill evals with canary secrets** — [evals/README.md](evals/README.md)
+- **Legacy refactor guide** — [docs/legacy-refactor-guide.md](docs/legacy-refactor-guide.md)
+
+> `DB_SCHEMA.md` is intentionally omitted — this is a tooling/plugin repo with no
+> application database.
 
 ---
 
@@ -90,9 +120,26 @@ Not sure which mode applies? Use this table:
 
 ```
 /interview → /brainstorming → /plan → [implement] → /simplify → /review → /pr
+                              ↑ pull context from gbrain if a GitHub issue exists
+                                                         ↓ sync docs to gbrain before pr
 ```
 
 `/interview` is optional but recommended any time the request is underspecified. `/observe` runs before `/pr` on any new endpoint. `/doubt` is called on demand for high-stakes decisions.
+
+> The gbrain arrows in the diagram above only apply if your team runs CodeMAX
+> and has set `CODEMAX_ENABLED=1`. Otherwise they're invisible — no hooks, no
+> errors, no change to the normal flow.
+
+The optional **codemax-gbrain** skill integrates a shared brain at two points:
+- **At task start** (after `/plan`): pull the requirement/blueprint/ADR the work order traces to, so you have the real context in-flow — no manual gbrain queries.
+- **Before `/pr`**: sync updated living-docs back to gbrain via `codemax sync run`, so the brain reflects what was actually built.
+
+To enable, set these in your environment (e.g. `~/.zshrc`, `~/.bashrc`):
+```bash
+export CODEMAX_ENABLED=1
+export CODEMAX_WIKI_DIR="$HOME/path/to/wiki"
+export CODEMAX_GBRAIN_DIR="$HOME/path/to/gbrain"
+```
 
 **Step 0 — Clarify** (when the request is fuzzy)
 ```
@@ -148,10 +195,10 @@ Run this before `/pr` on any new endpoint, background task, or external integrat
 ```
 /simplify       ← reduce complexity and duplication
 /review         ← three-tier self-review (Critical / Warnings / Suggestions)
-/pr             ← rebase, test, update docs, push, open PR
+/pr             ← rebase, test, update docs, update wiki, push, open PR
 ```
 
-**`/pr` is mandatory** — it rebases against `main`, runs the full test suite, updates project docs, and opens a structured PR. Never push manually.
+**`/pr` is mandatory** — it rebases against `main`, runs the full test suite, updates project docs and the GitHub wiki, and opens a structured PR. Never push manually.
 
 ---
 
@@ -187,7 +234,7 @@ docs/
   checklists/      ← who is doing what, current status
 ```
 
-**Auto-review on every PR + `@claude` for fixes.** Every PR gets an automatic three-tier code review when opened. After review, anyone can mention `@claude` in a comment to push fix commits directly to the branch. See [GitHub Actions — AI-Powered PR Review](#github-actions--ai-powered-pr-review) for setup instructions and the required `ANTHROPIC_API_KEY` secret.
+**Code review happens inside the AI agent, not in GitHub CI.** Every PR is reviewed by the agent using the `/review` (Claude Code) or `requesting-code-review` (Hermes) skill before it's opened — a three-tier Critical/Warning/Suggestion self-review run by the implementing agent. There is no GitHub Actions-based PR review workflow; review discipline is enforced by the pipeline, not by CI.
 
 **Merge order matters.** If Package B depends on Package A's schema changes, merge A first and have B rebase:
 ```bash
@@ -274,139 +321,74 @@ claude plugin add code-refactor@andrej-karpathy-skills
 
 ---
 
-## GitHub Actions — AI-Powered PR Review
+## Code Review — Inside the Agent
 
-The plugin ships a GitHub Actions workflow (`.github/workflows/claude.yml`) that gives every PR an automatic AI code review and lets any team member trigger fix commits by mentioning `@claude` in a comment.
+Tapway does **not** run PR review in GitHub CI. Code review is performed by the AI agent during development, before a PR is opened:
 
-> **This must be added to each project repo separately.** Run `/setup-project` in any repo to create and commit the file automatically.
+| Tool | Review skill | When |
+|---|---|---|
+| Claude Code | `/review` (built-in) — three-tier Critical / Warnings / Suggestions | Every PR, before `/pr` |
+| Hermes | `requesting-code-review` (core) | Every PR, before `pr` |
 
-### Prerequisites
+This is structural in the pipeline (`/simplify → /review → /pr`), so a PR that reaches GitHub has already been simplified and self-reviewed by the implementing agent. If Critical findings are raised, the agent fixes them before opening the PR.
 
-**Add `ANTHROPIC_API_KEY` to GitHub repo secrets — this is required for any of the below to work.**
-
-```
-GitHub repo → Settings → Secrets and variables → Actions → New repository secret
-  Name:  ANTHROPIC_API_KEY
-  Value: your key from https://console.anthropic.com
-```
-
-Without this secret, the workflow will be present but every run will fail with an authentication error.
-
-### How It Works — Two Jobs
-
-The workflow contains two separate jobs with different triggers and permissions:
-
-#### 1. `auto-review` — fires on every PR, no mention needed
-
-| Property | Value |
-|---|---|
-| **Trigger** | PR opened, updated (`synchronize`), or reopened |
-| **Permissions** | Read-only (`contents: read`, `pull-requests: write`) |
-| **What it does** | Posts a three-tier code review as inline PR comments |
-
-Claude reads the full diff and posts findings categorised as:
-
-- **Critical** — must fix before merge (bugs, security issues, data loss risks, broken contracts)
-- **Warning** — should fix or justify (missing tests, type gaps, N+1 queries, unhandled errors)
-- **Suggestion** — optional improvements (simplification, naming, duplication)
-
-If Critical findings exist, Claude requests changes. If only Warnings/Suggestions, it approves with comments. The review summary is prefixed with `## Auto-review` so it's clearly labelled as automated.
-
-#### 2. `on-mention` — fires when `@claude` is mentioned
-
-| Property | Value |
-|---|---|
-| **Trigger** | `@claude` in any PR comment, review comment, or review body |
-| **Permissions** | Read-write (`contents: write`) — can push fix commits |
-| **What it does** | Executes whatever instruction follows `@claude` |
-
-Common uses:
-```
-@claude fix the Critical findings from the auto-review
-@claude fix the failing test in test_auth_service.py
-@claude resolve the merge conflict in this file
-@claude explain why this approach was chosen
-```
-
-### Setup
-
-**Option A — Automated (recommended):**
-```
-/setup-project
-```
-Creates `.github/workflows/claude.yml`, commits it, and prints the remaining manual steps including the secret reminder.
-
-**Option B — Manual:**
-```bash
-mkdir -p .github/workflows
-# Copy .github/workflows/claude.yml from this repo into your project
-git add .github/workflows/claude.yml
-git commit -m "chore: add @claude GitHub Actions workflow"
-git push
-```
-Then add `ANTHROPIC_API_KEY` to GitHub repo secrets.
-
-### Verifying It Works
-
-1. Open any PR in the repo
-2. Within ~30 seconds, an `## Auto-review` comment should appear from the `auto-review` job
-3. On the same PR, comment `@claude explain what this PR does` — the `on-mention` job should reply within ~30 seconds
-
-If either job doesn't fire or errors out, check:
-- `ANTHROPIC_API_KEY` is set in repo secrets (Settings → Secrets and variables → Actions)
-- Both jobs have `id-token: write` in their `permissions` block — the action uses OIDC for authentication and will fail with "Unable to get ACTIONS_ID_TOKEN_REQUEST_URL" without it
-- Both jobs have `actions/checkout@v4` as the **first step** — the action runs `git fetch` internally and will fail with "fatal: not a git repository" if the repo isn't checked out first
-- The workflow file exists at `.github/workflows/claude.yml`
-- GitHub Actions is enabled for the repo (Settings → Actions → General)
-
-### Cost
-
-Each `auto-review` run costs roughly $0.50–2.00 depending on the size of the diff (input tokens). `on-mention` runs vary by task. For a small team running 20–30 PRs/month, expect under $30/month total.
-
-To limit auto-review to specific branches (e.g. only PRs targeting `main`):
-```yaml
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]   # add this line
-```
+No `ANTHROPIC_API_KEY` secret, no `claude.yml` workflow, and no GitHub Actions review cost.
 
 ---
 
-## Release Convention — YYYY.WW.XX.YY
+## Release Convention — Semantic Versioning
 
 Releases are created **automatically** every time a PR merges to `staging` or `prod`, via `.github/workflows/release.yml`.
 
 ### Format
 
 ```
-YYYY.WW.XX.YY-env
+vMAJOR.MINOR.PATCH-env
 ```
 
 | Segment | Meaning | Example |
 |---|---|---|
-| `YYYY` | Year | `2026` |
-| `WW` | ISO week number (01–53) | `24` |
-| `XX` | Major increment within the week | `1` |
-| `YY` | Minor increment within XX (bugfix / small change) | `3` |
+| `MAJOR` | Breaking change (`feat!` or `BREAKING CHANGE`) | `2` |
+| `MINOR` | New feature (`feat:`) | `1` |
+| `PATCH` | Bugfix / small change (anything else) | `3` |
 | `-env` | Target environment | `-stg` or `-prod` |
+
+### Rules
+
+- **PATCH increments** on every merge by default
+- **MINOR increments** (and PATCH resets to 0) when any merged commit is `feat: ...`
+- **MAJOR increments** (and MINOR/PATCH reset to 0) when any merged commit contains `feat!` or `BREAKING CHANGE`
+- `stg` and `prod` maintain **independent** MAJOR.MINOR.PATCH streams
 
 ### Examples
 
 ```
-2026.24.1.0-stg   ← first merge of week 24 to staging
-2026.24.1.1-stg   ← bugfix on top of 1.0
-2026.24.1.2-stg   ← another small change
-2026.24.2.0-stg   ← breaking change or major feature (XX increments, YY resets)
-2026.24.1.0-prod  ← stg 1.0 promoted to prod
+v1.1.0-stg   ← feature merge to staging
+v1.1.1-stg   ← bugfix on top of 1.1.0
+v1.2.0-stg   ← next feature
+v2.0.0-stg   ← breaking change (MAJOR bump)
+v1.1.0-prod  ← promoted to prod (prod's own stream)
 ```
 
-### Rules
+### Plugin manifests (who owns the version)
 
-- **YY increments** on every merge by default
-- **XX increments** (and YY resets to 0) when any commit in the merge contains `feat!` or `BREAKING CHANGE` in the message
-- **Both counters reset** to `XX=1 YY=0` at the start of each new week
-- `stg` and `prod` maintain independent XX.YY counters
+The **release workflow owns the `version` field**, in `hermes/plugin/plugin.yaml`,
+`.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`. Do **not**
+hand-bump them in a feature PR — `claude plugin update` reads those files, and a
+hand-bump competes with the derived tag (that is how `v2.8.3` shipped with
+manifests still saying `2.7.2`).
+
+After tagging, the workflow writes the plain `MAJOR.MINOR.PATCH` into the three
+manifests and opens a `chore(release): sync plugin manifests to X.Y.Z [skip ci]`
+PR — `master` is protected, so the bump lands through review like everything
+else. Only the production stream writes manifests; `-stg` releases keep their own
+tag line and never touch them.
+
+`scripts/check-release-drift.sh` compares the latest plain tag with the four
+manifest fields and exits RED on mismatch; the `Release drift` workflow runs it
+daily so a rejected or forgotten sync surfaces within a day. Version derivation
+lives in `scripts/next_version.sh` (tested in `tests/test_next_version.py`), which
+keeps the `-stg` tags out of the production line.
 
 ### Setup
 
@@ -418,7 +400,7 @@ Set `staging` as your repo's default branch (GitHub → Settings → Branches �
 
 ## What You Get
 
-### 17 Skills
+### 31 Skills
 
 AI behaviors that activate automatically when you use relevant keywords. Also invokable explicitly with `/skill-name`.
 
@@ -428,40 +410,72 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `writing-plans` | Implementation plans with file maps, task breakdowns, and work package checklists. Saves to `docs/plans/` + `docs/checklists/` | "Write a plan...", "Break this down..." |
 | `autoship` | Fully automated plan-to-PR: validates plan, runs TDD subagents per task, then simplify → review → docs → PR. **Deploy mode** (on staging server): also deploys, health-checks, and runs integration/E2E tests before PR | "implement it with autopilot", "autoship" / "implement and deploy", "ship and deploy" |
 | `tdd` | Test Writer agent (RED) → coordinator gate → Implementer agent (GREEN + REFACTOR). Structurally enforces TDD. | "Start implementing...", "implement", any new feature or bug fix |
+| `e2e-playwright` | Enforce end-to-end testing for both frontend (Playwright browser tests) and backend (pytest integration/E2E). Scaffolds Playwright + pytest, writes persistent specs (golden path + edge cases + error states), runs them, and debug-fixes failures from traces — never by weakening assertions. Conditionally mandated: frontend E2E runs when frontend files change, backend E2E when backend files change, both skip for docs-only. Gates PRs in the TDD pipeline. | "e2e test", "playwright", "browser test", "test the UI", "end-to-end", "frontend test", "integration test", "backend test", "verify the flow" |
+| `quality-gates` | Lay down the config-layer quality gates: coverage thresholds (pytest-cov `--fail-under`), TypeScript strict mode, env validation (pydantic-settings/zod), CODEOWNERS + branch protection, and a CI lint/format/typecheck/coverage gate. Declarative enforcements that run on every PR automatically. | "coverage gate", "strict mode", "tsconfig strict", "env validation", "CODEOWNERS", "branch protection", "quality gate", "add coverage", "enforce type safety" |
+| `api-contract-testing` | Prevent API contract drift. Validates every response against the OpenAPI schema, fuzzes the API with Schemathesis (property-based testing), and uses Pact contracts where services deploy independently. Catches the highest-severity backend gap: an API that changes shape without breaking its contract. | "contract test", "schemathesis", "openapi", "api contract", "pact", "schema validation", "fuzz the api", "api drift" |
+| `db-migration-testing` | Make database migrations safe to ship: test every migration up AND down (round-trip), verify zero-downtime expand-contract for large tables, confirm rollback and data preservation before touching prod. Prevents the second most common prod-outage class. | "migration", "alembic", "schema change", "migrate", "add column", "backfill", "zero-downtime migration", "rollback migration", "db migration test" |
+| `dependency-audit` | Audit and remediate supply-chain vulnerabilities in dependencies. Scans with osv-scanner (multi-ecosystem), npm audit (Node), pip-audit (Python); upgrades vulnerable packages in the lockfile and verifies the fix. Enforced at commit time + CI, and on demand for remediation. | "dependency audit", "osv-scanner", "npm audit", "pip-audit", "vulnerable package", "supply chain", "update dependencies", "fix vulnerabilities" |
+| `incident-runbook` | Create SEV1-4 incident runbooks and blameless postmortems that close the alert→action gap. Every observe alert links to a runbook this skill writes: symptom → suspected causes → check → mitigate → escalate → rollback, plus 5-Whys postmortems with owned action items. | "runbook", "incident", "postmortem", "on-call", "create a runbook", "write a postmortem", "SEV" |
 | `verification` | Confirm a task is done — tests, lint, type-checks, spec coverage | "Is this done?", "Verify...", "Final check..." |
 | `refactor` | **Protocol A** (active codebase): surgical incremental refactoring. **Protocol B** (legacy): characterization-test-first sequence | "Refactor...", "Clean up...", "Legacy refactor..." |
 | `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |
 | `systematic-debugging` | Repro → Isolate → Hypothesize → Test → Fix → Post-mortem saved to `docs/post-mortems/` | "Why is X failing?", "Debug...", "Works locally but not in prod..." |
-| `pr` | Rebase, conflict resolution, test gate, **update docs**, push, open PR, update checklist | "Create a PR...", "I'm done...", "Push and PR..." |
+| `pr` | Rebase, conflict resolution, test gate, **update docs**, **update GitHub wiki**, sync living-docs to gbrain, push, open PR, update checklist | "Create a PR...", "I'm done...", "Push and PR..." |
 | `git-worktrees` | Manage parallel git worktrees for concurrent feature work | "Worktree...", "Parallel branches..." |
 | `repo-docs` | Generate `ARCHITECTURE.md`, `WORKFLOWS.md`, `DB_SCHEMA.md`, `DEPLOYMENT.md` | "Document this repo...", "Write architecture docs..." |
+| `repo-wiki-writer` | Write/refresh the GitHub Wiki (Home, How it works, Technical Details) in plain language. Run automatically by `/pr` and `/autoship` on every PR | "Update the wiki...", "Document this for onboarding..." |
 | `security-audit` | Full-codebase OWASP Top 10 audit — for pre-launch or major refactors | "Security audit...", "Audit the whole codebase..." |
 | `pre-review-cleanup` | Scan for template placeholders, boilerplate, and stale scaffold code | "Clean up template files...", "Remove boilerplate..." |
-| `setup-project` | One-time setup: creates `.github/workflows/claude.yml` and `CLAUDE.md`, commits, prints checklist for remaining manual steps | "set up the @claude workflow", "setup project", "add @claude to this repo" |
+| `setup-project` | One-time setup: creates `.github/workflows/release.yml` and `CLAUDE.md`, commits, prints checklist for remaining manual steps | "setup project", "initialize project for the team", "project setup" |
 | `interview` | Requirements extraction — one question at a time before planning begins. Stops when it can predict your next 3 questions. Outputs a Confirmed Intent statement. | "interview me", "help me figure out requirements", "I'm not sure what I want" |
 | `doubt` | Adversarial in-flight decision review. Fresh-context subagent gets only artifact + contract (never your reasoning). Finds problems, doesn't approve. Max 3 cycles. | "second opinion", "double-check this decision", "stress-test this design" |
 | `observe` | Structured observability shipped with the feature: on-call questions first → structured logs + correlation IDs → RED metrics → OTel → symptom-based alerts → staging verification | "add observability", "add logging", "add metrics", "add tracing", "instrument this" |
 | `deprecate` | Safe removal of APIs, modules, or features: decision gate → replacement first → advisory/compulsory type → migration guide → Strangler/Adapter/Feature-flag → zero-usage gate → remove | "deprecate this", "remove this API", "sunset this feature", "migrate away from X" |
+| `codemax-gbrain` | Fold the shared gbrain brain into the dev loop: pull the requirement/blueprint/ADR a work order traces to at task start, and sync living-docs back to gbrain at task end (via `codemax sync run`). Never manually query the brain — it's part of the workflow. | "pick up a work order", "start this task", "sync docs to gbrain", "what context exists for WO-*", "codemax", "gbrain" |
+| `ponytail` | Laziest solution that actually works: YAGNI first, standard library before custom code, native platform features before dependencies, one line before fifty. Levels: lite / full / ultra. **Third-party — vendored from [dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail) (MIT).** | "ponytail", "be lazy", "lazy mode", "simplest solution", "minimal solution", "yagni", "do less", complaints about over-engineering or bloat |
+| `ponytail-review` | Diff review that hunts only over-engineering: reinvented standard library, unneeded dependencies, speculative abstractions, dead flexibility. One line per finding: location, what to cut, what replaces it. | "review for over-engineering", "what can we delete", "is this over-engineered", "simplify review" |
+| `ponytail-audit` | Whole-repo over-engineering audit (scans the tree, not a diff): ranked list of what to delete, simplify, or replace with stdlib/native equivalents, biggest cut first. One-shot report; applies nothing. | "audit this codebase", "audit for over-engineering", "what can I delete from this repo", "find bloat" |
+| `ponytail-debt` | Harvests every `ponytail:` comment into a debt ledger, so deliberate shortcuts record their ceiling and upgrade path instead of rotting into "later means never". One-shot report; changes nothing. | "ponytail debt", "what did ponytail defer", "list the shortcuts", "ponytail ledger" |
+| `ponytail-gain` | Displays ponytail's measured impact scoreboard (less code, less cost, more speed) from the upstream benchmark medians. One-shot display, not a mode. | "ponytail gain", "what does ponytail save", "ponytail scoreboard" |
+| `ponytail-help` | Quick-reference card for all ponytail modes, skills, and commands. One-shot display, not a mode. | "ponytail help", "what ponytail commands", "how do I use ponytail" |
 
 > All skills apply Andrej Karpathy's coding principles: Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution.
 
+> The six `ponytail*` skills are **third-party and vendored verbatim** from
+> [dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail) (MIT, (c) 2026
+> DietrichGebert, pinned at commit `e3ba2aa`). They are **not** Tapway-authored and do not
+> carry the Karpathy framing above. Licence retained at `skills/ponytail/LICENSE`; upstream repo
+> and commit are pinned in each skill's frontmatter.
+
+> **Measured impact** — A/B on 5 Tapway repos, 30 headless agent sessions, n=3 per cell,
+> `deepseek-v4.1-flash`: **−40% input tokens, −54% total, −50% cost, −38% source LOC**, with no
+> measured loss of correctness (100% baseline vs 93% ponytail; neither arm dropped a validation
+> guard, and the single ponytail miss was a malformed generation with zero edits). n=3 with up to
+> 3.6× run-to-run variance — treat the means as ±10pp. Note `ponytail` is **auto-triggering**:
+> once loaded it shapes how code is written for *every* coding task, not only on request.
+
 ---
 
-### 5 Guardrail Hooks
+### 10 Guardrail Hooks
 
 Automatic checks that fire on Claude Code lifecycle events.
 
 | Hook | Event | What it does |
 |---|---|---|
-| `pre-bash-safety` | PreToolUse (Bash) | Blocks force-push, hard-reset on `main`, direct commits to `main`. Blocks prod commands unless `ALLOW_PROD=1` is set. |
-| `post-write-lint` | PostToolUse (Write\|Edit) | Runs the project linter on changed files |
+| `tool-guard` | PreToolUse (Bash + Read/Edit/Write/Grep/Glob/Notebook) | Blocks reading `.env` and credential files, environment dumps, and passwords on the command line; blocks commits/pushes to protected branches and force-pushes; with `ask_before_changes` (or `TAPWAY_GUARD_ASK=1` on servers) asks before commands it recognises as changing a server, repo or database (a known list, not an allowlist). Per-repo config in `.claude/tool-guard.json` — see [hooks/tool-guard/README.md](hooks/tool-guard/README.md) |
+| `pre-bash-safety` | PreToolUse (Bash) | Blocks force-push, hard-reset on `main`, direct commits to `main`. Blocks prod commands unless `ALLOW_PROD=1` is set. Reads the command from the stdin payload (it read `$1` before, so it never fired). |
 | `pre-commit-secrets` | PreToolUse (git commit) | Scans staged files for secrets, keys, and credentials before allowing a commit |
+| `pre-commit-gate` | PreToolUse (git commit) | Blocks the commit (`exit 2`) when lint / format / typecheck / coverage fail — the progress quality gate |
+| `dependency-audit` | PreToolUse (git commit) | Blocks the commit (`exit 2`) when critical/high vulnerabilities are found (osv-scanner / npm audit / pip-audit) |
+| `pre-commit` (backstop) | Git `pre-commit` hook | Platform-agnostic backstop installed by setup-project; catches lint/format/typecheck failures from any agent or human |
+| `post-write-lint` | PostToolUse (Write\|Edit) | Runs the project linter on changed files |
+| `post-plan-issue` | PostToolUse (Write\|Edit) | Creates the `codemax`-labelled GitHub issue the moment `docs/plans/*.md` is written — or an accepted `docs/brainstorming/*.md` (`status: accepted`) — and records `issue: <n>` in its frontmatter |
 | `session-start` | SessionStart | Displays project info, git status, and environment summary when Claude Code opens |
 | `post-commit-release-note` | PostToolUse (git commit) | Parses conventional commits and appends formatted entries to `CHANGELOG.unreleased.md` |
 
 ---
 
-### 4 Specialized Agents
+### 5 Specialized Agents
 
 Subagent definitions for use with the TDD and autoship skills:
 
@@ -469,6 +483,7 @@ Subagent definitions for use with the TDD and autoship skills:
 |---|---|
 | `code-reviewer` | Systematic review with security, performance, and type-safety checks |
 | `test-writer` | Write tests following project conventions (pytest / Jest) |
+| `db-reviewer` | Database-layer review: N+1 detection, index coverage, migration safety, EXPLAIN ANALYZE |
 | `security-auditor` | OWASP Top 10 audit for auth, payments, and user data paths |
 | `devops-sre` | Docker, CI/CD, and infrastructure configuration review |
 
@@ -478,7 +493,7 @@ Subagent definitions for use with the TDD and autoship skills:
 
 | Command | Mode | Purpose |
 |---|---|---|
-| `/setup-project` | All | One-time project setup: creates `.github/workflows/claude.yml` and `CLAUDE.md`, commits, and prints a manual-steps checklist (GitHub secret). Run this in any new repo adopting the plugin. |
+| `/setup-project` | All | One-time project setup: creates `.github/workflows/release.yml` and `CLAUDE.md`, commits, prints a manual-steps checklist. Run this in any new repo adopting the plugin. |
 | `/interview` | All | Extract requirements one question at a time before planning. Use when the request is underspecified. Output feeds into `/brainstorming` or `/plan`. |
 | `/brainstorming` | All | Explore approaches before coding |
 | `/plan` | All | Write implementation plan + work package checklist |
@@ -487,9 +502,10 @@ Subagent definitions for use with the TDD and autoship skills:
 | `/refactor` | Individual / Legacy | Incremental (Protocol A) or legacy characterization-test workflow (Protocol B) |
 | `/doubt` | All | Adversarial review of any high-stakes decision before it's locked in. Use for irreversible changes, service boundaries, security assumptions. |
 | `/observe` | All | Add structured logging, RED metrics, OTel, and alerts to any new endpoint or task. Run before `/pr`. |
-| `/pr` | All | Rebase, test, update docs, push, open PR, update checklist — **mandatory exit** |
+| `/pr` | All | Rebase, test, update docs, update GitHub wiki, push, open PR, update checklist — **mandatory exit** |
 | `/deprecate` | All | Safe removal of any API, module, or feature. Enforces: replacement first, migration guide, zero-usage gate. |
 | `/repo-docs` | Legacy / All | Generate architecture, schema, workflow, deployment docs |
+| `/repo-wiki-writer` | All | Write/refresh the GitHub Wiki (Home, How it works, Technical Details). Run automatically by `/pr` and `/autoship` |
 | `/cleanup` | Individual | Remove template artifacts *(tapway-claude-template users only)* |
 | `/review` | All | Three-tier self-review before PR |
 | `/release <patch\|minor\|major>` | All | Semver bump, release notes, git tag |
@@ -519,12 +535,17 @@ These ship with Claude Code — no installation needed. Several are wired into t
 These happen automatically — no commands needed:
 
 - **Can't commit to `main` directly** — the hook blocks it and tells you to create a branch
+- **Secrets never reach the transcript** — `tool-guard` blocks reading `.env`/credential files, `printenv`/`env` dumps, `docker inspect` env output and passwords in commands
+- **Servers ask before changes** — with `TAPWAY_GUARD_ASK=1` (set by [server/managed-settings.json](server/managed-settings.json)) deploys, migrations, writes and other recognised changing commands need an approval
 - **Can't run prod commands accidentally** — blocked unless `ALLOW_PROD=1` is set
 - **Secrets caught before commit** — staged files scanned for keys and credentials on every `git commit`
+- **Commits blocked on quality failures** — `pre-commit-gate` blocks (`exit 2`) a commit whose lint/format/typecheck/coverage fails
+- **Commits blocked on vulnerable dependencies** — `dependency-audit` blocks a commit with critical/high CVEs (osv-scanner / npm audit / pip-audit)
+- **Every commit from any agent or human** — the git `pre-commit` backstop enforces lint/format/typecheck outside the agent
 - **Linting after every file edit** — runs the project linter automatically
 - **Release notes auto-generated** — every conventional commit appends to `CHANGELOG.unreleased.md`
 - **Docs updated on every PR** — `/pr` runs `/repo-docs` or updates affected doc sections before pushing
-- **Missing workflow detected on session start** — if `.github/workflows/claude.yml` is absent, the session-start hook warns and tells you to run `/setup-project`
+- **Missing workflow detected on session start** — if `.github/workflows/release.yml` is absent, the session-start hook warns and tells you to run `/setup-project`
 
 ---
 
@@ -542,6 +563,10 @@ claude plugin update tapway-superpowers@tapway-superpowers
 ```
 
 Restart Claude Code after updating to apply changes.
+
+**Troubleshooting:**
+- `claude plugin update tapway-superpowers` failing with "Plugin not found"? Use the full `tapway-superpowers@tapway-superpowers` name (`<plugin>@<marketplace>`) — the bare name doesn't resolve.
+- CLI says "already at the latest version" but you know a newer tag exists on GitHub? `claude plugin update` reads the `version` field in `.claude-plugin/marketplace.json`/`plugin.json`, not git tags. If a release was tagged without running `/release` (which bumps those manifest files), the CLI has nothing newer to see even though `main` has moved on. Check the manifest version at the tag in question to confirm.
 
 ---
 

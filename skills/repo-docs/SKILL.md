@@ -17,6 +17,22 @@ must have these documents before it is considered "production-ready" or handed o
 
 ---
 
+## Incremental mode — coding-task completion and PRs
+
+Use incremental mode when called from verification, PR, or autoship. Review
+the final task diff (including staged, unstaged, and new task files); for a PR,
+review the whole diff against its intended base. Check public behavior and
+interfaces, schema, workflows, configuration, deployment, and operator guidance.
+Read and update only the affected sections. Use the generation steps below for
+an explicit full-docs request or missing applicable baseline docs, not routine edits.
+
+Return exactly one plain PR-body line for coding changes: `Docs: updated —
+docs/WORKFLOWS.md` (actual added/modified maintained docs, comma-separated), or
+`Docs: no impact — <specific reason why existing docs remain accurate>`.
+Planning artifacts, deleted docs, and unrelated edits are not evidence. Reuse a
+prior result only if the reviewed code and docs diff still matches the task or PR.
+Do not fabricate a no-impact result if the diff has not been reviewed.
+
 ## Step 0 — Understand the Repo First
 
 Before writing anything, do a thorough read of the codebase:

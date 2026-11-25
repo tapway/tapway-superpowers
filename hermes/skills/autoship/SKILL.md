@@ -166,7 +166,7 @@ GREEN: minimum code to make test pass — no gold-plating.
 REFACTOR: only if code is unclear — run tests after every step.
 
 SURGICAL CHANGES: production files only.
-CONVENTIONS: [key items from CLAUDE.md]
+CONVENTIONS: [key items from project agent guide / repo conventions]
 
 Commit: git commit -m "feat/fix/refactor: [behavior]"
 Report: test output, files changed, commit hash.
@@ -213,18 +213,32 @@ If Critical fixes are significant enough to require a new task, add it to the st
 
 **Step 3 — Update Docs**
 
-Run `/repo-docs` — mandatory on every autoship run, no exceptions.
-
-```
-/repo-docs
-```
-
-`/repo-docs` updates only the sections affected by this branch's changes if docs already exist, or generates all docs from scratch if this is the first time. Commit any changes it makes:
+Load `tapway-superpowers:repo-docs` (or the installed standalone `repo-docs`
+skill) and use incremental mode. Update affected sections, or bootstrap missing
+baseline docs. Carry the resulting `Docs:` line into the PR body for coding
+changes; reuse it only if the review covers the final PR diff. Commit any doc changes:
 
 ```bash
 git add docs/
 git commit -m "docs: update project docs for [feature]"
 ```
+
+**Step 4 — E2E Gate (conditional — mandated for frontend and/or backend, skipped for docs-only)**
+
+Run `git diff --name-only main...HEAD` and classify the changed files:
+
+- **Frontend files changed** (`*.tsx`, `*.jsx`, `**/pages/**`, `**/app/**`, `**/components/**`, `*.css`, etc.) → frontend E2E (Playwright) is **mandated**. Run the `e2e-playwright` skill's frontend section: scaffold `@playwright/test` if absent → write `e2e/<feature>.spec.ts` (golden path + edge cases + error states, auth via `auth.setup.ts` storageState) → `npx playwright test` → debug failures from traces (never weaken assertions).
+- **Backend files changed** (`*.py`, `**/backend/**`, `**/api/**`) → backend E2E (pytest) is **mandated**. Run the `e2e-playwright` skill's backend section: write `backend/tests/integration/` + `backend/tests/e2e/` tests (httpx + ASGITransport, real test DB) → `pytest tests/integration/ tests/e2e/ --tb=short -q` → fix failures (never weaken assertions).
+- **Only docs/config files changed** → skip this step entirely.
+
+- [ ] Frontend change detection run — decision recorded (REQUIRED or SKIPPED)
+- [ ] If frontend REQUIRED: `npx playwright test` passes (full suite, no new failures)
+- [ ] Backend change detection run — decision recorded (REQUIRED or SKIPPED)
+- [ ] If backend REQUIRED: `pytest tests/integration/ tests/e2e/ --tb=short -q` passes
+
+If any E2E suite fails, fix the tests or the app and re-run. **Never open a PR with a failing E2E suite.**
+
+If no frontend or backend files changed, skip this step entirely — the E2E gate does not apply to docs-only changes.
 
 ---
 
@@ -286,8 +300,8 @@ Retry every 5 seconds for up to 60 seconds (12 attempts). Record which endpoint 
 # Docker compose — restart with previous image
 docker compose down && git stash && docker compose up -d
 
-# Systemd service
-sudo systemctl restart [service-name]
+# systemd unit (use whatever privilege model your host already uses)
+systemctl restart [service-name]
 
 # PM2
 pm2 restart all

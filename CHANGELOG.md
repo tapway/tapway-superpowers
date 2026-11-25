@@ -1,12 +1,538 @@
 # Changelog
 
+## [2.11.3] — 2026-11-25
+
+_See the release notes._
+
+## [2.11.1] — 2026-11-25
+
+_See the release notes._
+
+## [2.10.1] — 2026-11-25
+
+### Added
+
+- **`tool-guard` hook: secrets, protected branches, and ask-before-changes.** Runs before every Bash command and file-tool call.
+  - *Secrets:* blocks reading `.env` / `*.env` / `.envrc` and credential files (templates like `.env.example` stay readable), environment dumps (`printenv`, `env`, `/proc/*/environ`, `docker [compose] exec|run ... env`, `docker inspect` without a narrow `--format`, `docker compose config` without `--quiet`, `echo $..._TOKEN`, `print(os.environ)`), credential printers (`gh auth token`, `aws configure get`, `kubectl get secret -o`), and passwords on the command line (`curl -u`, `redis-cli -a`, `mysql -p…`, `user:pass@` URLs, `--password=`). `VAR=$(…)` captures are allowed: nothing reaches the transcript.
+  - *Branches:* blocks commits/pushes to protected branches (default `main`, `master`), force-pushes (`--force`, `-f`, `+refspec`), bulk pushes, and PRs that skip a repo's promotion flow.
+  - *Shell parsing:* sees through `\` continuations, comments, `bash -c`, `eval`, `$(…)` (quoted or not, not in single quotes), backticks, `sudo`/`env`/`timeout` wrappers, `if`/`for`/`{` keywords, subshell `cd`, redirections, and heredocs fed to shells, `ssh` or interpreters.
+  - *Fails closed* on anything it cannot parse, a broken config, a crash, a missing `python3`, or a command over 64 KB.
+  - *Asking* (`ask_before_changes`, or `TAPWAY_GUARD_ASK=1`) prompts before commands it recognises as changing a server, repo or database. Off by default so `/autoship` is not interrupted; servers turn it on. It is a list of known changing commands, not an allowlist (see "Known limits" in `hooks/tool-guard/README.md`).
+  - Per-repo settings in `.claude/tool-guard.json`. With `TAPWAY_GUARD_MANAGED=1` (set by the server template) a repo's config can only tighten the rules, and the agent cannot edit the guard's policy files (`.claude/tool-guard.json`, `.claude/settings*.json`). A command that `cd`s into another git repo is judged by that repo's config (asking never switches off on the way).
+- **Server template and guide.** `server/managed-settings.json` for `/etc/claude-code/managed-settings.json` force-installs tapway-superpowers and tapway-skills (auto-update on), allows only Tapway and official marketplaces, sets `TAPWAY_GUARD_ASK=1` and `TAPWAY_GUARD_MANAGED=1`, denies env-file and credential reads and edits of the guard's policy files, and disables bypass mode. `docs/SERVER_GUARDRAILS.md` covers setup and how a merged change reaches a server.
+- **Skill eval harness with canary secrets.** `evals/lib/canary-env.sh` and `canary-repo.sh` build a fake repo whose env files hold `CANARY-` values; `evals/templates/case.yaml` carries the standard safety graders (no canary in the transcript or answer, no env file opened, edited or grepped, no changing command without approval); `scripts/skill-evals.sh` runs any repo's `.claude/skills` + `evals/` through `claude plugin eval` (the sandbox does not load the repo's hooks, so a case measures the skill text), nothing published and a cost cap.
+
+### Fixed
+
+- **`pre-bash-safety` never fired in Claude Code.** It read the command from `$1`, but Claude Code sends the tool call as JSON on stdin, so force-pushes, commits to `main` and `ALLOW_PROD`-gated commands all passed. It now parses the stdin payload itself and **fails closed**: no `python3`, a non-JSON payload or a malformed `tool_input` block (exit 2) instead of passing every command. It checks one shell segment at a time (so `git push && tail -f log` is not a force-push), and uses POSIX patterns that behave the same with GNU and macOS grep. Now that the rules are live they were tightened so they do not block legitimate work: `feat/x-fix` is not a force-push, `products` / `reproduce` are not prod, reading `docker-compose.prod.yml` is fine (only changing compose commands are gated), and build tools' `--production` is allowed. The Codex copy carries the same rules.
+
+### Tests
+
+- `tests/test_tool_guard.py`, `tests/test_pre_bash_safety.py` (Claude hook and Codex copy), `tests/test_skill_evals_harness.py`. All drive the hooks with real stdin payloads; CI runs them on Linux and macOS (`skills-tests.yml`).
+- Every finding of the pre-release adversarial reviews and of the PR review is a regression test. The engine also reproduces all guard cases of samurai-inspector's repo-local guard, which it replaces.
+
+## [2.8.8] — 2026-11-18
+
+_See the release notes._
+
+## [2.8.7] — 2026-11-18
+
+_See the release notes._
+
+## [2.8.5] — 2026-11-18
+
+### Fixed
+
+- **Release versions drifted from the tags.** `v2.8.3` shipped while all three manifests still said `2.7.2`, so `claude plugin update` resolved the old version. The manifest-sync step committed the bump and then had its push rejected (`GH013: Cannot update this protected ref`) because `master` requires a PR; `continue-on-error: true` turned that into a warning, and the warning claimed the tag carried the version — it did not.
+- **The manifest sync now opens a PR** instead of pushing to a protected branch (`pull_requests: write`), and only the production stream writes manifests — a `-stg` release no longer touches what clients install.
+- **Version derivation moved to `scripts/next_version.sh`** and is tested. The old inline glob (`git tag -l "v*"`) matched `-stg` tags while computing the master version, so a staging release could bump production.
+- **`scripts/check-release-drift.sh` + a daily `Release drift` workflow** detect tag/manifest mismatch instead of leaving it silent.
+
+## [2.7.2] — 2026-11-18
+
+### Fixed
+
+- **The Hermes PR gate no longer dies on its own import.** `gates._pr_contract_gate` did `from .plan_issue import issue_number`, which raises `ImportError: attempted relative import with no known parent package` whenever the plugin files are imported flat (tooling, tests, and any loader that does not give the plugin a package context). It now falls back to the absolute import; a regression test loads `gates.py` as a flat module and asserts the gate still blocks.
+
+## [2.7.1] — 2026-11-18
+
+### Fixed
+
+- **`CODEMAX_ENABLED=1` now actually turns the Hermes gates on.** `gates.enabled()` only honoured `CODEMAX_WORKFLOW` and `.codemax.yml`, while `plan_issue.codemax_repo()` honoured `CODEMAX_ENABLED` — so a developer who followed the team guide (which tells them to export `CODEMAX_ENABLED`) got issue auto-creation but a dead PR gate. Both now read the same three switches.
+
+## [2.7.0] — 2026-11-18
+
+### Added
+
+- **Plan → GitHub issue, automatically.** A new `post-plan-issue` hook (Claude Code and Codex `PostToolUse`, Hermes `post_tool_call`) creates the `codemax`-labelled issue the moment `docs/plans/*.md` is written and records `issue: <n>` in the plan frontmatter. Issue creation used to be a prose instruction nobody ran: the session-start script was detect-only, `create-issue.sh` was only mentioned in a skill, and neither repo had a single `codemax`-labelled issue.
+- **Readable issues.** `hermes/plugin/plan_issue.py` renders every issue as Summary / Why / What changes (tasks as checkboxes) / Acceptance criteria / Test plan / Files / Links, with the full plan collapsed, and caps the body below GitHub's 65536-character limit.
+- **Hermes PR gate.** `hermes/plugin/gates.py` now blocks `gh pr create` when a committed `docs/plans/*.md` on the branch has no `issue:` frontmatter — the same rule the Claude/Codex `pre-pr-contract` hook applies, now enforced in-process for Hermes agents.
+
+### Changed
+
+- **`hooks.json` no longer misdescribes the session-start script.** The Codex/SessionStart entry claimed it "auto-creates if missing"; it is detect-only by design, and the description now says so.
+- **`/writing-plans` skill and `docs/team-guide.md`** describe the automatic path and keep `plan_issue.py <plan>` as the manual fallback.
+
+### Fixed
+
+- **Idempotent creation.** Re-saving a plan, or writing it again after a formatting fix, adopts the existing issue instead of opening a second one.
+
+## [2.6.2] — 2026-11-17
+
+### Added
+
+- **`/repo-wiki-writer` skill** — writes or refreshes a repo's GitHub Wiki as three plain-language pages (`Home.md`, `How-it-works.md`, `Technical-Details.md`) that a new teammate can read top to bottom. Clones the `<repo>.wiki.git` sibling repo, studies the code repo (README, entrypoints, config, interfaces, tests), and never copies real secret values — documents variable names and formats only, flagging unknowns with `> ❓ Ask the team: ...` instead of guessing.
+
+### Changed
+
+- **`/pr` skill** — added mandatory Step 5b (Update the GitHub Wiki), right after the existing `/repo-docs` step and before the optional CodeMAX gbrain sync (now Step 5c): runs `/repo-wiki-writer` scoped to this PR's diff against `$TARGET`, commits and pushes the wiki repo directly (it's a separate git repo from the code repo, so this isn't part of the PR diff itself), and notes the result in the PR body.
+- **`/autoship` skill** — Phase 4 now includes Step 3b (Update the GitHub Wiki), mirroring the same logic as `/pr`, before the E2E gate and before calling `/pr`.
+- **`repo-wiki-writer` skill** — its publish step now skips the second user-confirmation prompt when invoked from `/pr` or `/autoship`, since the user already confirmed by running that workflow; it summarizes the wiki diff alongside the doc update summary instead.
+- **README** — "What You Get" skills table now lists 31 skills; added `repo-wiki-writer` row, a `/repo-wiki-writer` slash-command row, and updated the `/pr` row and Individual-mode workflow description to mention the wiki update step.
+
+---
+
+## [2.6.1] — 2026-11-04
+
+### Fixed
+- The reusable `workflow-gate` workflow checks out `tapway-superpowers` for
+  `scripts/workflow_gate.py`; caller repos no longer need to vendor it.
+- Codex gets a self-contained `codex/hooks/pre-pr-contract.sh` (Codex installs
+  hooks one file at a time), wired in `codex/hooks.json.template`.
+
+### Added
+- `pr` and `brainstorming` skills document the hook gates and their one-run
+  overrides (`TAPWAY_PR_GATE`, `TAPWAY_BRAINSTORM_GATE`).
+
+## [2.6.0] — 2026-11-04
+
+### Added
+- `hooks/lib/hook_payload.py`: one normaliser for Claude (`tool_input`),
+  Hermes (`args`) and Codex (flat) payloads. The brainstorm gate had been a
+  no-op under Hermes because it only read `tool_input`.
+- Hermes `pre_tool_call` gate in the plugin (`hermes/plugin/gates.py`), so
+  grounding is enforced even without the shell hooks installed.
+- `pre-pr-contract` hook + `scripts/workflow_gate.py` + reusable
+  `workflow-gate` CI: blocks `gh pr create` when a plan lacks `issue: N` or a
+  brainstorm option lacks grounding.
+- Gates default on under CodeMAX (`.codemax.yml` / `CODEMAX_WORKFLOW=1`).
+
+### Tests
+- 21 tests: three payload shapes end-to-end through the shell hook, the
+  in-process gate, and the PR contract gate over a real temp git repo.
+
 All notable changes to tapway-superpowers are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [2.5.1] — 2026-11-03
+
+### Fixed — the Hermes plugin registered no skills on a stock install
+
+`2.5.0` parsed each `SKILL.md` with `import yaml`. The Hermes runtime bundles
+`hermes_yaml`, not PyYAML, so plugin loading failed with `No module named
+'yaml'` and the profile listed zero plugin skills:
+
+```
+WARNING hermes_cli.plugins: Failed to load plugin 'tapway-superpowers': No module named 'yaml'
+```
+
+Registration now uses `agent.skill_utils.parse_frontmatter` — the parser Hermes
+itself uses for every `SKILL.md`, which also strips the BOM. PyYAML remains only
+as a fallback when this module runs outside Hermes.
+
+The `2.5.0` test suite could not catch this because it ran under the
+hermes-agent virtualenv, which does have PyYAML. A new check runs `register()`
+in a subprocess with `sys.modules["yaml"] = None`, reproducing the stock runtime.
+
+Verified end to end on a fresh Hermes profile installed from this repository:
+knowledge of `tapway-superpowers:brainstorming`, `:tdd` and `:repo-docs`
+returned by `skills_list`, and gbrain MCP tools answering from the shared brain.
+
+## [2.5.0] — 2026-11-03
+
+### Added — installable Hermes plugin
+
+`hermes/plugin/` publishes the Hermes skills as a plugin, so they install
+without cloning:
+
+```bash
+hermes plugins install tapway/tapway-superpowers/hermes/plugin --enable
+```
+
+Skills load as `tapway-superpowers:<name>` through `skill_view`. They are not
+copied into the profile's skills directory and do not become bare `/<name>`
+slash commands, so they cannot collide with another copy of the same skill.
+
+The plugin ships as a **subdirectory** rather than a root `plugin.yaml`:
+plugin-guard marks the repository root **dangerous** (304 findings, 18
+critical — `agent_config_mod_shell`, `echo_pipe_exec`, `read_secrets_file`)
+and the subdirectory **safe** (30 findings, none critical). Both are asserted
+in `tests/test_hermes_plugin.py`, not hand-checked.
+
+- Every skill registers with its parsed YAML frontmatter and description.
+  Hermes does not re-read `SKILL.md` for the tier-1 listing, so passing them at
+  registration is what makes `skills_list` and `<available_skills>` show a real
+  description instead of a blank one.
+- A broken install fails loudly: a missing `skills/` directory, a skill
+  directory without `SKILL.md`, or malformed frontmatter raises with the path
+  instead of registering zero skills and looking healthy.
+- `scripts/sync-hermes-plugin-skills.sh` refreshes the byte mirror from
+  `hermes/skills/`; `--check` exits non-zero on drift.
+- `api_version: 1` pins the plugin API generation.
+
+### Changed
+
+- `plugin.yaml`, `.claude-plugin/plugin.json` and the top `CHANGELOG.md` entry
+  are pinned to each other by test, so the versions cannot drift silently.
+- `.claude-plugin/marketplace.json`'s stale top-level `version` (2.2.1) is
+  reconciled with the release.
+- Linked skill files (`incident-runbook/templates/…`) are proven to resolve
+  through `skill_view(file_path=…)` against the registered plugin copy.
+
+### Testing
+
+- New `tests/test_hermes_plugin.py` registers into a **real** `PluginContext`
+  and runs the **real** plugin-guard — the previous suite used a permissive
+  mock, which could not fail the way the plugin fails. Without hermes-agent the
+  Hermes-only checks report SKIP; with it, 66/66 pass.
+- End-to-end: a real `hermes plugins install` into a throwaway `HERMES_HOME`
+  registers 31/31 skills with no empty descriptions.
+- `.github/workflows/skills-tests.yml` runs the plugin, install and docs
+  consistency scripts on every pull request.
+
+## [2.4.0] — 2026-09-24
+
+### Added — ponytail skill pack (vendored third-party, MIT)
+
+Six skills vendored **verbatim** from
+[github.com/dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail) (MIT, (c) 2026 DietrichGebert) at commit
+`e3ba2aa6f1e6f0bc4d69eb09c9f0d0a93af56156`, and ported into all three host trees: `skills/` (Claude),
+`hermes/skills/`, `codex/skills/`.
+
+- **`ponytail`** — forces the laziest solution that actually works: YAGNI first,
+  standard library before custom code, native platform features before dependencies,
+  one line before fifty. Levels `lite` / `full` / `ultra`. Auto-triggers on coding tasks.
+- **`ponytail-review`** / **`ponytail-audit`** — over-engineering review of a diff / of a whole repo.
+- **`ponytail-debt`** / **`ponytail-gain`** / **`ponytail-help`** — debt ledger,
+  impact scoreboard, reference card.
+- **`skills/ponytail/LICENSE`** — upstream MIT licence retained; upstream repo + commit
+  pinned in every vendored skill's frontmatter.
+
+Rule text is byte-for-byte upstream in all three trees; only the YAML frontmatter and an
+appended host-notes section were adapted. `tests/test_ponytail_pack.py` fails if any
+canonical rule line goes missing from a host port, or if any declared skill count drifts.
+
+### Changed
+
+- Skill counts synced across every declaration point: **30** (Claude `skills/`),
+  **31** (Hermes), **30 + `$tapway` umbrella** (Codex) — `plugin.json`, both `install.sh`
+  `SKILLS` arrays, `README.md`, `hermes/README.md`, `codex/README.md`, and
+  `tests/test_hermes_install.py`.
+- `.claude-plugin/marketplace.json` — version plus **pre-existing stale counts corrected**
+  (19 skills / 4 agents → 30 skills / 5 agents).
+- Hermes ports are free of the `CLAUDE.md` / `cat .env.example` skills-guard triggers that
+  break community installs.
+
+### Measured — A/B on 5 Tapway repos
+
+30 headless agent sessions, 2 arms x 5 repos x n=3, `deepseek-v4.1-flash`, pinned SHAs,
+per-cell clones; arms differ only by preloading this skill:
+
+- **−40.3% input tokens, −50.4% output, −53.7% total, −38.4% API calls, −50.4% cost,
+  −38.4% source LOC.**
+- Correctness **100% (baseline, 15/15) vs 93% (ponytail, 14/15)**; neither arm dropped a
+  validation guard or broke an existing suite. The single ponytail miss was a malformed
+  generation with zero edits — a model failure, not a quality regression.
+- Caveat: n=3 with up to 3.6x run-to-run variance — treat the means as ±10pp.
+
+---
+
+## [2.3.0] — 2026-09-21
+
+### Added — Platform grounding (G1–G6)
+
+- **`brainstorming` skill: Step 1.5 — Platform Context (mandatory, fail-closed).** Before any option is generated, the skill retrieves the platform-wide design context (ownership, contracts, existing capability, ADRs, data model, dependency direction) from the dedicated spec repo, records a routing decision, and writes unresolved items as `UNKNOWN (not retrieved: …)` rows. All three variants (skills/, hermes/skills/, codex/skills/) updated in sync.
+- **Option rows now grounded:** every option carries **Platform Fit** and a **Grounding:** line (`catalog:<platform>#<contract-id>`, ADR ids); options that violate a platform contract are recorded with **Rejected because platform:**.
+- **Index-first pack budget (~4k chars):** the platform context is an index with fetch-on-demand, never inline docs (context-rot defense).
+- **`pre-brainstorm-ground` gate (fail-closed):** shared lib + `extract-post-text.py`, shipped for Claude Code (`hooks/hooks.json` PreToolUse Write|Edit), Codex (`codex/hooks.json.template` Bash|Edit|Write) and Hermes (`hermes/config.hooks.yaml`, matcher `terminal|write_file|patch`). Validates the POST-write text (payload content / heredoc / echo bodies), accepts the skill template's bullet/bold `Grounding:` rows, gates nested `docs/brainstorming/**` paths, and fails closed when python3 is unavailable. Off by default (`TAPWAY_BRAINSTORM_GATE=1` enables — this repo is public).
+- **Release workflow hardened:** tag + GitHub release are published before (and independent of) the plugin-manifest version sync, which is now non-fatal when the branch ruleset rejects the bot's push — this unblocks Auto Release, which had failed on every master push since the ruleset landed.
+
+### Fixed
+
+- `check_docs_consistency.py`: stale count expectations corrected (skills 23→24, hermes/skills 24→25, hooks 8→10, plugin.json skills 23→24).
+- `.claude-plugin/plugin.json`: removed stale `hooks: []` field (official plugins omit it).
+
+### Tests
+
+- `tests/test-phase-g.sh` — 40+ assertions: Step 1.5 in all variants, template-form docs, creation-flow gating (grounded allowed / ungrounded blocked), heading-dodge prevention, no-python3 fail-closed, md5 copy-drift guard across the three hook copies.
+- `tests/e2e-platform-grounding.sh` — full chain: spec repo → pack build → CLI check → hook.
+
+---
+---
+
+## [2.2.1] — 2026-08-20
+
+### Fixed
+
+- Removed YAML frontmatter + duplicate `name` key from `reusable-release.yml` (parser cleanliness).
+
+---
+
+## [2.2.0] — 2026-08-20
+
+### Added
+
+- Centralized reusable SemVer release workflow (`.github/workflows/reusable-release.yml`) — `workflow_call` entry point consumer repos can call for the `vMAJOR.MINOR.PATCH-stg/-prod` scheme.
+
+---
+
+## [2.1.0] — 2026-08-15
+
+### Added — Codex port of Tapway Superpowers
+
+This release adds a `codex/` tree that brings the full Tapway engineering
+pipeline to **OpenAI Codex** (CLI / IDE), parallel to the existing `hermes/`
+port and mirroring the Claude-native source.
+
+### Added
+
+- **24 skills ported to Codex** (`codex/skills/`) — same pipeline as Claude:
+  interview → brainstorming → writing-plans → tdd → code-review → pr, plus
+  quality/process/infra skills and `codemax-gbrain` (env-gated).
+- **`$tapway` umbrella skill** — chains the full pipeline in order, the Codex
+  analogue of the Hermes `/tapway` bundle.
+- **9 enforceable hooks** (`codex/hooks/`) adapted to Codex's stdin-JSON hook
+  payloads — pre-bash-safety, pre-commit-secrets, pre-commit-gate,
+  dependency-audit, post-write-lint, post-commit-release-note, session-start,
+  GitHub-issue check/create. Wired via `codex/hooks.json.template`.
+- **Installer** (`codex/install.sh` + `install.ps1`) — copies skills to
+  `~/.agents/skills/` (user scope) or `.agents/skills/` (repo scope) and
+  optionally writes `.codex/hooks.json` + `AGENTS.md` into a consuming project.
+- **`AGENTS.md` pipeline template** written into consuming repos by the
+  installer (background discipline, never overwrites an existing file).
+- **`codex/README.md`** — Claude→Codex command mapping, hook-event mapping,
+  one-time trust-review docs, and a runbook for converting to a distributable
+  Codex plugin later.
+- **Parity test** `tests/test_codex_port.py` (287 checks) locking the port's
+  structure, guard-scrubbing, hook stdin parsing, and installer wiring.
+
+### Notes
+
+- **No custom slash commands in Codex** — the pipeline is invoked via `$skill`
+  mentions plus built-in `/plan` `/review` (Codex doesn't support user-defined
+  slash commands).
+- `dependency-audit` stays a hook, not a skill (matches the Claude layout).
+- Code-review pass resolved W1–W3 on the ported hooks: frontend lint path
+  handling, lockfile audit joining, and `--` option-injection guards.
+
+## [2.0.0] — 2026-08-14
+
+### Major — Canonical doc-routing + issue-driven session-start
+
+This major release consolidates the CodeMAX living-docs workflow around a
+single canonical source of truth and makes the session-start hint real.
+
+### Changed
+
+- **Wiki-vs-repo doc routing now lives in CodeMAX, not the brain wiki.** The
+  canonical routing table moved to
+  `tapway/codemax` → `docs/CONSUMING_A_CODEMAX_INSTANCE.md` → "Wiki vs. repo
+  docs". `writing-plans` 7c (both copies) and `codemax-gbrain`'s "Route before
+  you sync" pointer now reference that doc instead of the brain wiki's
+  `CONTRIBUTING.md`. Link, don't copy.
+
+### Fixed
+
+- **Session-start gbrain hint now detects the branch's GitHub issue, not a dead
+  WO-\*.** Nothing in the real dev flow writes a `WO-*` into a branch/`CLAUDE.md`
+  (work orders live on the CodeMAX panel); every branch gets a GitHub issue via
+  the plan step. The `session-start.sh` hook now looks up `label:codemax
+  in:body <branch>` (the same query as `create-issue.sh`) and hints to pull the
+  traced requirement/blueprint/ADR from the issue.
+  - Fixed the `git remote ... .git` swallowing bug so `gh issue list` actually
+    succeeds on HTTPS remotes (the hint was always showing "no issue" before).
+  - Hardened `tests/e2e-session-hook.sh` so it fails RED if the `.git` strip
+    regresses.
+
+## [1.8.9] — 2026-08-14
+
+### Added
+
+- **Hermes port of the `codemax-gbrain` skill** (`hermes/skills/codemax-gbrain/SKILL.md`). Hermes users previously had no agent-facing equivalent of the Claude brain-pull skill; now they do (pull context at task start, sync at task end), with per-tool sections where the tools diverge (MCP registration check, enforcement, manual "search the brain" fallback). Wired into `hermes/install.sh` + `hermes/install.ps1` (25 skills now).
+- **`writing-plans` step `7c` — "Route the docs the plan produces (wiki vs. repo)"** in both Claude and Hermes copies. After the plan (alongside the GitHub-issue step), each produced document is routed to the shared wiki/brain or the repo's own docs.
+  - **Non-CodeMAX users skip it entirely** (`CODEMAX_ENABLED` unset) and just update repo docs — nothing wiki-related runs or fails.
+  - **Read-only wiki access never blocks the pipeline**: routing still happens, but the agent pushes to wiki `master` only when it can (or drafts), and proceeds to the next step either way.
+- **`writing-plans` step `7b` (GitHub issue after plan)** added to the **Claude** copy, which was previously missing it (Hermes already had it) — closing the parity gap.
+
+### Fixed
+
+- **Hermes skills-guard compatibility for `codemax-gbrain` port.** The port previously contained the `agent_config_mod` trigger substring (`CLAUDE.md`), which would block `hermes skills install` in hub mode with a `DANGEROUS` verdict. Reworded to `AGENTS.md / .hermes.md` and added `codemax-gbrain` to the guard-trigger scrub list in `tests/test_hermes_install.py`.
+- **`codemax-gbrain` (both copies) "Route before you sync"** guidance added to the Push step, with read-only / no-CodeMAX do-not-block instructions.
+
+### Changed
+
+- **`docs/team-guide.md` and CodeMAX onboarding now split per tool** (Claude Code vs Hermes) for the CodeMAX enforcement + session-start + MCP-connect steps, and document the manual "search the brain for \<topic\>" fallback.
+
+### Tests
+
+- **`tests/test_wiki_repo_routing.py`** (29 checks) verifies the routing step, both guardrails (non-CodeMAX skip, read-only do-not-block), and guardrail **parity** between the Claude and Hermes copies (a silent single-copy edit now fails CI).
+- `tests/test_hermes_install.py` now **111 checks**, including the `codemax-gbrain` skills-guard scrub.
+
+## [1.8.8] — 2026-08-14
+
+### Changed
+
+- **Cross-repo CodeMAX doc restructure** — `docs/team-guide.md` now links to the CodeMAX `DEVELOPER_ONBOARDING.md` as the canonical MCP-connect reference instead of carrying a third copy of the connect steps, and documents how the coding agent pulls context from the gbrain brain plus the two enforcement primitives (`pre_llm_call` context injection, `pre_tool_call` blocking). Companion docs change in `tapway/codemax`.
+
+## [1.8.7] — 2026-08-14
+
+### Fixed
+
+- **HTTPS remote resolution in GitHub issue gate** — the `REPO=` sed in `hooks/pre-execute-github-issue/check.sh` and `create-issue.sh` was greedy (`[^/]+` swallowed the trailing `.git`), so HTTPS remotes like `https://github.com/tapway/tapway-superpowers.git` resolved to `tapway/tapway-superpowers.git`. `gh issue list --repo <that>` errors under `set -euo pipefail`, aborting both scripts (exit 1, no output): session-start issue detection and post-plan issue creation silently failed. Added a chained `sed 's|\.git$||'` to strip the suffix. SSH/mixed remotes unaffected.
+
+## [1.8.3] — 2026-08-12
+
+### Fixed
+
+- **Hermes installer false success** — `hermes skills install` exits 0 even when skills-guard blocks a community package (`Installation blocked`). Old `hermes/install.sh` / `install.ps1` treated exit 0 as success and always printed `24/24`. Installers now parse hub output, count hub/local/failed separately, and exit non-zero if anything failed.
+- **Hermes hub skills-guard false positives** — seven first-party Hermes ports (`tdd`, `autoship`, `systematic-debugging`, `pre-review-cleanup`, `pr`, `repo-docs`, `setup-project`) were blocked as DANGEROUS for benign doc text (`CLAUDE.md` mentions, example `curl` Authorization headers, `sudo systemctl`, `cat .env.example`). Wording updated for Hermes ports; installer prefers **local copy from the git checkout** so a pin like `v1.8.2` installs offline without the hub scanner.
+
+### Added
+
+- **`HERMES_INSTALL_MODE=auto|local|hub`** on `hermes/install.sh` and `hermes/install.ps1` (default `auto` = local when `hermes/skills/` exists beside the installer).
+- **`hermes/INSTALL_ISSUES.md`** — field report from the v1.8.2 Windows/Hermes update (scanner table, exit-code lie, category drift, name collisions, Claude vs Hermes surfaces).
+- **Installer tests** — `tests/test_hermes_install.py` covers skill list completeness, blocked-output detection, local-mode preference, and guard-trigger scrub on Hermes ports.
+
+### Changed
+
+- **`hermes/README.md`** — documents local-first install, modes, category drift, name collisions, and that Claude plugin update does not refresh Hermes skills.
+- **Hermes `setup-project`** — creates/updates `AGENTS.md` (not a Claude-only guide) and installs the pre-commit backstop via copy instead of a relative symlink.
+- **Hermes `pr`** — reads `TARGET_BRANCH` from `AGENTS.md` / `.hermes.md`; drops raw token `curl` API example.
+
+---
+
+## [1.8.2] — 2026-08-12
+
+### Changed
+
+- **`plugin.json` agents manifest fix** — the `agents:` array listed directory paths (`./agents/code-reviewer`) instead of the agent `.md` files. Claude Code's plugin schema requires each entry to resolve to the file itself, which broke the plugin entirely on install/update (`claude plugin validate` failed with `agents: Invalid input`; plugin showed `✘ failed to load`). All 5 entries (code-reviewer, test-writer, security-auditor, devops-sre, db-reviewer) now point to their `AGENT.md` files. Verified with `claude plugin validate` and `claude plugin list` (shows `✔ enabled`).
+
+---
+## [1.8.1] — 2026-08-12
+
+### Changed
+
+- **Plugin manifest ↔ git tag sync (release.yml)** — the release workflow now writes the plain `MAJOR.MINOR.PATCH` (env suffix stripped) into `.claude-plugin/marketplace.json` and `.claude-plugin/plugin.json` before tagging, committed with `[skip ci]`. This prevents `claude plugin update` from resolving a stale/downgraded version when manifest versions drift from actual releases. Both manifest files bumped to `1.8.1` to match the current tag.
+- **Documentation overhaul (repo-docs skill)** — generated `docs/ARCHITECTURE.md` (system diagram, components, key design decisions), `docs/WORKFLOWS.md` (Mermaid sequence diagrams for feature build, autoship, legacy refactor, incident response, release), and `docs/DEPLOYMENT.md` (install/publish for Claude + Hermes, adopting in a project, rollback, common issues). `DB_SCHEMA.md` intentionally omitted (tooling repo, no app DB).
+- **`plugin.json` manifest fix** — `skills:` was missing 5 of 23 skills (e2e-playwright, quality-gates, api-contract-testing, db-migration-testing, incident-runbook) and `agents:` was empty despite 5 agent dirs. Now 23/23 skills + 5/5 agents in sync.
+- **README** — skill count 22 → 24 (incl. Hermes-only dependency-audit), hooks 5 → 8 (added pre-commit-gate, dependency-audit, git pre-commit backstop), agents 4 → 5, ToC fixed (was stale "13 Skills"), new Documentation index, Guardrails section updated.
+- **hermes/README** — "All 18 skills" → 24 (was stale since v1.5.0).
+
+---
+## [1.7.0] — 2026-08-09
+
+### Added
+
+- **`incident-runbook` skill** (Claude + Hermes) — closes the alert→action gap: SEV1-4 severity triage, symptom → suspected causes → check → mitigate → escalate → rollback runbook playbook, blameless 5-Whys postmortems with owned action items. Ships `runbook.md` + `postmortem.md` templates. Wired into `observe` (every alert must link to a runbook).
+- **`db-reviewer` subagent** — database-layer review: N+1 query detection, index coverage on WHERE/JOIN columns, migration up/down safety, EXPLAIN ANALYZE on hot queries. Wired into `pr` (Step 4b) and `code-review` (Database Layers section).
+
+### Changed
+
+- **Hermes skill count** — 23 → 24 (`incident-runbook`).
+- **Agents** — 4 → 5 (`db-reviewer`).
+
+---
+## [1.6.0] — 2026-08-09
+
+### Added
+
+- **`e2e-playwright` — accessibility (a11y) step** — mandatory `@axe-core/playwright` audit (WCAG A/AA tags) on every changed frontend route, woven into the same Playwright suite. Verified by a real E2E test: axe catches image-alt / label / button-name / color-contrast violations in a live browser and passes clean pages. Enforced automatically by the existing E2E CI gate (a violation = a test failure).
+- **`verification` — performance/benchmark check** — hot-path perf gate: p95 latency baseline, SQLAlchemy query-count assertions (N+1 detection, `lazy="raiseload"` guidance), Lighthouse performance budget for frontend routes.
+- **`security-audit` — auth-design review section** — beyond-OWASP design review: RBAC/ABAC matrix, IDOR checks, object-level vs function-level auth, OAuth state/PKCE, JWT algorithm pinning, session design, nested-resource re-checks, default-deny posture. Includes a finding template.
+
+### Changed
+
+- Both Claude (`skills/`) and Hermes (`hermes/skills/`) copies of all three skills extended.
+
+---
+## [1.5.0] — 2026-08-09
+
+### Added
+
+- **Enforceable hooks (Phase 3)** — repaired the broken hook system and added two commit-time quality gates:
+  - **Root-cause fixes:** `plugin.json` no longer carries a stale empty `hooks` array; `hooks/hooks.json` uses the official auto-discovery + `Bash(git commit:*)` colon matcher form (the legacy space form never matched); blocking hooks now `exit 2` (exit 1 is treated as non-blocking by Claude Code — this was why hooks never fired/blocked).
+  - **`pre-commit-gate` hook** (NEW) — lint + format + typecheck + coverage at commit time, blocks via exit 2 (Claude) / JSON `{"decision":"block"}` (Hermes shell hooks).
+  - **`dependency-audit` hook + skill** (NEW) — osv-scanner / npm audit / pip-audit scan at commit time + CI; remediation skill for vulnerable deps.
+  - **git `pre-commit` backstop** (NEW) — platform-agnostic `.git/hooks/pre-commit` hook installed by `setup-project`, catches commits from any agent or human.
+  - **Hermes enforcement** — `hermes/config.hooks.yaml` shell-hook config (pre_tool_call blocking JSON protocol) + `hermes/agent-hooks/tapway-pre-commit-gate.sh` + `tapway-dependency-audit.sh`; `verification` + `pr` skills gained commit-gate + dep-audit checkpoints.
+
+### Changed
+
+- **Hermes skill count** — 22 → 23 (`dependency-audit`). Claude plugin count unchanged (22; hook-based enforcement).
+- **CI quality gate** — added blocking `pip-audit` + `npm audit` steps (osv-scanner best-effort).
+
+---
+## [1.4.1] — 2026-08-09
+
+### Fixed
+
+- **`api-contract-testing`** — example code used removed `schemathesis.from_uri` API; fixed to `schemathesis.openapi.from_url` (both Claude + Hermes copies). Verified against Schemathesis v4.24.
+- **`db-migration-testing`** — `test_column_rename_preserves_data` was vacuous (empty table → `all([])` trivially passes). Now seeds data pre-migration, applies the rename, and asserts values survived (template + both SKILL.md copies).
+- **`db-migration-testing` (review round 2)** — the data-preservation test's relative migration steps were wrong: `downgrade -2` landed at base on a 2-migration chain (INSERT crashed with `OperationalError`), and `upgrade -1` after `downgrade -1` errored ("Relative revision -1 didn't produce 1 migrations"). Fixed to `downgrade -1` → seed → `upgrade +1`. **Verified by execution**: the fixed template passes 4/4 against a real alembic chain (create users with `display_name` → rename to `full_name`).
+- **Test suites** — all three validation scripts wrapped in `if __name__ == "__main__":` so pytest collection no longer crashes (was raising `SystemExit` during import). Added API-correctness assertions (rejects removed `schemathesis.from_uri`).
+
+### Changed
+
+- **Test count** — 102 → 107 checks (phase2 suite 26 → 31: added API-correctness + migration-pattern assertions).
+
+---
+
+## [1.4.0] — 2026-08-09
+
+### Added
+
+- **`api-contract-testing` skill** — prevents API contract drift: OpenAPI schema validation, Schemathesis property-based fuzzing, Pact consumer-driven contracts. Wired into `e2e-playwright` (Step H) and `verification`. Ships `schemathesis.toml` template.
+- **`db-migration-testing` skill** — makes migrations safe to ship: up/down round-trip tests, data preservation, zero-downtime expand-contract for large tables. Wired into `e2e-playwright` (Step H) and `verification`. Ships `test_migration.py` template.
+
+### Changed
+
+- **Skill count** — 20 → 22 (`install.sh` / `install.ps1` / READMEs updated).
+
+---
+
+## [1.3.0] — 2026-08-09
+
+### Added
+
+- **`quality-gates` skill** — config-layer hardening (Phase 1 of the gap analysis): lays down coverage thresholds (`pytest-cov --fail-under`), TypeScript strict mode (`tsconfig.strict.json` template), env validation (pydantic-settings/zod, `.env.example` template), CODEOWNERS + branch protection, and a CI lint/format/typecheck/coverage gate. Five declarative gates that block bad code at merge time, not after.
+- **`.github/workflows/quality.yml`** — CI quality-gate workflow: backend lint (ruff) + format + typecheck (mypy) + tests/coverage gate; frontend lint + prettier check + tsc strict + tests/coverage.
+- **`quality-gates` templates** — `coverage-pyproject.toml`, `tsconfig.strict.json`, `.env.example`, `CODEOWNERS`.
+- **Wiring** — `setup-project` now also creates `.github/workflows/quality.yml`; `.gitignore` excludes `.coverage`, `htmlcov/`, `coverage.xml`.
+
+### Changed
+
+- **Skill count** — 19 → 20 (`install.sh` / `install.ps1` / READMEs updated).
+
+---
+
+## [1.2.0] — 2026-08-09
+
+### Added
+
+- **`e2e-playwright` skill** — structural end-to-end testing for both frontend (Playwright browser tests) and backend (pytest integration/E2E). Scaffolds `@playwright/test` + pytest, writes persistent specs (golden path + edge cases + error states, auth via `auth.setup.ts` storageState for frontend, httpx + ASGITransport + real test DB for backend), runs them, and debug-fixes failures from traces — never by weakening assertions. Conditionally mandated: frontend E2E when frontend files change, backend E2E when backend files change, both skip for docs-only.
+- **`.github/workflows/playwright.yml`** — CI workflow with two jobs: `frontend-e2e` (Playwright, path-filtered to frontend changes) and `backend-e2e` (pytest integration/E2E, path-filtered to backend changes). Both upload artifacts on failure. Add `E2E_USER` / `E2E_PASSWORD` repo secrets for auth-dependent suites.
+- **Structural enforcement** — `e2e-playwright` is wired into the pipeline so it's not optional: `tdd` runs it after unit GREEN for frontend and backend work, `autoship` makes it a **mandatory standard-mode gate** (not just deploy mode), and `verification` adds both `npx playwright test` and `pytest tests/integration/ tests/e2e/` to the checklist. The `test-writer` agent now emits E2E specs for both UI and API changes.
+
+### Changed
+
+- **Skill count** — 18 → 19 (`install.sh` / `install.ps1` / README counts updated).
+
+---
+
+## [1.1.0] — 2026-08-05
 
 ### Added
 
@@ -17,6 +543,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - **`pr` skill** — target branch now read from `AGENTS.md` / `.hermes.md` / `CLAUDE.md` (with `staging` fallback) instead of `CLAUDE.md` only, so Hermes projects that don't ship `CLAUDE.md` work correctly.
+- **`release.yml`** — replaced the CalVer convention (`YYYY.WW.XX.YY-env`) with **Semantic Versioning** (`vMAJOR.MINOR.PATCH-stg` / `-prod`). The bump is derived from conventional commits: `feat!`/`BREAKING CHANGE` → MAJOR, `feat:` → MINOR, otherwise PATCH. Each environment keeps an independent version stream.
+- **`setup-project` skill & session-start hook** — no longer create or check for a `.github/workflows/claude.yml` PR-review workflow; only `release.yml` is set up.
+
+### Removed
+
+- **GitHub Actions PR review** (`.github/workflows/claude.yml`) — removed. Tapway now does code review inside the AI agent (`/review` in Claude Code, `requesting-code-review` in Hermes) before a PR is opened, instead of in GitHub CI. No `ANTHROPIC_API_KEY` secret is required.
 
 ---
 

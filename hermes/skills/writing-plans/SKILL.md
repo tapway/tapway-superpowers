@@ -93,6 +93,58 @@ git commit -m "docs: add plan and work package checklist for [feature-name]"
 git push
 ```
 
+### 7b. The GitHub Issue Is Created Automatically
+
+Saving the plan — or an accepted design doc — creates the issue; you do not run anything. Both surfaces hook the write:
+
+- **Claude Code / Codex:** the `post-plan-issue` PostToolUse hook fires on every `docs/plans/*.md` write, and on a `docs/brainstorming/*.md` whose frontmatter says `status: accepted`.
+- **Hermes:** the plugin's `post_tool_call` hook does the same in-process.
+
+Both call `hermes/plugin/plan_issue.py`, which:
+
+1. skips a doc that already carries `issue: <n>` — re-saving it never opens a second issue,
+2. reuses an existing `codemax` issue for the branch when one exists,
+3. lets a plan that links an issued design doc (for example `**Decision:** [Option B](../brainstorming/x.md)`) inherit that number instead of opening a second issue for the same decision,
+4. otherwise opens one labelled `codemax`, with a readable body — Summary, Why, What changes (tasks as checkboxes), Acceptance criteria, Test plan, Files, Links, and the full document collapsed (a design doc is labelled "Full design", and a leading "Brainstorm:" is stripped from the title) — and
+5. writes `issue: <n>` back into the frontmatter.
+
+A brainstorm that is `proposed`, `draft`, or has no frontmatter creates nothing: only an accepted design enters the issue loop.
+
+Only feature branches: `master`, `staging`, `main` and `prod` are skipped. It only runs in a CodeMAX-enabled repo (`CODEMAX_ENABLED=1` or `CODEMAX_WORKFLOW=1`, or a `.codemax.yml` in the repo root).
+
+Manual fallback (hook bypassed, or `TAPWAY_ISSUE_AUTOCREATE=0`):
+
+```bash
+python3 hermes/plugin/plan_issue.py docs/plans/[feature-name].md
+```
+
+If creation fails, the PR gate refuses `gh pr create` while the plan has no `issue:` — a broken create surfaces at PR time instead of silently.
+
+The issue auto-syncs to the kanban via the CodeMAX webhook. Push incremental progress to it as you work (in_progress → review → done).
+
+### 7c. Route the docs the plan produces (wiki vs. repo)
+Each document the plan creates belongs either in the **shared wiki / brain** or in the **repo's own docs**. Decide before implementing, so a doc lands in the right home the first time — no churn later.
+
+**Skip guard:** if the team does **not** run CodeMAX (`CODEMAX_ENABLED` unset), **skip this step entirely** — just update the **repo docs** the plan produces and move on. Nothing wiki-related runs, nothing fails.
+
+**One-line rule for the rest:**
+> Version-locked + travels with the code → **repo docs**. Knowledge that outlives a commit, explains the "why", spans platforms, or is synthesized → **wiki** (with shared infra → `references/`).
+
+For each artifact the plan produces, ask: "wiki or repo?" — and route it:
+| Plan output | Home |
+|---|---|
+| README / ARCHITECTURE / DEPLOYMENT / DB schema / OpenAPI, code, docstrings | **repo docs** |
+| Requirement, blueprint, ADR, work order | **wiki** → `platforms/<name>/{requirements,blueprints,decisions,work-orders}/` |
+| Cross-platform / shared infra (VSS, keycloak, edge tunnel) | **wiki** → `references/` |
+| User manual for an app UI | **wiki** → `general/user-manuals/<app>.md` |
+| Runnable artifact (config, script) | **repo / config repo** (keep spec inline in wiki) |
+
+The authoritative routing table lives once in CodeMAX's
+`docs/CONSUMING_A_CODEMAX_INSTANCE.md` → "Wiki vs. repo docs" — reference it,
+don't duplicate it.
+
+**Read-only / no wiki write access:** still decide the routing, but do **not** push to wiki `master`. Either record the decision in the plan/repo-docs only, or (where supported) submit wiki pages as a **draft** for approval. A failed or blocked wiki write must **never block the pipeline** — proceed to the next step either way.
+
 ### 8. Execution
 After committing, say:
 > "Plan and checklist committed and pushed. Teammates can pick up a work package from `docs/checklists/[feature-name]-checklist.md`. When ready to implement your package: create a branch, run `tdd`, then open a PR when done."

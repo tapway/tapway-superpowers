@@ -4,26 +4,27 @@ name: Auto Release
 # Can also be triggered manually (Actions → Run workflow) to release to any
 # environment directly — useful for small projects without a staging branch.
 #
-# Computes a CalVer tag: YYYY.WW.XX.YY-stg or YYYY.WW.XX.YY-prod
+# Produces a Semantic Versioning tag with an environment suffix:
+#   vMAJOR.MINOR.PATCH-stg   (staging)
+#   vMAJOR.MINOR.PATCH-prod  (production)
 #
-# YYYY = year, WW = ISO week number (01–53)
-# XX   = major increment within the week (resets to 1 each week)
-# YY   = minor increment within XX (bugfixes, small changes)
+# The bump is derived from conventional commits since the last tag for the
+# same environment, using standard SemVer rules:
+#   feat! / BREAKING CHANGE  →  MAJOR
+#   feat:                    →  MINOR
+#   anything else            →  PATCH
 #
-# XX increments when any merged commit contains "feat!" or "BREAKING CHANGE".
-# YY increments for all other merges.
+# Each environment keeps its own independent version stream.
 #
-# Example progression in week 24 of 2026:
-#   2026.24.1.0-stg  ← first merge of the week to staging
-#   2026.24.1.1-stg  ← bugfix
-#   2026.24.2.0-stg  ← breaking change / major feature
-#   2026.24.1.0-prod ← promoted to prod (or released directly via workflow_dispatch)
+# Before tagging, the plain MAJOR.MINOR.PATCH (no env suffix) is also written
+# into .claude-plugin/marketplace.json and .claude-plugin/plugin.json, since
+# `claude plugin update` resolves versions from those manifests, not git tags.
 
 on:
   push:
     branches:
       - staging
-      - prod
+      - master
   workflow_dispatch:
     inputs:
       environment:
@@ -40,62 +41,36 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write   # the manifest sync opens a PR (the branch is protected)
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history needed to read existing tags
+          fetch-depth: 0   # full history needed to read existing tags & commits
 
       - name: Compute next version
         id: ver
         run: |
-          set -e
+          set -euo pipefail
 
-          YEAR=$(date +%Y)
-          WEEK=$(date +%V)   # ISO week, zero-padded: 01-53
-
-          # Determine environment suffix:
-          #   - workflow_dispatch: use the input value
-          #   - push to prod branch: -prod
-          #   - push to staging branch (or anything else): -stg
+          # Stream suffix: master is unsuffixed, staging -stg, prod -prod.
+          # The streams are independent — scripts/next_version.sh filters tags so
+          # a -stg release can never bump the production line (release drift bug).
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             INPUT="${{ github.event.inputs.environment }}"
-            [ "$INPUT" = "production" ] && ENV="-prod" || ENV="-stg"
+            if [ "$INPUT" = "production" ]; then ENV=""; else ENV="-stg"; fi
           else
-            BRANCH="${GITHUB_REF_NAME}"
-            ENV="-stg"
-            [ "$BRANCH" = "prod" ] && ENV="-prod"
+            case "${GITHUB_REF_NAME}" in
+              master|main) ENV="" ;;
+              prod)        ENV="-prod" ;;
+              *)           ENV="-stg" ;;
+            esac
           fi
 
-          PREFIX="${YEAR}.${WEEK}."
-
-          # Latest tag for this env this week (e.g. 2026.24.1.2-stg)
-          LATEST=$(git tag -l "${PREFIX}*${ENV}" 2>/dev/null | sort -V | tail -1)
-
-          if [ -z "$LATEST" ]; then
-            # First release this week for this env
-            XX=1
-            YY=0
-          else
-            # Parse XX and YY from YYYY.WW.XX.YY-env
-            INNER=${LATEST#"${PREFIX}"}
-            INNER=${INNER%"${ENV}"}
-            XX=$(echo "$INNER" | cut -d. -f1)
-            YY=$(echo "$INNER" | cut -d. -f2)
-
-            # Check for breaking changes since last tag
-            if git log "${LATEST}..HEAD" --format="%s%n%b" 2>/dev/null \
-               | grep -qE '(^feat!|BREAKING CHANGE)'; then
-              XX=$((XX + 1))
-              YY=0
-            else
-              YY=$((YY + 1))
-            fi
-          fi
-
-          VERSION="${YEAR}.${WEEK}.${XX}.${YY}${ENV}"
+          VERSION="$(bash scripts/next_version.sh "$ENV")"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Computed version: ${VERSION}"
+          echo "stream=${ENV:-master}" >> "$GITHUB_OUTPUT"
+          echo "Computed version: ${VERSION} (scripts/next_version.sh)"
 
       - name: Tag and publish release
         env:
@@ -105,14 +80,94 @@ jobs:
 
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Previous tag of the SAME stream, read before the new tag exists.
+          # Release notes cover what merged since it.
+          SUFFIX="${{ steps.ver.outputs.stream }}"
+          if [ "$SUFFIX" = "master" ]; then SUFFIX=""; fi
+          PREVIOUS="$(git tag -l 'v*' | { grep -E "^v[0-9]+\.[0-9]+\.[0-9]+${SUFFIX}$" || true; } | sort -V | tail -1)"
+
+          # Tag + release FIRST: these must succeed regardless of the manifest
+          # sync below (the ruleset may reject the bot's push to a protected
+          # branch, which previously aborted the whole release).
           git tag "$VERSION"
           git push origin "$VERSION"
 
-          # Extract the top CHANGELOG section (between first ## [ and second ## [ or ---)
-          awk '/^## \[/{if(p)exit; p=1; next} p && /^(## \[|---)/{exit} p{print}' CHANGELOG.md \
-            > /tmp/release-notes.md
-
+          # Notes list the PRs merged since PREVIOUS. They are not read from
+          # CHANGELOG.md: its top section only moves when a manifest-sync PR is
+          # merged, so unmerged ones made every release repeat the same text.
           gh release create "$VERSION" \
             --title "$VERSION" \
             --target "${{ github.ref_name }}" \
-            --notes-file /tmp/release-notes.md
+            --generate-notes ${PREVIOUS:+--notes-start-tag "$PREVIOUS"}
+
+      - name: Sync plugin manifests (opens a PR; master stream only)
+        # Only the production stream owns the plain manifests — a -stg release
+        # must not publish its version to the marketplace resolver.
+        if: steps.ver.outputs.stream == 'master'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.ver.outputs.version }}"
+          PLAIN="${VERSION#v}"
+          PLAIN="${PLAIN%-*}"
+
+          jq --arg v "$PLAIN" \
+            '.metadata.version = $v | .plugins[0].version = $v' \
+            .claude-plugin/marketplace.json > /tmp/marketplace.json
+          mv /tmp/marketplace.json .claude-plugin/marketplace.json
+          jq --arg v "$PLAIN" '.version = $v' \
+            .claude-plugin/plugin.json > /tmp/plugin.json
+          mv /tmp/plugin.json .claude-plugin/plugin.json
+          # The Hermes plugin manifest is YAML; the sync step used to skip it, so
+          # it stayed on 2.7.2 through four releases while the JSON files moved.
+          sed -i -E "s/^version: .*/version: ${PLAIN}/" hermes/plugin/plugin.yaml
+          # The changelog heading is part of the same invariant (the plugin guard
+          # compares the manifests to the top CHANGELOG version).
+          if grep -q '^## \[Unreleased\]' CHANGELOG.md; then
+            # The section already describes this release: rename it in place.
+            sed -i -E "0,/^## \[Unreleased\]/s//## [${PLAIN}] — $(date -u +%Y-%m-%d)/" CHANGELOG.md
+          elif ! grep -q "^## \[${PLAIN}\]" CHANGELOG.md; then
+            # No Unreleased section (the previous one was already renamed): open a
+            # heading for this release so the changelog stays in release order.
+            awk -v hdr="## [${PLAIN}] — $(date -u +%Y-%m-%d)" '
+              !done && /^## \[/ { print hdr; print ""; print "_See the release notes._"; print ""; done = 1 }
+              { print }
+            ' CHANGELOG.md > /tmp/changelog.new
+            mv /tmp/changelog.new CHANGELOG.md
+          fi
+
+          if git diff --quiet -- .claude-plugin/ hermes/plugin/plugin.yaml CHANGELOG.md; then
+            echo "manifests already at ${PLAIN}"
+            exit 0
+          fi
+
+          BRANCH="chore/manifest-sync-${PLAIN}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add .claude-plugin/marketplace.json .claude-plugin/plugin.json \
+            hermes/plugin/plugin.yaml CHANGELOG.md
+          # [skip ci] in the title means merging this PR does not trigger another
+          # release (the merge commit carries the marker).
+          git commit -m "chore(release): sync plugin manifests to ${PLAIN} [skip ci]"
+          git push origin "$BRANCH"
+
+          if gh pr list --repo "${{ github.repository }}" --head "$BRANCH" \
+               --json number --jq '.[0].number // ""' | grep -q .; then
+            echo "manifest-sync PR already open for ${PLAIN}"
+            exit 0
+          fi
+          gh pr create --repo "${{ github.repository }}" --base master --head "$BRANCH" \
+            --title "chore(release): sync plugin manifests to ${PLAIN} [skip ci]" \
+            --body "The Auto Release workflow tagged **${VERSION}**. \`master\` is protected, so the manifest bump lands through this PR instead of a bot push.
+
+          \`\`\`
+          plugin.yaml                 ${PLAIN}
+          .claude-plugin/plugin.json  ${PLAIN}
+          .claude-plugin/marketplace.json  ${PLAIN}
+          \`\`\`
+
+          Merging it does not re-trigger the release ([skip ci]). \`scripts/check-release-drift.sh\` reports RED until this lands."

@@ -219,12 +219,35 @@ Run `/repo-docs` — mandatory on every autoship run, no exceptions.
 /repo-docs
 ```
 
-`/repo-docs` updates only the sections affected by this branch's changes if docs already exist, or generates all docs from scratch if this is the first time. Commit any changes it makes:
+Use incremental mode. Update affected sections, or bootstrap missing baseline
+docs. Carry the resulting `Docs:` line into the PR body for coding changes;
+reuse it only if the review covers the final PR diff. Commit any doc changes:
 
 ```bash
 git add docs/
 git commit -m "docs: update project docs for [feature]"
 ```
+
+**Step 3b — Update the GitHub Wiki**
+
+Run `/repo-wiki-writer` to refresh the Home, How it works, and Technical Details wiki pages against what this feature actually changed. Clone `<repo>.wiki.git` next to the code repo if needed, update only the affected sections, never copy real secret values, then commit and push the wiki repo directly (it's a separate git repo, so this doesn't touch the PR branch). If the wiki has no pages yet, note the one-time manual Home-page-creation step in the PR body instead of blocking.
+
+**Step 4 — E2E Gate (conditional — mandated for frontend and/or backend, skipped for docs-only)**
+
+Run `git diff --name-only main...HEAD` and classify the changed files:
+
+- **Frontend files changed** (`*.tsx`, `*.jsx`, `**/pages/**`, `**/app/**`, `**/components/**`, `*.css`, etc.) → frontend E2E (Playwright) is **mandated**. Run the `e2e-playwright` skill's frontend section: scaffold `@playwright/test` if absent → write `e2e/<feature>.spec.ts` (golden path + edge cases + error states, auth via `auth.setup.ts` storageState) → `npx playwright test` → debug failures from traces (never weaken assertions).
+- **Backend files changed** (`*.py`, `**/backend/**`, `**/api/**`) → backend E2E (pytest) is **mandated**. Run the `e2e-playwright` skill's backend section: write `backend/tests/integration/` + `backend/tests/e2e/` tests (httpx + ASGITransport, real test DB) → `pytest tests/integration/ tests/e2e/ --tb=short -q` → fix failures (never weaken assertions).
+- **Only docs/config files changed** → skip this step entirely.
+
+- [ ] Frontend change detection run — decision recorded (REQUIRED or SKIPPED)
+- [ ] If frontend REQUIRED: `npx playwright test` passes (full suite, no new failures)
+- [ ] Backend change detection run — decision recorded (REQUIRED or SKIPPED)
+- [ ] If backend REQUIRED: `pytest tests/integration/ tests/e2e/ --tb=short -q` passes
+
+If any E2E suite fails, fix the tests or the app and re-run. **Never open a PR with a failing E2E suite.**
+
+If no frontend or backend files changed, skip this step entirely — the E2E gate does not apply to docs-only changes.
 
 ---
 
@@ -410,6 +433,7 @@ After PR is open:
 - ❌ Never open a PR with failing unit tests
 - ❌ Never open a PR with a failed deployment or failing integration/E2E tests *(deploy mode)*
 - ❌ Never skip the doc update step — update or generate docs before calling `/pr`
+- ❌ Never skip the wiki update step — update the GitHub wiki before calling `/pr`
 - ❌ Never work from `main` — always from a worktree
 - ❌ Never push manually — always exit through `/pr`
 

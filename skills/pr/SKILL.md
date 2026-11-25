@@ -84,6 +84,24 @@ Run the test suite for every discipline that was touched:
 
 All tests must be green before pushing. If a test fails that was passing before your changes, fix it before continuing.
 
+### Step 4b: Database Review (if the PR touches the DB layer)
+
+If the PR changes SQLAlchemy models, queries, migrations, or endpoints that hit
+the database, run the `db-reviewer` subagent:
+
+```text
+Run the db-reviewer agent over this branch's diff.
+Checks: N+1 query detection, index coverage on WHERE/JOIN columns,
+        migration up/down safety, EXPLAIN ANALYZE on hot queries.
+```
+
+- [ ] No N+1 queries in hot paths (relationships inside loops flagged and fixed)
+- [ ] WHERE/JOIN columns indexed; composite index order is high-cardinality first
+- [ ] New migrations are reversible and safe on large tables (expand-contract)
+- [ ] List endpoints paginated (no unbounded queries)
+
+Fix any Critical/Warning findings the db-reviewer raises before opening the PR.
+
 ---
 
 ### Step 5: Update Docs
@@ -104,7 +122,49 @@ git add docs/
 git commit -m "docs: update project docs for [feature/change]"
 ```
 
-If `/repo-docs` made no changes (output says "no sections affected"), skip the commit but note "docs: no changes" in the PR body.
+Use incremental mode and include its single plain `Docs: updated — …` or
+`Docs: no impact — …` line in the PR body for coding changes. Reuse an earlier
+result only if it covers the current PR diff. Do not commit unchanged docs.
+
+---
+
+### Step 5b: Update the GitHub Wiki
+
+Run `/repo-wiki-writer` to refresh the repo's GitHub Wiki (Home, How it works, Technical Details) against what this PR actually changed. This is mandatory on every PR, no exceptions.
+
+- Clone `<repo>.wiki.git` next to the code repo if not already present.
+- Use `git log` since the wiki's last commit date plus `git diff --name-only origin/$TARGET` to scope the update — only touch the sections affected by this PR (new env vars, new endpoints, new services, removed features).
+- Never copy real secret values into wiki pages — document names and formats only (see the skill's "Secrets: never" rule).
+- Commit and push the wiki repo. This is a separate git repo from the code repo, so it is **not** part of the PR diff — note in the PR body that the wiki was updated (or why it wasn't, e.g. no wiki exists yet).
+
+If the wiki has no pages yet (first-ever PR for this repo), ask the user to create the Home page once in the GitHub UI, then retry — note this in the PR body as a one-time manual step instead of blocking the PR on it.
+
+If nothing in the changed files affects any wiki page, skip the wiki commit but note "wiki: no update needed" in the PR body.
+
+---
+
+### Step 5c: Sync Living-Docs to gbrain (CodeMAX — optional)
+
+**Optional.** Only run this if your team uses CodeMAX/gbrain. If you don't, or
+`CODEMAX_ENABLED` is not set, skip straight to Step 6 — nothing breaks.
+
+If this PR touched product requirements, blueprints, work orders, or ADRs
+(Layer B living-docs) and you use CodeMAX, sync them into gbrain so the brain
+stays current. See the `codemax-gbrain` skill.
+
+```bash
+# Only if CODEMAX_ENABLED=1 and codemax is installed
+codemax sync run --wiki-dir "$CODEMAX_WIKI_DIR" --gbrain-dir "$CODEMAX_GBRAIN_DIR"
+```
+
+Verify the sync landed (idempotent — safe to re-run):
+```bash
+gbrain list -n 5   # confirm recent pages appear
+```
+
+**Skip this step** if: you don't use CodeMAX, the PR made no living-doc changes
+(pure code), or `codemax` is unavailable. It is never required for the PR to
+proceed.
 
 ---
 
@@ -165,8 +225,8 @@ EOF
 ```
 
 > **What happens automatically after this PR is opened:**
-> - The `auto-review` GitHub Actions job fires within ~30 seconds and posts a three-tier code review (Critical / Warning / Suggestion) as inline PR comments — no mention needed.
-> - When the PR is merged, the `release.yml` workflow creates a `YYYY.WW.XX.YY-stg` tag and GitHub release automatically.
+> - No GitHub Actions code review runs — Tapway reviews code inside the agent (via `/review`) before the PR is opened, so the PR reaches GitHub already simplified and self-reviewed.
+> - When the PR is merged, the `release.yml` workflow creates a `vX.Y.Z-stg` tag and GitHub release automatically.
 
 ---
 
@@ -193,7 +253,9 @@ git push
 - ❌ Never open a PR with failing tests
 - ❌ Never create a PR from the integration branch — always from a worktree
 - ❌ Never skip the rebase step — stale branches cause CI failures and reviewer confusion
-- ❌ Never skip `/repo-docs` — docs must be updated on every PR
+- ❌ Never skip `/repo-docs` for a code PR — review docs impact even if no edits are needed
+- ❌ Never skip the wiki update step — if changed files affect any wiki page, update and push the wiki repo before pushing the code branch
+- ❌ Never copy real secret values into the wiki — names and formats only
 - ❌ Never leave the work package checklist unchecked after the PR is open
 
 ---
@@ -215,7 +277,24 @@ cd frontend && npm test -- --watchAll=false && cd ..
 # /repo-docs
 git add docs/ && git commit -m "docs: update project docs for [change]"
 
+# Wiki (mandatory) — update affected pages in the sibling <repo>.wiki clone, then:
+cd ../<repo>.wiki && git add -A && git commit -m "docs(wiki): update for [change]" && git push && cd -
+
+# gbrain sync (optional, CodeMAX only)
+# codemax sync run --wiki-dir "$CODEMAX_WIKI_DIR" --gbrain-dir "$CODEMAX_GBRAIN_DIR"
+
 # Push and PR
 git push -u origin $(git branch --show-current)
 gh pr create --base $TARGET --title "feat(scope): ..." --body "..."
 ```
+
+
+## Hook gates (v2.6.0)
+
+`gh pr create` is blocked when the branch touches:
+
+- `docs/plans/*.md` without `issue: <number>` frontmatter — create the issue first;
+- `docs/brainstorming/*.md` whose option sections lack `Grounding:` lines.
+
+`TAPWAY_PR_GATE=0` is a one-run override. The same rules run in CI
+(`workflow-gate`), so an override does not bypass the merge gate.

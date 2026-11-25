@@ -4,6 +4,147 @@ This guide walks through how a team of engineers uses tapway-superpowers to work
 
 ---
 
+## ⚙️ One-Time Setup (do this ONCE per machine)
+
+Set these environment variables **once** in your shell profile (`~/.bashrc` or `~/.zshrc`). They persist across all repos and all sessions — you never re-export them per project.
+
+```bash
+# --- CodeMAX connection (one-time, persistent) ---
+export CODEMAX_ENABLED=1                     # Turns on the CodeMAX/session hooks
+export CODEMAX_API_URL="http://47.250.116.35:8125"   # CodeMAX panel
+export CODEMAX_GBRAIN_MCP="http://47.250.116.35:8100" # gbrain wiki/knowledge
+export CODEMAX_ADMIN_TOKEN="<admin-token>"   # kanban/admin auth
+export GBRAIN_TOKEN="<gbrain-token>"         # brain/auth
+export GITHUB_TOKEN="<github-token>"         # issue sync + poller
+
+source ~/.bashrc   # (or ~/.zshrc)
+```
+
+> **Why once?** Exported environment variables are process-wide, not directory-scoped. They apply to every repo you open in that shell. A new terminal inherits them from the profile, so you never set them per-project unless you specifically want a different endpoint per repo.
+
+> **Hermes users:** put the same values in `~/.hermes/.env` instead of the shell profile.
+
+### How the coding agent pulls context from the shared brain (CodeMAX/gbrain)
+
+When CodeMAX is enabled, the coding agent pulls task context by **connecting to the gbrain MCP server** (the `CODEMAX_GBRAIN_MCP` URL) and querying it. It uses the brain tools (`search`, `get_page`, `list_pages`) to load the requirement / blueprint / ADR traced from the GitHub issue for your branch — so it knows *what* it's building and *why*, not just the repo-local code. Nothing to install per-project: connect your tool once.
+
+> **Canonical connect steps live in the CodeMAX side** — `DEVELOPER_ONBOARDING.md`, Step 2 (get your `GBRAIN_TOKEN`, then register the gbrain MCP server: `claude mcp add` for Claude Code, `mcp_servers` in `config.yaml` for Hermes, `.vscode/mcp.json` for Cline/Roo), and Step 3 to verify. ℹ️ **CodeMAX is a private repo for ITMAX teams only (at the moment)** — CodeMAX users, follow `https://github.com/tapway/codemax/blob/master/docs/DEVELOPER_ONBOARDING.md`. For a quick reference, registering is one MCP server named `gbrain` pointed at `$CODEMAX_GBRAIN_MCP/mcp` with a bearer token, then `curl -s "$CODEMAX_API_URL/api/v1/brain/search?q=<topic>&limit=5" -H "Authorization: Bearer $GBRAIN_TOKEN"` should return matching pages.
+
+### Enforcement: making the agent actually search the brain
+
+The `codemax-gbrain` skill tells the agent to pull context, and the session-start behaviour *hints* at it — both are advisory. An agent can skip the brain and work from repo-local context alone. How far you can *enforce* it depends on your tool, so this section is split per-tool.
+
+#### If the agent isn't querying the brain automatically — just ask it
+
+Whatever tool you use, the simplest and always-available fallback is to prompt it directly. If you notice the agent hasn't called the gbrain MCP tool and is working from repo-local context alone, say:
+
+> **"Search the brain for `<topic>` / the requirement that issue `#<n>` traces to."**
+> e.g. *"Search the brain for the VSS behavior-analytics data flow."* · *"Search the brain for what requirements city-guard satisfies."*
+
+This forces a need-to-know lookup even when automatic context pull is off or skipped.
+
+#### Claude Code — enforcement is via hooks + the skill (blocking only)
+
+Claude Code's hook system (`hooks/hooks.json`: `SessionStart`, `PreToolUse`) can **detect** context and **block** tool calls, but it has **no equivalent of Hermes' pre-prompt context injection** — it cannot inject the search results into the model's prompt for you.
+
+- **At session start** the `SessionStart` hook prints the GitHub issue found for this branch and *hints* to pull brain context (advisory).
+- **To block** work until the brain is searched: a `PreToolUse` gate on code-editing tools can `exit 2` (block) when a GitHub issue is found for this branch and the brain wasn't queried this session.
+- Otherwise rely on the **`codemax-gbrain` skill** and — when it skips — the manual **"search the brain for …"** prompt above.
+
+#### Hermes — native binding enforcement (injection + blocking)
+
+Hermes' shell-hook system in `~/.hermes/config.yaml` supports genuine **contextual enforcement** that the agent cannot skip:
+
+1. **`pre_llm_call` — inject the search results directly into the prompt.** The strongest guarantee: a shell hook queries gbrain for the context traced from the branch's GitHub issue and returns `{"context": "<brain snippet>"}` on stdin→stdout, so the search results are *physically in front of the model* on every turn — it cannot omit them.
+2. **`pre_tool_call` (with `fail_closed: true`) — block work until the brain was searched.** When a GitHub issue is found for the branch, the gate refuses the first code-editing tool call unless the session already pulled brain context, forcing the lookup first.
+
+Either way the agent is instructed to **"search the brain"** before implementing — via the injected context (Hermes) or the blocking gate / skill / manual prompt (Claude Code).
+
+### What the session-start hook does — per tool
+
+The session start is wired differently on each tool, but the behaviour is the same: bookkeeping fires, then you just start talking.
+
+#### Claude Code — `SessionStart` hook (`hooks/hooks.json`)
+
+Fires automatically when you open `claude` in the repo. It:
+1. Prints the current branch, last commits, and git status
+2. Checks for open TODOs in `CLAUDE.md`
+3. **If `CODEMAX_ENABLED=1`:** looks up the GitHub issue for this branch and tells you gbrain context is available if one is found (same issue lookup as the next step)
+4. **If you're on a feature branch (with `gh` installed):** checks for a GitHub issue for that branch, and reports the number if one exists. The actual issue is created later — after the brainstorming/plan step, hydrated with the plan content (see the Writing Plans skill).
+
+#### Hermes — `on_session_start` shell hook (`~/.hermes/config.yaml`)
+
+Registered under a `hooks:` block in `~/.hermes/config.yaml`:
+```yaml
+hooks:
+  on_session_start:
+    - command: "~/.hermes/agent-hooks/codemax-brain-gate.sh"
+      timeout: 30
+```
+Same intent as Claude's SessionStart — it runs once when a new Hermes session starts in the repo, detects the GitHub issue / gbrain context, and (optionally) enforces the brain lookup as described above. Note it fires **once on a brand-new session** (not on every resumed message).
+
+> **So the flow is the same in both tools:** open the repo → the hook does the bookkeeping → just start talking about your task. No special incantation needed.
+
+---
+
+## 🚀 The Direct Workflow (start here)
+
+This is the day-to-day flow for a single engineer turning a feature idea into a merged PR. It's fully **conversational** — you tell the agent what you want, and it drives the plan → GitHub issue → execution pipeline for you.
+
+```
+Start (hook detects)
+   │
+   ▼
+Brainstorm / Interview  →  plan written (docs/plans/*.md)
+   │
+   ▼
+Create GitHub issue from plan   ←  the key step (after plan, before code)
+   │                         mirrors to CodeMAX kanban via webhook
+   ▼
+Execute (tdd / autoship)  →  progress updates pushed to issue
+   │
+   ▼
+/pr  →  PR merged, issue marked done, kanban card = done
+```
+
+### Step-by-step
+
+1. **Open the repo and start a session** (Claude Code or Hermes). The hook prints your branch and tells you if a GitHub issue already exists. Nothing to do — just start talking.
+
+2. **Brainstorm / get interviewed.** Talk it out conversationally:
+   > "I want to add JWT auth. Let me brainstorm the approach."
+   
+   The agent explores options and saves the output to `docs/brainstorming/[topic].md`.
+
+3. **Write the plan.** The agent produces `docs/plans/[feature].md` (+ checklist) and commits it. **This is the key step** — the plan is what becomes the GitHub issue.
+
+4. **The GitHub issue is created for you (after the plan, before code).** Saving `docs/plans/*.md` fires the `post-plan-issue` hook (Claude Code/Codex `PostToolUse`) or the plugin's `post_tool_call` (Hermes). It opens a `codemax`-labelled issue whose body is written to be read: **Summary**, **Why**, **What changes** (tasks as checkboxes), **Acceptance criteria**, **Test plan**, **Files**, **Links**, with the full plan collapsed underneath — then writes `issue: <n>` back into the plan frontmatter.
+
+   It reuses an existing issue for the branch instead of opening a second one, skips `master`/`staging`/`main`/`prod`, and only runs in a CodeMAX-enabled repo. Nothing to remember; if it cannot run, the PR gate refuses `gh pr create` until the plan carries an `issue:` number.
+
+5. **Execute.** `tdd` / `autoship` implement the plan. Every step pushes a progress update to the GitHub issue (`in_progress → review`), which the webhook mirrors to the kanban board.
+
+6. **Open the PR.** `/pr` builds the PR, updates the issue to `done`, and the kanban card reflects `done`.
+
+### The two key timing rules
+
+| Rule | Why |
+|---|---|
+| **Issue is created AFTER the plan, BEFORE execution** | An issue created at session start (from just the branch name) is an empty, worthless ticket. Wait until the plan has real content. |
+| **The hook never creates issues on its own** | The SessionStart hook only *detects* existing issues. Creation is always driven by the plan step. |
+
+### What you actually say (zero ceremony)
+
+```text
+# Just be conversational:
+"Let's build JWT auth for next-app. Start with brainstorming."
+# → agent brainstorms, writes plan, creates the GitHub issue, then implements
+```
+
+No special commands, no remembering to "create the issue." The agent handles it at the right time.
+
+---
+
 ## The Mental Model
 
 Each feature is split into **work packages by discipline** (Backend, Frontend, DevOps, QA). Each engineer:
@@ -286,7 +427,7 @@ Now there are three open PRs: #14 (backend), #15 (frontend), #16 (devops).
 2. **PR #14 (Backend)** second — frontend needs the API to be in `main` for final integration testing
 3. **PR #15 (Frontend)** last — after backend is merged, Charlie rebases and verifies the real API works
 
-Each reviewer can comment `@claude fix the failing test in test_auth_service.py` and Claude pushes a fix commit without the author needing to context-switch.
+Code review is done inside the AI agent (not in GitHub CI). Each PR is already self-reviewed by its implementing agent (`/simplify → /review → /pr`) before it's opened, so reviewers get a clean, simplified diff. Teammates review on GitHub in the normal way.
 
 ### What if Frontend PR needs rebasing after Backend merges?
 
@@ -374,7 +515,7 @@ Only do this if the original assignee has explicitly dropped it (updated checkli
 
 ### "I want to review a teammate's PR without running Claude Code"
 
-Just review it on GitHub normally. `@claude` is opt-in — you only get AI-assisted fixes when you explicitly tag it.
+Just review it on GitHub normally. The implementing agent has already self-reviewed the diff before the PR was opened, so the code reaching GitHub is simplified and reviewed — no GitHub Actions review or `@claude` tagging is involved.
 
 ### "The plan was wrong — a task needs to change mid-implementation"
 
@@ -436,6 +577,6 @@ DevOps → Backend → Frontend (most to least likely to be depended upon)
 | "Why did we build it this way?" | Brainstorming output in `docs/brainstorming/` |
 | "The PR has no context" | `/pr` generates a structured body with summary, test plan, files changed |
 | "I accidentally broke main" | Hooks block direct commits to `main`; `/pr` runs tests before push |
-| "Two people conflicted on the same file" | Worktrees isolate branches; rebase + `@claude` resolve conflicts |
+| "Two people conflicted on the same file" | Worktrees isolate branches; rebase with intent-aware conflict resolution |
 | "The PR is messy / overcomplicated" | `/simplify` runs before every PR |
 | "I don't know if this actually works" | `/verification` and `/verify` run the app before declaring done |

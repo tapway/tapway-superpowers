@@ -199,7 +199,7 @@ sequenceDiagram
   V->>V: detect env (-stg / -prod)
   V->>V: latest tag + conventional commits → bump (major/minor/patch)
   V->>Tag: create vX.Y.Z-env tag
-  V->>Rel: publish release from CHANGELOG top section
+  V->>Rel: publish release with notes generated from PRs since the previous tag
 ```
 
 **Description:**
@@ -209,7 +209,7 @@ bump is derived from conventional commits since the last tag for the same env.
 **Edge Cases / Failure Modes:**
 - No prior tag for the env → starts from 0.0.0 so the first conventional commit
   rolls to a sane version.
-- CHANGELOG has no top section → release notes fall back to the tag title.
+- No PR merged since the previous tag → GitHub's notes carry only the compare link.
 
 **Planned — nightly auto-update (issue #67).** The PR-based skill sync is
 replaced by a nightly release: commit to `main`, bump the version in every

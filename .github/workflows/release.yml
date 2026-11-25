@@ -81,20 +81,25 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          # Previous tag of the SAME stream, read before the new tag exists.
+          # Release notes cover what merged since it.
+          SUFFIX="${{ steps.ver.outputs.stream }}"
+          if [ "$SUFFIX" = "master" ]; then SUFFIX=""; fi
+          PREVIOUS="$(git tag -l 'v*' | { grep -E "^v[0-9]+\.[0-9]+\.[0-9]+${SUFFIX}$" || true; } | sort -V | tail -1)"
+
           # Tag + release FIRST: these must succeed regardless of the manifest
           # sync below (the ruleset may reject the bot's push to a protected
           # branch, which previously aborted the whole release).
           git tag "$VERSION"
           git push origin "$VERSION"
 
-          # Extract the top CHANGELOG section (between first ## [ and second ## [ or ---)
-          awk '/^## \[/{if(p)exit; p=1; next} p && /^(## \[|---)/{exit} p{print}' CHANGELOG.md \
-            > /tmp/release-notes.md
-
+          # Notes list the PRs merged since PREVIOUS. They are not read from
+          # CHANGELOG.md: its top section only moves when a manifest-sync PR is
+          # merged, so unmerged ones made every release repeat the same text.
           gh release create "$VERSION" \
             --title "$VERSION" \
             --target "${{ github.ref_name }}" \
-            --notes-file /tmp/release-notes.md
+            --generate-notes ${PREVIOUS:+--notes-start-tag "$PREVIOUS"}
 
       - name: Sync plugin manifests (opens a PR; master stream only)
         # Only the production stream owns the plain manifests — a -stg release

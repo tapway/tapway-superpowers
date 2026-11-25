@@ -20,6 +20,8 @@ claude plugin install tapway-superpowers@tapway-superpowers
 
 Skills and hooks activate immediately. No restart, no config files.
 
+**Auto-update is off by default.** [Turn it on once](docs/DEPLOYMENT.md#install--claude-code-plugin) to receive new releases.
+
 **Recommended companion plugins:**
 ```bash
 claude plugin install andrej-karpathy-skills@karpathy-skills

@@ -550,18 +550,19 @@ class HookTests(unittest.TestCase):
                 self.assertEqual(plan_issue.issue_number(doc.read_text()), 77, surface)
 
     def test_windows_backslash_path_is_routed_on_every_surface(self):
-        """Windows sends backslash paths; the shell gate must not drop them."""
+        """Windows sends backslash paths; routing AND file lookup must handle them.
+
+        Only the POSIX-named file exists here. A hook that normalises solely for
+        the `case` pattern then stats the raw backslash path finds nothing and
+        exits silently — the windows bug this PR is meant to close.
+        """
         rel = "docs/brainstorming/design.md"
         doc = self.repo.root / rel
         doc.parent.mkdir(parents=True, exist_ok=True)
-        # POSIX CI treats a backslash as part of the file name, so put a file
-        # under that literal name too. On Windows it is the same file as `doc`.
         windows = rel.replace("/", "\\")
-        literal = self.repo.root / windows
         for surface, hook in (("claude", self.HOOK), ("codex", self.CODEX_HOOK)):
             with self.subTest(surface=surface):
                 doc.write_text(ACCEPTED_DESIGN, encoding="utf-8")
-                literal.write_text(ACCEPTED_DESIGN, encoding="utf-8")
                 self.log.write_text("", encoding="utf-8")
                 result = self._run(
                     {"tool_name": "Write", "tool_input": {"file_path": windows}}, hook=hook

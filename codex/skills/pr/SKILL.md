@@ -122,7 +122,9 @@ git add docs/
 git commit -m "docs: update project docs for [feature/change]"
 ```
 
-If `$repo-docs` made no changes (output says "no sections affected"), skip the commit but note "docs: no changes" in the PR body.
+Use incremental mode and include its single plain `Docs: updated — …` or
+`Docs: no impact — …` line in the PR body for coding changes. Reuse an earlier
+result only if it covers the current PR diff. Do not commit unchanged docs.
 
 ---
 
@@ -236,7 +238,7 @@ git push
 - ❌ Never open a PR with failing tests
 - ❌ Never create a PR from the integration branch — always from a worktree
 - ❌ Never skip the rebase step — stale branches cause CI failures and reviewer confusion
-- ❌ Never skip `$repo-docs` — docs must be updated on every PR
+- ❌ Never skip `$repo-docs` for a code PR — review docs impact even if no edits are needed
 - ❌ Never leave the work package checklist unchecked after the PR is open
 
 ---

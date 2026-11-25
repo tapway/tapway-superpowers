@@ -213,13 +213,10 @@ If Critical fixes are significant enough to require a new task, add it to the st
 
 **Step 3 — Update Docs**
 
-Run `/repo-docs` — mandatory on every autoship run, no exceptions.
-
-```
-/repo-docs
-```
-
-`/repo-docs` updates only the sections affected by this branch's changes if docs already exist, or generates all docs from scratch if this is the first time. Commit any changes it makes:
+Load `tapway-superpowers:repo-docs` (or the installed standalone `repo-docs`
+skill) and use incremental mode. Update affected sections, or bootstrap missing
+baseline docs. Carry the resulting `Docs:` line into the PR body for coding
+changes; reuse it only if the review covers the final PR diff. Commit any doc changes:
 
 ```bash
 git add docs/

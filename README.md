@@ -421,6 +421,24 @@ a plan already on the target branch. Promotions (`staging` to production), syncs
 back to `staging`, release version sync PRs and Dependabot updates are exempt.
 It also fails on added secrets and non-conventional commits.
 
+### Docs impact
+
+`workflow-gate.yml` with `enforce_docs_impact: true` checks each code PR's `Docs:`
+line, then asks for the matching document: `docs/DB_SCHEMA.md` for schema changes
+and `docs/DEPLOYMENT.md` for deployment changes (the check fails),
+`docs/ARCHITECTURE.md` and `docs/WORKFLOWS.md` for design and flow changes (it
+warns). `Docs: no impact (<rule>) — reason` answers one rule. Promotions, syncs
+and bot PRs are exempt.
+
+A repo can adjust this in `.docs-impact.json`, read from the target branch:
+
+```json
+{ "database": false, "rules": { "deployment": { "doc": "docs/DEPLOY_FLOW.md" } } }
+```
+
+Rules are `schema`, `deployment`, `architecture` and `workflows`; each accepts
+`doc`, `paths` (regular expressions) and `block`.
+
 ### Setup
 
 `release.yml` is created automatically by `/setup-project`. It calls this repo's

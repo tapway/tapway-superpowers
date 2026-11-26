@@ -15,6 +15,8 @@ Docs: updated — docs/WORKFLOWS.md
 or
 Docs: no impact — <explain why existing docs remain accurate>
 Use actual changed doc paths, separated by commas. Omit for docs-only PRs.
+Schema, deployment, architecture or workflow changes also need their document,
+or one extra line each:  Docs: no impact (schema) — <reason>
 -->
 
 ## Test plan

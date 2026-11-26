@@ -195,10 +195,10 @@ Run this before `/pr` on any new endpoint, background task, or external integrat
 ```
 /simplify       ← reduce complexity and duplication
 /review         ← three-tier self-review (Critical / Warnings / Suggestions)
-/pr             ← rebase, test, update docs, update wiki, push, open PR
+/pr             ← rebase, test, update docs, push, open PR
 ```
 
-**`/pr` is mandatory** — it rebases against `main`, runs the full test suite, updates project docs and the GitHub wiki, and opens a structured PR. Never push manually.
+**`/pr` is mandatory** — it rebases against `main`, runs the full test suite, updates project docs, and opens a structured PR. Never push manually.
 
 ---
 
@@ -421,6 +421,24 @@ a plan already on the target branch. Promotions (`staging` to production), syncs
 back to `staging`, release version sync PRs and Dependabot updates are exempt.
 It also fails on added secrets and non-conventional commits.
 
+### Docs impact
+
+`workflow-gate.yml` with `enforce_docs_impact: true` checks each code PR's `Docs:`
+line, then asks for the matching document: `docs/DB_SCHEMA.md` for schema changes
+and `docs/DEPLOYMENT.md` for deployment changes (the check fails),
+`docs/ARCHITECTURE.md` and `docs/WORKFLOWS.md` for design and flow changes (it
+warns). `Docs: no impact (<rule>) — reason` answers one rule. Promotions, syncs
+and bot PRs are exempt.
+
+A repo can adjust this in `.docs-impact.json`, read from the target branch:
+
+```json
+{ "database": false, "rules": { "deployment": { "doc": "docs/DEPLOY_FLOW.md" } } }
+```
+
+Rules are `schema`, `deployment`, `architecture` and `workflows`; each accepts
+`doc`, `paths` (regular expressions) and `block`.
+
 ### Setup
 
 `release.yml` is created automatically by `/setup-project`. It calls this repo's
@@ -454,10 +472,9 @@ AI behaviors that activate automatically when you use relevant keywords. Also in
 | `refactor` | **Protocol A** (active codebase): surgical incremental refactoring. **Protocol B** (legacy): characterization-test-first sequence | "Refactor...", "Clean up...", "Legacy refactor..." |
 | `code-review` | Three-tier review: Critical, Warnings, Suggestions | "Review my changes...", "Check this before I push..." |
 | `systematic-debugging` | Repro → Isolate → Hypothesize → Test → Fix → Post-mortem saved to `docs/post-mortems/` | "Why is X failing?", "Debug...", "Works locally but not in prod..." |
-| `pr` | Rebase, conflict resolution, test gate, **update docs**, **update GitHub wiki**, sync living-docs to gbrain, push, open PR, update checklist | "Create a PR...", "I'm done...", "Push and PR..." |
+| `pr` | Rebase, conflict resolution, test gate, **update docs**, sync living-docs to gbrain, push, open PR, update checklist | "Create a PR...", "I'm done...", "Push and PR..." |
 | `git-worktrees` | Manage parallel git worktrees for concurrent feature work | "Worktree...", "Parallel branches..." |
 | `repo-docs` | Generate `ARCHITECTURE.md`, `WORKFLOWS.md`, `DB_SCHEMA.md`, `DEPLOYMENT.md` | "Document this repo...", "Write architecture docs..." |
-| `repo-wiki-writer` | Write/refresh the GitHub Wiki (Home, How it works, Technical Details) in plain language. Run automatically by `/pr` and `/autoship` on every PR | "Update the wiki...", "Document this for onboarding..." |
 | `security-audit` | Full-codebase OWASP Top 10 audit — for pre-launch or major refactors | "Security audit...", "Audit the whole codebase..." |
 | `pre-review-cleanup` | Scan for template placeholders, boilerplate, and stale scaffold code | "Clean up template files...", "Remove boilerplate..." |
 | `setup-project` | One-time setup: creates `.github/workflows/release.yml` and `CLAUDE.md`, commits, prints checklist for remaining manual steps | "setup project", "initialize project for the team", "project setup" |
@@ -536,10 +553,9 @@ Subagent definitions for use with the TDD and autoship skills:
 | `/refactor` | Individual / Legacy | Incremental (Protocol A) or legacy characterization-test workflow (Protocol B) |
 | `/doubt` | All | Adversarial review of any high-stakes decision before it's locked in. Use for irreversible changes, service boundaries, security assumptions. |
 | `/observe` | All | Add structured logging, RED metrics, OTel, and alerts to any new endpoint or task. Run before `/pr`. |
-| `/pr` | All | Rebase, test, update docs, update GitHub wiki, push, open PR, update checklist — **mandatory exit** |
+| `/pr` | All | Rebase, test, update docs, push, open PR, update checklist — **mandatory exit** |
 | `/deprecate` | All | Safe removal of any API, module, or feature. Enforces: replacement first, migration guide, zero-usage gate. |
 | `/repo-docs` | Legacy / All | Generate architecture, schema, workflow, deployment docs |
-| `/repo-wiki-writer` | All | Write/refresh the GitHub Wiki (Home, How it works, Technical Details). Run automatically by `/pr` and `/autoship` |
 | `/cleanup` | Individual | Remove template artifacts *(tapway-claude-template users only)* |
 | `/review` | All | Three-tier self-review before PR |
 | `/release <patch\|minor\|major>` | All | Semver bump, release notes, git tag |

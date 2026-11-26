@@ -1,5 +1,8 @@
 ## Summary
 
+<!-- If this PR does not add or update a file in docs/plans/, link the merged
+plan it implements, on its own line:  Plan: docs/plans/<name>.md -->
+
 ## Release note
 
 <!-- One to three plain sentences on what changes for users. It is copied into

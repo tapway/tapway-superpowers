@@ -412,6 +412,15 @@ a legacy plain tag) with the four manifest fields and exits RED on mismatch; the
 within a day. Version derivation lives in `scripts/next_version.sh` (tested in
 `tests/test_next_version.py`), which keeps `-stg` tags out of the production line.
 
+### Plan required on every PR
+
+The `audit` check (`.github/workflows/workflow-audit.yml`, callable from other
+repos) fails a PR that has no plan. A PR passes when it adds or updates a file in
+`docs/plans/`, or its description has a `Plan: docs/plans/<name>.md` line naming
+a plan already on the target branch. Promotions (`staging` to production), syncs
+back to `staging`, release version sync PRs and Dependabot updates are exempt.
+It also fails on added secrets and non-conventional commits.
+
 ### Setup
 
 `release.yml` is created automatically by `/setup-project`. It calls this repo's

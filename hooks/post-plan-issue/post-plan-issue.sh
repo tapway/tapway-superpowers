@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# post-plan-issue.sh — create the GitHub issue the moment a plan is written.
+# post-plan-issue.sh — draft the GitHub issue the moment a plan is written.
 #
 # PostToolUse on Write|Edit|MultiEdit. It never blocks the write (PostToolUse
 # cannot), and it never fails the tool call: any error is reported on stderr and
@@ -57,13 +57,19 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 - "$FILE_PATH" <<'PY' || true
+import json
 import sys
 
 from hermes.plugin.plan_issue import handle_plan_write
 
-result = handle_plan_write(sys.argv[1])
+result = handle_plan_write(sys.argv[1])  # drafts only; posting needs approval
 if result.message:
-    print(f"tapway-superpowers: {result.message}")
+    message = f"tapway-superpowers: {result.message}"
+    # Plain stdout is not shown after a tool call; this reaches the user and the agent.
+    print(json.dumps({
+        "systemMessage": message,
+        "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": message},
+    }))
 if result.error:
     print(f"tapway-superpowers: issue not created — {result.error}", file=sys.stderr)
 PY

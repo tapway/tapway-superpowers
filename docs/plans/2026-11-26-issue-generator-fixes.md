@@ -1,5 +1,5 @@
 ---
-issue: 
+issue: 112
 title: Issue generator posts only what was written and approved
 date: 2026-11-26
 ---

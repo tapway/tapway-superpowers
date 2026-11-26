@@ -121,7 +121,7 @@ cp hermes/agent-hooks/tapway-*.sh ~/.hermes/agent-hooks/
 
 Each adopting project runs `setup-project` (a slash command / skill) to:
 
-1. Create `.github/workflows/release.yml` (semver auto-release)
+1. Create `.github/workflows/release.yml` (calls the shared semver auto-release workflow)
 2. Create `.github/workflows/quality.yml` (lint/format/typecheck/coverage + dependency audit)
 3. Install the git `pre-commit` backstop (`.git/hooks/pre-commit`)
 4. Create `CLAUDE.md` with `TARGET_BRANCH: staging`
@@ -131,8 +131,9 @@ Then enable the plugins' CI workflows: `playwright.yml` (E2E), `quality.yml`
 
 ## Publish (Release)
 
-Releases are created automatically on merge to `staging` or `prod` via
-`.github/workflows/release.yml` (semver `vMAJOR.MINOR.PATCH-stg` / `-prod`), or
+Releases are created automatically on merge to `staging`, `master` or `prod` via
+`.github/workflows/release.yml` (semver `vMAJOR.MINOR.PATCH-stg` / `-prod`), with
+notes built from the merged PR descriptions (see README, "Release notes"), or
 manually:
 
 ```bash

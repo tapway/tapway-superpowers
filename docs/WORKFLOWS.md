@@ -185,7 +185,7 @@ dated action items.
 
 ## Workflow: Release
 
-**Trigger:** PR merges to `staging` or `prod`
+**Trigger:** PR merges to `staging`, `master` or `prod`
 **Actor:** GitHub Actions `release.yml`
 
 ```mermaid
@@ -199,7 +199,7 @@ sequenceDiagram
   V->>V: detect env (-stg / -prod)
   V->>V: latest tag + conventional commits → bump (major/minor/patch)
   V->>Tag: create vX.Y.Z-env tag
-  V->>Rel: publish release with notes generated from PRs since the previous tag
+  V->>Rel: publish release describing each PR since the previous tag
 ```
 
 **Description:**
@@ -209,7 +209,10 @@ bump is derived from conventional commits since the last tag for the same env.
 **Edge Cases / Failure Modes:**
 - No prior tag for the env → starts from 0.0.0 so the first conventional commit
   rolls to a sane version.
-- No PR merged since the previous tag → GitHub's notes carry only the compare link.
+- No PR merged since the previous tag → notes say "No user-facing changes" and link the comparison.
+- A PR has no `## Release note` → its summary or first paragraph is used.
+- The notes script fails → GitHub's title-only notes are published instead.
+- Staging promoted by squash → only the promotion PR is listed; use a merge commit.
 
 **Planned — nightly auto-update (issue #67).** The PR-based skill sync is
 replaced by a nightly release: commit to `main`, bump the version in every

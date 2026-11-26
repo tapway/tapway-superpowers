@@ -1,6 +1,6 @@
 name: Auto Release
 
-# Fires automatically on every merge to `staging` or `prod`.
+# Fires automatically on every merge to `staging` or `master`.
 # Can also be triggered manually (Actions → Run workflow) to release to any
 # environment directly — useful for small projects without a staging branch.
 #
@@ -14,7 +14,7 @@ name: Auto Release
 #   feat:                    →  MINOR
 #   anything else            →  PATCH
 #
-# Each environment keeps its own independent version stream.
+# Production takes the version of the staging release being promoted.
 #
 # Before tagging, the plain MAJOR.MINOR.PATCH (no env suffix) is also written
 # into .claude-plugin/marketplace.json and .claude-plugin/plugin.json, since
@@ -100,13 +100,23 @@ jobs:
           git tag "$VERSION"
           git push origin "$VERSION"
 
-          # Notes list the PRs merged since PREVIOUS. They are not read from
-          # CHANGELOG.md: its top section only moves when a manifest-sync PR is
-          # merged, so unmerged ones made every release repeat the same text.
-          gh release create "$VERSION" \
-            --title "$VERSION" \
-            --target "${{ github.ref_name }}" \
-            --generate-notes ${PREVIOUS:+--notes-start-tag "$PREVIOUS"}
+          # Notes describe each PR merged since PREVIOUS, using its own
+          # description. They are not read from CHANGELOG.md: its top section
+          # only moves when a manifest-sync PR is merged, so unmerged ones made
+          # every release repeat the same text. If the script fails, GitHub's
+          # title-only notes are used: the tag exists, so it must get a release.
+          if python3 scripts/release_notes.py --tag "$VERSION" ${PREVIOUS:+--previous "$PREVIOUS"} > /tmp/release-notes.md; then
+            gh release create "$VERSION" \
+              --title "$VERSION" \
+              --target "${{ github.ref_name }}" \
+              --notes-file /tmp/release-notes.md
+          else
+            echo "::warning::descriptive notes failed; using GitHub's generated notes"
+            gh release create "$VERSION" \
+              --title "$VERSION" \
+              --target "${{ github.ref_name }}" \
+              --generate-notes ${PREVIOUS:+--notes-start-tag "$PREVIOUS"}
+          fi
 
       - name: Sync plugin manifests (opens a PR; production stream only)
         # Only the production stream owns the plain manifests — a -stg release

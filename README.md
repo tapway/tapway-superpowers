@@ -338,7 +338,7 @@ No `ANTHROPIC_API_KEY` secret, no `claude.yml` workflow, and no GitHub Actions r
 
 ## Release Convention — Semantic Versioning
 
-Releases are created **automatically** every time a PR merges to `staging` or `prod`, via `.github/workflows/release.yml`.
+Releases are created **automatically** every time a PR merges to `staging` (`-stg`) or `master` / `prod` (`-prod`), via `.github/workflows/release.yml`.
 
 ### Format
 
@@ -357,8 +357,10 @@ vMAJOR.MINOR.PATCH-env
 
 - **PATCH increments** on every merge by default
 - **MINOR increments** (and PATCH resets to 0) when any merged commit is `feat: ...`
-- **MAJOR increments** (and MINOR/PATCH reset to 0) when any merged commit contains `feat!` or `BREAKING CHANGE`
-- `stg` and `prod` maintain **independent** MAJOR.MINOR.PATCH streams
+- **MAJOR increments** (and MINOR/PATCH reset to 0) when a merged commit's subject has `!` (`feat!:`) or its body has a `BREAKING CHANGE:` line
+- `stg` and `prod` share **one version line**: promoting `v1.2.0-stg` releases `v1.2.0-prod`
+- A hotfix made directly on production bumps `-prod`, and the next `-stg` continues from it
+- Promote with a merge commit: after a squash, production cannot see the staging tag and bumps on its own
 
 ### Examples
 
@@ -367,8 +369,23 @@ v1.1.0-stg   ← feature merge to staging
 v1.1.1-stg   ← bugfix on top of 1.1.0
 v1.2.0-stg   ← next feature
 v2.0.0-stg   ← breaking change (MAJOR bump)
-v1.1.0-prod  ← promoted to prod (prod's own stream)
+v2.0.0-prod  ← promoted to prod (same version as the staging release)
 ```
+
+### Release notes
+
+Each release describes every PR merged since the previous tag of the same
+environment, so a `-prod` release covers all the staging work since the last
+`-prod`. The text comes from the PR's `## Release note` section, falling back to
+its summary, grouped into features, fixes and other changes
+(`scripts/release_notes.py`).
+
+- Write the `## Release note` section for users, or `None` if they will not notice.
+- Promote staging to production with a **merge commit**. A squash leaves only the
+  promotion PR in the notes.
+- Changes pushed without a PR are not listed.
+- In a private repo, grant the calling job `pull-requests: read`, or the notes
+  carry titles only.
 
 ### Plugin manifests (who owns the version)
 
@@ -397,7 +414,10 @@ within a day. Version derivation lives in `scripts/next_version.sh` (tested in
 
 ### Setup
 
-`release.yml` is created automatically by `/setup-project`. It requires only the built-in `GITHUB_TOKEN` — no extra secrets needed.
+`release.yml` is created automatically by `/setup-project`. It calls this repo's
+`reusable-release.yml@master`, so projects pick up release fixes without editing
+their own copy. It requires only the built-in `GITHUB_TOKEN` — no extra secrets
+needed. Projects set up earlier keep their old `release.yml` until it is replaced.
 
 Set `staging` as your repo's default branch (GitHub → Settings → Branches → Default branch) so `gh pr create` targets it automatically (branch name: `staging`, tag suffix: `-stg`).
 

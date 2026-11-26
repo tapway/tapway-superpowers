@@ -21,7 +21,7 @@ metadata:
 
 ## What It Does
 
-1. Creates `.github/workflows/release.yml` — semver auto-release (`vX.Y.Z-stg` / `vX.Y.Z-prod`) on merge to `staging` / `prod`
+1. Creates `.github/workflows/release.yml` — semver auto-release (`vX.Y.Z-stg` / `vX.Y.Z-prod`) on merge to `staging` / `master` (or `prod`)
 2. Creates `AGENTS.md` (if missing) with `TARGET_BRANCH: staging` pre-filled
 3. Creates `.github/workflows/quality.yml` — the CI quality gate (lint/format/typecheck/coverage + dependency audit) — see the `quality-gates` skill
 4. Installs the git `pre-commit` backstop (`hooks/pre-commit/git-pre-commit.sh`) into `.git/hooks/pre-commit`
@@ -54,23 +54,16 @@ If `.github/workflows/release.yml` does not exist, write the following content e
 ```yaml
 name: Auto Release
 
-# Fires automatically on every merge to `staging` or `prod`.
-# Can also be triggered manually (Actions → Run workflow).
-# Produces a Semantic Versioning tag with an environment suffix:
-#   vMAJOR.MINOR.PATCH-stg   (staging)
-#   vMAJOR.MINOR.PATCH-prod  (production)
-#
-# Bump derived from conventional commits since the last tag for the same env:
-#   feat! / BREAKING CHANGE  →  MAJOR
-#   feat:                    →  MINOR
-#   anything else            →  PATCH
-#
-# Each environment keeps its own independent version stream.
+# vMAJOR.MINOR.PATCH-stg on merge to `staging`, -prod on merge to `master` or `prod`.
+# The version rules and release notes live in the shared Tapway workflow.
+# Promote staging to production with a merge commit so the -prod notes list every
+# change since the last -prod release.
 
 on:
   push:
     branches:
       - staging
+      - master
       - prod
   workflow_dispatch:
     inputs:
@@ -85,87 +78,12 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
     permissions:
       contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # full history needed to read existing tags & commits
-
-      - name: Compute next version
-        id: ver
-        run: |
-          set -e
-
-          # Determine environment suffix:
-          #   - workflow_dispatch: use the input value
-          #   - push to prod branch: -prod
-          #   - push to staging branch (or anything else): -stg
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            INPUT="${{ github.event.inputs.environment }}"
-            [ "$INPUT" = "production" ] && ENV="-prod" || ENV="-stg"
-          else
-            BRANCH="${GITHUB_REF_NAME}"
-            ENV="-stg"
-            [ "$BRANCH" = "prod" ] && ENV="-prod"
-          fi
-
-          # Latest semver tag for this env, e.g. v1.2.3-stg
-          LATEST=$(git tag -l "v*${ENV}" 2>/dev/null | sort -V | tail -1)
-
-          if [ -z "$LATEST" ]; then
-            MAJOR=0; MINOR=0; PATCH=0
-          else
-            VER=${LATEST#v}
-            VER=${VER%%"${ENV}"}
-            MAJOR=$(echo "$VER" | cut -d. -f1)
-            MINOR=$(echo "$VER" | cut -d. -f2)
-            PATCH=$(echo "$VER" | cut -d. -f3)
-          fi
-
-          RANGE="${LATEST:-$(git rev-list --max-parents=0 HEAD)}..HEAD"
-
-          BUMP="patch"
-          if git log "${RANGE}" --format="%s%n%b" 2>/dev/null \
-             | grep -qE '(^feat!|BREAKING CHANGE)'; then
-            BUMP="major"
-          elif git log "${RANGE}" --format="%s" 2>/dev/null \
-             | grep -qE '^(feat|feat\()'; then
-            BUMP="minor"
-          fi
-
-          case "$BUMP" in
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH + 1)) ;;
-          esac
-
-          VERSION="v${MAJOR}.${MINOR}.${PATCH}${ENV}"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "bump=${BUMP}"        >> "$GITHUB_OUTPUT"
-          echo "Computed version: ${VERSION} (${BUMP} bump)"
-
-      - name: Tag and publish release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${{ steps.ver.outputs.version }}"
-
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "$VERSION"
-          git push origin "$VERSION"
-
-          # Extract the top CHANGELOG section (between first ## [ and second ## [ or ---)
-          awk '/^## \[/{if(p)exit; p=1; next} p && /^(## \[|---)/{exit} p{print}' CHANGELOG.md \
-            > /tmp/release-notes.md
-
-          gh release create "$VERSION" \
-            --title "$VERSION" \
-            --target "${{ github.ref_name }}" \
-            --notes-file /tmp/release-notes.md
+      pull-requests: read   # lets the notes quote PR descriptions
+    uses: tapway/tapway-superpowers/.github/workflows/reusable-release.yml@master
+    with:
+      environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || ((github.ref_name == 'master' || github.ref_name == 'prod') && 'production' || 'staging') }}
 ```
 
 ### Step 3 — Install the Git Pre-Commit Backstop

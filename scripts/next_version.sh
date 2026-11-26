@@ -7,13 +7,14 @@
 #
 # The bump is derived from conventional commits since the last tag OF THE SAME
 # STREAM:
-#   feat! / BREAKING CHANGE -> major
+#   "type!:" subject, or a "BREAKING CHANGE:" footer line -> major
 #   feat:                   -> minor
 #   anything else           -> patch
 #
-# Streams are strictly separated. The production stream (`-prod`) must not see
-# `-stg` tags: `git tag -l "v*"` matches them, and a staging release would then
-# bump production (that is how v1.1.0-stg once leaked into the v1.x line).
+# The two streams share one version line:
+#   -prod takes the newest -stg version merged into HEAD, when it is ahead.
+#   -stg  continues from -prod when a hotfix has put production ahead.
+# Otherwise each bumps from its own newest tag.
 #
 # Migration: production used to be tagged WITHOUT a suffix (`v2.11.3`). When a
 # suffixed stream has no tag, or the newest plain tag is ahead of that stream's
@@ -61,12 +62,38 @@ if [ -n "$SUFFIX" ]; then
   fi
 fi
 
+# newer A B: true when version core A is strictly higher than B.
+newer() {
+  [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$1" ]
+}
+core_of() { local v="${1#v}"; echo "${v%%-*}"; }
+BASE_CORE="$(core_of "${LATEST:-v0.0.0}")"
+
+# Parity: production releases the version staging gave the same code. Only a
+# -stg tag already merged into HEAD counts, so unpromoted work is never claimed.
+# With nothing newer from staging (a hotfix, or no staging branch) production
+# bumps its own line below.
+if [ "$SUFFIX" = "-prod" ]; then
+  STG="$(git tag --merged HEAD -l 'v*-stg' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-stg$' | sort -V | tail -1 || true)"
+  if [ -n "$STG" ] && newer "$(core_of "$STG")" "$BASE_CORE"; then
+    echo "v$(core_of "$STG")-prod"
+    exit 0
+  fi
+fi
+
+# The other direction: after a production hotfix, staging continues from it.
+if [ "$SUFFIX" = "-stg" ]; then
+  PROD="$(git tag -l 'v*-prod' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-prod$' | sort -V | tail -1 || true)"
+  if [ -n "$PROD" ] && newer "$(core_of "$PROD")" "$BASE_CORE"; then
+    LATEST="$PROD"
+  fi
+fi
+
 if [ -z "$LATEST" ]; then
   MAJOR=0; MINOR=0; PATCH=0
   RANGE="$(git rev-list --max-parents=0 HEAD)..HEAD"
 else
-  VER="${LATEST#v}"
-  VER="${VER%"$SUFFIX"}"
+  VER="$(core_of "$LATEST")"
   MAJOR="$(echo "$VER" | cut -d. -f1)"
   MINOR="$(echo "$VER" | cut -d. -f2)"
   PATCH="$(echo "$VER" | cut -d. -f3)"
@@ -84,7 +111,8 @@ if [ -z "$LATEST" ] || git merge-base --is-ancestor "$LATEST" HEAD 2>/dev/null; 
   # history into `tag..HEAD`, and an old `feat!` there must not classify this
   # release. Squash merges land as a single first-parent commit, so their
   # conventional title is still read.
-  if git log --first-parent "$RANGE" --format="%s%n%b" 2>/dev/null | grep -qE '(^feat!:|BREAKING CHANGE)'; then
+  if git log --first-parent "$RANGE" --format="%s" 2>/dev/null | grep -qE '^[a-z]+(\([^)]*\))?!:' ||
+     git log --first-parent "$RANGE" --format="%b" 2>/dev/null | grep -qE '^BREAKING[ -]CHANGE:'; then
     BUMP="major"
   elif git log --first-parent "$RANGE" --format="%s" 2>/dev/null | grep -qE '^(feat|feat\()'; then
     BUMP="minor"

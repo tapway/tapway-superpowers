@@ -10,7 +10,7 @@ name: Reusable SemVer Release
 #   name: Auto Release
 #   on:
 #     push:
-#       branches: [staging, master]
+#       branches: [staging, prod]
 #     workflow_dispatch:
 #       inputs:
 #         environment:
@@ -22,9 +22,10 @@ name: Reusable SemVer Release
 #     release:
 #       permissions:
 #         contents: write
+#         pull-requests: read   # lets the notes quote PR descriptions
 #       uses: tapway/tapway-superpowers/.github/workflows/reusable-release.yml@vX.Y.Z
 #       with:
-#         environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+#         environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'prod' && 'production' || 'staging') }}
 #       secrets: inherit
 #
 # Behaviour (identical to the classic per-repo copy):
@@ -33,8 +34,12 @@ name: Reusable SemVer Release
 #       feat:                    ->  MINOR
 #       anything else            ->  PATCH
 #   - Each environment keeps its own independent version stream.
-#   - Optionally syncs .claude-plugin manifests (plugin repos only) and
-#     writes release notes from the top CHANGELOG.md section.
+#   - Release notes describe every PR merged since the previous tag of the
+#     same env (scripts/release_notes.py), so a -prod release covers all the
+#     staging work since the last -prod. Promote with a merge commit: a squash
+#     leaves only the promotion PR.
+#   - Optionally syncs .claude-plugin manifests (plugin repos only), or takes
+#     release notes from the top CHANGELOG.md section instead.
 
 on:
   workflow_call:
@@ -50,19 +55,18 @@ on:
         default: false
         type: boolean
       release_notes_from_changelog:
-        description: "Use top CHANGELOG.md section as release notes (falls back to --generate-notes)"
+        description: "Use top CHANGELOG.md section as release notes instead of PR descriptions"
         required: false
-        default: true
+        default: false
         type: boolean
 
-permissions:
-  contents: write
+# No permissions block on purpose: the job inherits what the caller grants.
+# Declaring pull-requests here would fail every caller that grants only
+# contents, and declaring only contents would drop a caller's pull-requests.
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       # IMPORTANT: inside a called workflow, actions/checkout defaults to the
@@ -73,6 +77,14 @@ jobs:
           fetch-depth: 0
           repository: ${{ github.repository }}
           ref: ${{ github.ref }}
+
+      - name: Fetch the release notes script
+        uses: actions/checkout@v4
+        with:
+          repository: tapway/tapway-superpowers
+          ref: master
+          path: .tapway-release
+          sparse-checkout: scripts
 
       - name: Compute next version
         id: ver
@@ -156,6 +168,15 @@ jobs:
 
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Previous tag of the SAME env, read before the new tag exists; the
+          # first suffixed release falls back to the last unsuffixed tag.
+          SUFFIX="-stg"
+          [[ "$VERSION" == *-prod ]] && SUFFIX="-prod"
+          PREVIOUS="$(git tag -l 'v*' | { grep -E "^v[0-9]+\.[0-9]+\.[0-9]+${SUFFIX}$" || true; } | sort -V | tail -1)"
+          if [ -z "$PREVIOUS" ]; then
+            PREVIOUS="$(git tag -l 'v*' | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } | sort -V | tail -1)"
+          fi
+
           git tag "$VERSION"
           git push origin "$VERSION"
 
@@ -167,6 +188,11 @@ jobs:
             fi
           fi
 
+          if [ "$NOTES_OK" != "true" ] && python3 .tapway-release/scripts/release_notes.py \
+               --tag "$VERSION" ${PREVIOUS:+--previous "$PREVIOUS"} > /tmp/release-notes.md; then
+            NOTES_OK=true
+          fi
+
           if [ "$NOTES_OK" = "true" ]; then
             gh release create "$VERSION" \
               --title "$VERSION" \
@@ -176,5 +202,5 @@ jobs:
             gh release create "$VERSION" \
               --title "$VERSION" \
               --target "${{ github.ref_name }}" \
-              --generate-notes
+              --generate-notes ${PREVIOUS:+--notes-start-tag "$PREVIOUS"}
           fi

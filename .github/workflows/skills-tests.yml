@@ -44,6 +44,9 @@ jobs:
       - name: Release drift detector
         run: python tests/test_release_drift.py
 
+      - name: Descriptive release notes
+        run: python tests/test_release_notes.py
+
       - name: tool-guard hook (secrets, branches, ask-before-changes)
         run: python tests/test_tool_guard.py
 

@@ -181,6 +181,48 @@ class NextVersionTests(unittest.TestCase):
         self.repo.commit("feat(api)!: drop v1")
         self.assertEqual(self.repo.next_version(""), "v3.0.0")
 
+    def _promote_staging(self, stg_tag):
+        """Release `stg_tag` on a staging branch, then merge it into master."""
+        _git(self.repo.path, "checkout", "-q", "-b", "staging")
+        self.repo.commit("feat: staging work")
+        self.repo.tag(stg_tag)
+        _git(self.repo.path, "checkout", "-q", "master")
+        _git(self.repo.path, "merge", "--no-ff", "staging", "-m", "Merge pull request #1 from staging")
+
+    def test_production_takes_the_promoted_staging_version(self):
+        """-prod stays in parity with -stg instead of counting on its own."""
+        self.repo.tag("v2.11.5-prod")
+        self._promote_staging("v2.12.1-stg")
+        self.assertEqual(self.repo.next_version("-prod"), "v2.12.1-prod")
+
+    def test_first_production_release_takes_the_staging_version(self):
+        self._promote_staging("v0.3.0-stg")
+        self.assertEqual(self.repo.next_version("-prod"), "v0.3.0-prod")
+
+    def test_unpromoted_staging_version_is_not_claimed(self):
+        self.repo.tag("v2.11.5-prod")
+        _git(self.repo.path, "checkout", "-q", "-b", "staging")
+        self.repo.commit("feat: not yet promoted")
+        self.repo.tag("v2.12.0-stg")
+        _git(self.repo.path, "checkout", "-q", "master")
+        self.repo.commit("fix: hotfix on master")
+        self.assertEqual(self.repo.next_version("-prod"), "v2.11.6-prod")
+
+    def test_hotfix_after_a_promotion_bumps_production(self):
+        self.repo.tag("v2.11.5-prod")
+        self._promote_staging("v2.12.0-stg")
+        self.repo.tag("v2.12.0-prod")
+        self.repo.commit("fix: hotfix on master")
+        self.assertEqual(self.repo.next_version("-prod"), "v2.12.1-prod")
+
+    def test_staging_catches_up_with_a_production_hotfix(self):
+        """Without this, the next -stg would reuse the hotfix's number."""
+        self.repo.tag("v2.12.0-stg")
+        self.repo.commit("fix: hotfix")
+        self.repo.tag("v2.12.1-prod")
+        self.repo.commit("fix: next staging work")
+        self.assertEqual(self.repo.next_version("-stg"), "v2.12.2-stg")
+
     def test_only_commits_since_the_matching_tag_count(self):
         self.repo.tag("v1.0.0")
         self.repo.commit("feat: counted")

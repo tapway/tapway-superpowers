@@ -33,8 +33,9 @@ name: Reusable SemVer Release
 #       "type!:" subject or "BREAKING CHANGE:" footer  ->  MAJOR
 #       feat:                    ->  MINOR
 #       anything else            ->  PATCH
-#   - Each environment keeps its own independent version stream, continuing
-#     from the newest unsuffixed vX.Y.Z tag if that is ahead.
+#   - -prod takes the version of the newest -stg release merged into it, and
+#     -stg continues from -prod after a hotfix. Both continue from the newest
+#     unsuffixed vX.Y.Z tag if that is ahead.
 #   - Release notes describe every PR merged since the previous tag of the
 #     same env (scripts/release_notes.py), so a -prod release covers all the
 #     staging work since the last -prod. Promote with a merge commit: a squash

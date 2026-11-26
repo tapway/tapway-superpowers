@@ -14,7 +14,7 @@ name: Auto Release
 #   feat:                    →  MINOR
 #   anything else            →  PATCH
 #
-# Each environment keeps its own independent version stream.
+# Production takes the version of the staging release being promoted.
 #
 # Before tagging, the plain MAJOR.MINOR.PATCH (no env suffix) is also written
 # into .claude-plugin/marketplace.json and .claude-plugin/plugin.json, since

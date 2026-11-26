@@ -185,7 +185,7 @@ dated action items.
 
 ## Workflow: Release
 
-**Trigger:** PR merges to `staging` or `prod`
+**Trigger:** PR merges to `staging`, `master` or `prod`
 **Actor:** GitHub Actions `release.yml`
 
 ```mermaid

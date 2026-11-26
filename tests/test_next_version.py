@@ -165,6 +165,22 @@ class NextVersionTests(unittest.TestCase):
         _git(self.repo.path, "merge", "--no-ff", "side", "-m", "Merge pull request #99 from side")
         self.assertEqual(self.repo.next_version("-prod"), "v2.0.1-prod")
 
+    def test_prose_mentioning_breaking_change_is_not_major(self):
+        """A squash body describing the rules must not cut a major (v3.0.0-stg)."""
+        self.repo.tag("v2.0.0")
+        self.repo.commit("feat: notes\n\n  commits: feat!/BREAKING CHANGE -> MAJOR, else PATCH.")
+        self.assertEqual(self.repo.next_version(""), "v2.1.0")
+
+    def test_breaking_change_footer_is_major(self):
+        self.repo.tag("v2.0.0")
+        self.repo.commit("fix: rename field\n\nBREAKING CHANGE: `id` is now `uuid`")
+        self.assertEqual(self.repo.next_version(""), "v3.0.0")
+
+    def test_scoped_bang_subject_is_major(self):
+        self.repo.tag("v2.0.0")
+        self.repo.commit("feat(api)!: drop v1")
+        self.assertEqual(self.repo.next_version(""), "v3.0.0")
+
     def test_only_commits_since_the_matching_tag_count(self):
         self.repo.tag("v1.0.0")
         self.repo.commit("feat: counted")

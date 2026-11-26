@@ -131,7 +131,7 @@ Then enable the plugins' CI workflows: `playwright.yml` (E2E), `quality.yml`
 
 ## Publish (Release)
 
-Releases are created automatically on merge to `staging` or `prod` via
+Releases are created automatically on merge to `staging`, `master` or `prod` via
 `.github/workflows/release.yml` (semver `vMAJOR.MINOR.PATCH-stg` / `-prod`), with
 notes built from the merged PR descriptions (see README, "Release notes"), or
 manually:

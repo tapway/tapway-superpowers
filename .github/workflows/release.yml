@@ -1,6 +1,6 @@
 name: Auto Release
 
-# Fires automatically on every merge to `staging` or `prod`.
+# Fires automatically on every merge to `staging` or `master`.
 # Can also be triggered manually (Actions → Run workflow) to release to any
 # environment directly — useful for small projects without a staging branch.
 #

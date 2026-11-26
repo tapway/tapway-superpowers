@@ -119,6 +119,21 @@ class Wiring(unittest.TestCase):
             self.assertIn("pull-requests: read", text, tree)
             self.assertNotIn("gh release create", text, tree)
 
+    def test_setup_project_releases_production_from_master_or_prod(self):
+        for tree in ("skills", "codex/skills", "hermes/skills", "hermes/plugin/skills"):
+            text = self.read(*tree.split("/"), "setup-project", "SKILL.md")
+            self.assertIn("      - master\n", text, tree)
+            self.assertIn(
+                "(github.ref_name == 'master' || github.ref_name == 'prod') && 'production' || 'staging'",
+                text,
+                tree,
+            )
+
+    def test_reusable_workflow_shares_the_version_script(self):
+        text = self.read(".github", "workflows", "reusable-release.yml")
+        self.assertIn('bash .tapway-release/scripts/next_version.sh "$ENV"', text)
+        self.assertNotIn("BUMP=", text)
+
     def test_template_and_pr_skill_ask_for_a_release_note(self):
         self.assertIn("## Release note", self.read(".github", "pull_request_template.md"))
         for tree in ("skills", "codex/skills", "hermes/skills", "hermes/plugin/skills"):

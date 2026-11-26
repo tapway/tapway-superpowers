@@ -7,7 +7,7 @@
 #
 # The bump is derived from conventional commits since the last tag OF THE SAME
 # STREAM:
-#   feat! / BREAKING CHANGE -> major
+#   "type!:" subject, or a "BREAKING CHANGE:" footer line -> major
 #   feat:                   -> minor
 #   anything else           -> patch
 #
@@ -84,7 +84,8 @@ if [ -z "$LATEST" ] || git merge-base --is-ancestor "$LATEST" HEAD 2>/dev/null; 
   # history into `tag..HEAD`, and an old `feat!` there must not classify this
   # release. Squash merges land as a single first-parent commit, so their
   # conventional title is still read.
-  if git log --first-parent "$RANGE" --format="%s%n%b" 2>/dev/null | grep -qE '(^feat!:|BREAKING CHANGE)'; then
+  if git log --first-parent "$RANGE" --format="%s" 2>/dev/null | grep -qE '^[a-z]+(\([^)]*\))?!:' ||
+     git log --first-parent "$RANGE" --format="%b" 2>/dev/null | grep -qE '^BREAKING[ -]CHANGE:'; then
     BUMP="major"
   elif git log --first-parent "$RANGE" --format="%s" 2>/dev/null | grep -qE '^(feat|feat\()'; then
     BUMP="minor"

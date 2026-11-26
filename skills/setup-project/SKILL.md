@@ -16,7 +16,7 @@ description: >
 
 ## What It Does
 
-1. Creates `.github/workflows/release.yml` — semver auto-release (`vX.Y.Z-stg` / `vX.Y.Z-prod`) on merge to `staging` / `prod`
+1. Creates `.github/workflows/release.yml` — semver auto-release (`vX.Y.Z-stg` / `vX.Y.Z-prod`) on merge to `staging` / `master` (or `prod`)
 2. Creates `CLAUDE.md` (if missing) with `TARGET_BRANCH: staging` pre-filled
 3. Creates `.github/workflows/quality.yml` — the CI quality gate (lint/format/typecheck/coverage + dependency audit) — see the `quality-gates` skill
 4. Installs the git `pre-commit` backstop (`hooks/pre-commit/git-pre-commit.sh`) into `.git/hooks/pre-commit`
@@ -49,15 +49,16 @@ If `.github/workflows/release.yml` does not exist, write the following content e
 ```yaml
 name: Auto Release
 
-# vMAJOR.MINOR.PATCH-stg on merge to `staging`, -prod on merge to `prod`.
+# vMAJOR.MINOR.PATCH-stg on merge to `staging`, -prod on merge to `master` or `prod`.
 # The version rules and release notes live in the shared Tapway workflow.
-# Promote staging to prod with a merge commit so the -prod notes list every
+# Promote staging to production with a merge commit so the -prod notes list every
 # change since the last -prod release.
 
 on:
   push:
     branches:
       - staging
+      - master
       - prod
   workflow_dispatch:
     inputs:
@@ -77,7 +78,7 @@ jobs:
       pull-requests: read   # lets the notes quote PR descriptions
     uses: tapway/tapway-superpowers/.github/workflows/reusable-release.yml@master
     with:
-      environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'prod' && 'production' || 'staging') }}
+      environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || ((github.ref_name == 'master' || github.ref_name == 'prod') && 'production' || 'staging') }}
 ```
 
 ### Step 3 — Install the Git Pre-Commit Backstop

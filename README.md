@@ -338,7 +338,7 @@ No `ANTHROPIC_API_KEY` secret, no `claude.yml` workflow, and no GitHub Actions r
 
 ## Release Convention — Semantic Versioning
 
-Releases are created **automatically** every time a PR merges to `staging` or `prod`, via `.github/workflows/release.yml`.
+Releases are created **automatically** every time a PR merges to `staging` (`-stg`) or `master` / `prod` (`-prod`), via `.github/workflows/release.yml`.
 
 ### Format
 
@@ -357,7 +357,7 @@ vMAJOR.MINOR.PATCH-env
 
 - **PATCH increments** on every merge by default
 - **MINOR increments** (and PATCH resets to 0) when any merged commit is `feat: ...`
-- **MAJOR increments** (and MINOR/PATCH reset to 0) when any merged commit contains `feat!` or `BREAKING CHANGE`
+- **MAJOR increments** (and MINOR/PATCH reset to 0) when a merged commit's subject has `!` (`feat!:`) or its body has a `BREAKING CHANGE:` line
 - `stg` and `prod` maintain **independent** MAJOR.MINOR.PATCH streams
 
 ### Examples

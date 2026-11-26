@@ -10,7 +10,7 @@ name: Reusable SemVer Release
 #   name: Auto Release
 #   on:
 #     push:
-#       branches: [staging, prod]
+#       branches: [staging, master, prod]
 #     workflow_dispatch:
 #       inputs:
 #         environment:
@@ -25,15 +25,16 @@ name: Reusable SemVer Release
 #         pull-requests: read   # lets the notes quote PR descriptions
 #       uses: tapway/tapway-superpowers/.github/workflows/reusable-release.yml@vX.Y.Z
 #       with:
-#         environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'prod' && 'production' || 'staging') }}
+#         environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || ((github.ref_name == 'master' || github.ref_name == 'prod') && 'production' || 'staging') }}
 #       secrets: inherit
 #
 # Behaviour (identical to the classic per-repo copy):
 #   - Bump derived from conventional commits since the last tag for the same env:
-#       feat! / BREAKING CHANGE  ->  MAJOR
+#       "type!:" subject or "BREAKING CHANGE:" footer  ->  MAJOR
 #       feat:                    ->  MINOR
 #       anything else            ->  PATCH
-#   - Each environment keeps its own independent version stream.
+#   - Each environment keeps its own independent version stream, continuing
+#     from the newest unsuffixed vX.Y.Z tag if that is ahead.
 #   - Release notes describe every PR merged since the previous tag of the
 #     same env (scripts/release_notes.py), so a -prod release covers all the
 #     staging work since the last -prod. Promote with a merge commit: a squash
@@ -95,40 +96,11 @@ jobs:
           INPUT="${{ inputs.environment }}"
           [ "$INPUT" = "production" ] && ENV="-prod" || ENV="-stg"
 
-          # Latest semver tag for this env, e.g. v1.2.3-stg
-          LATEST=$(git tag -l "v*${ENV}" 2>/dev/null | sort -V | tail -1)
-
-          if [ -z "$LATEST" ]; then
-            MAJOR=0; MINOR=0; PATCH=0
-          else
-            VER=${LATEST#v}
-            VER=${VER%%"${ENV}"}
-            MAJOR=$(echo "$VER" | cut -d. -f1)
-            MINOR=$(echo "$VER" | cut -d. -f2)
-            PATCH=$(echo "$VER" | cut -d. -f3)
-          fi
-
-          RANGE="${LATEST:-$(git rev-list --max-parents=0 HEAD)}..HEAD"
-
-          BUMP="patch"
-          if git log "${RANGE}" --format="%s%n%b" 2>/dev/null \
-             | grep -qE '(^feat!|BREAKING CHANGE)'; then
-            BUMP="major"
-          elif git log "${RANGE}" --format="%s" 2>/dev/null \
-             | grep -qE '^(feat|feat\()'; then
-            BUMP="minor"
-          fi
-
-          case "$BUMP" in
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH + 1)) ;;
-          esac
-
-          VERSION="v${MAJOR}.${MINOR}.${PATCH}${ENV}"
+          # Same rules as tapway-superpowers' own releases: continues from an
+          # existing unsuffixed tag and classifies first-parent commits only.
+          VERSION="$(bash .tapway-release/scripts/next_version.sh "$ENV")"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "bump=${BUMP}"        >> "$GITHUB_OUTPUT"
-          echo "Computed version: ${VERSION} (${BUMP} bump)"
+          echo "Computed version: ${VERSION}"
 
       - name: Sync plugin manifest versions
         if: inputs.sync_plugin_manifests && hashFiles('.claude-plugin/plugin.json') != ''

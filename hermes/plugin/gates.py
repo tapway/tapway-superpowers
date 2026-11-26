@@ -31,6 +31,11 @@ OPTION_RE = re.compile(r"^#{2,3}\s+(?:Option|Approach|Alternative|Proposal)\b.*$
 GROUNDING_RE = re.compile(r"Grounding:\s*\S|UNKNOWN \(not retrieved", re.IGNORECASE)
 
 
+def _repo_root() -> Path:
+    here = Path.cwd()
+    return next((folder for folder in (here, *here.parents) if (folder / ".git").exists()), here)
+
+
 def enabled() -> bool:
     """Explicit env wins; otherwise on under CodeMAX, off elsewhere (public repo).
 
@@ -44,7 +49,7 @@ def enabled() -> bool:
     codemax = (
         os.environ.get("CODEMAX_WORKFLOW") == "1"
         or os.environ.get("CODEMAX_ENABLED") == "1"
-        or Path(".codemax.yml").is_file()
+        or (_repo_root() / ".codemax.yml").is_file()
     )
     return codemax
 
@@ -69,7 +74,7 @@ def _normalise(path: str) -> str:
 
 def check_doc(path: str, text: str) -> list[str]:
     """Return one finding per ungrounded option section (empty = allowed)."""
-    if not _normalise(path).startswith(BRAINSTORM_PREFIX):
+    if not re.search(rf"(^|/){BRAINSTORM_PREFIX}", _normalise(path)):
         return []
     if not text.strip():
         return []

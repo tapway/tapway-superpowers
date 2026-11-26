@@ -23,6 +23,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -70,6 +71,7 @@ class IssueResult:
     skipped: str | None = None
     error: str | None = None
     message: str | None = None
+    draft: str = ""
 
 
 # --------------------------------------------------------------------------- #
@@ -218,15 +220,39 @@ def _pick(sections: list[tuple[str, str]], pattern: str) -> str:
     return ""
 
 
+TEST_HEADING = re.compile(r"^(?:\d+[.)]\s*)?(?:test(?:ing| plan| strategy)?|verification)\b", re.IGNORECASE)
+SKIPPED_HEADING = re.compile(r"acceptance|out of scope|^(?:\d+[.)]\s*)?(?:test(?:ing| plan| strategy)?|verification)\b",
+                             re.IGNORECASE)
+NOT_SPECIFIED = "_Not specified in the {source}._"
+
+
+def _labelled_blocks(body: str, label: str) -> list[str]:
+    """Bullets under every ``**Label:**`` line, up to the next bold label or heading."""
+    items: list[str] = []
+    for match in re.finditer(rf"^\*\*(?:{label}):?\*\*:?\s*$", body, re.MULTILINE | re.IGNORECASE):
+        tail = re.split(r"\n(?:#{1,3}\s|\*\*)", body[match.end() :])[0]
+        items.extend(_bullets(tail))
+    return items
+
+
 def _acceptance(body: str, sections: list[tuple[str, str]]) -> list[str]:
     """Bullets from a top-level acceptance section, else each task's AC block."""
     section = _pick(sections, r"acceptance|definition of done|done when|success criteria")
     items = _bullets(section) if section else []
-    if not items:
-        for match in re.finditer(r"^\*\*Acceptance criteria:?\*\*\s*$", body, re.MULTILINE | re.IGNORECASE):
-            tail = re.split(r"\n#{2,3}\s", body[match.end() :])[0]
-            items.extend(_bullets(tail))
-    return items
+    return items or _labelled_blocks(body, "acceptance(?: criteria)?")
+
+
+def _tests(body: str, sections: list[tuple[str, str]]) -> list[str]:
+    block = next((text for heading, text in sections if TEST_HEADING.search(heading)), "")
+    items = [line.strip() for line in block.splitlines() if line.strip().startswith(("`", "-", "*"))]
+    return items or _labelled_blocks(body, "test plan|tests|verification")
+
+
+def _relative_doc(path: str) -> str:
+    """The repo-relative doc path: local folders must never reach an issue."""
+    posix = str(path).replace("\\", "/")
+    match = re.search(r"(?:^|/)(docs/(?:plans|brainstorming)/.+)$", posix)
+    return match.group(1) if match else posix.rsplit("/", 1)[-1]
 
 
 def _files(body: str) -> list[str]:
@@ -267,7 +293,7 @@ def render_body(plan_text: str, *, plan_path: str, branch: str, repo: str,
     )
     changes: list[str] = []
     for heading, block in (preferred or sections):
-        if re.search(r"test|acceptance|verif|out of scope|testing", heading, re.IGNORECASE):
+        if SKIPPED_HEADING.search(heading):
             continue
         tasks = [m.group(1).strip() for m in H3_RE.finditer(block)]
         if tasks:
@@ -283,25 +309,17 @@ def render_body(plan_text: str, *, plan_path: str, branch: str, repo: str,
     if not changes:
         changes = ["- [ ] Implement the plan (no task headings found — see the collapsed plan)"]
 
-    acceptance = _acceptance(body, sections)[:20]
-    if not acceptance:
-        acceptance = ["All tasks in the plan are implemented and reviewed", "CI is green on the PR"]
-    acceptance_md = "\n".join(
-        f"- [ ] {item}" if not item.startswith("[") else f"- [ ] {item}" for item in acceptance
-    )
-
-    testing = _pick(sections, r"test|verification|verif")
-    test_items = [line.strip() for line in testing.splitlines() if line.strip().startswith(("`", "-", "*"))][:12]
-    if not test_items:
-        test_items = ["- Run the repo's test gate and lint; CI must be green."]
-    test_md = "\n".join(
-        f"- {item.lstrip('-* ').strip()}" for item in test_items
-    )
+    source = "design doc" if kind == "brainstorm" else "plan"
+    missing = NOT_SPECIFIED.format(source=source)
+    # Never invent criteria or tests: nobody agreed to them.
+    acceptance_md = "\n".join(f"- [ ] {item}" for item in _acceptance(body, sections)[:20]) or missing
+    test_md = "\n".join(f"- {item.lstrip('-* ').strip()}" for item in _tests(body, sections)[:12]) or missing
 
     files_md = "\n".join(_files(body)) or (
         "- (no file list in the design doc)" if kind == "brainstorm" else "- (no file list in the plan)"
     )
-    links = [f"- **Plan:** `{plan_path}`", f"- **Branch:** `{branch}`", f"- **Repo:** `{repo}`"]
+    label = "Design" if kind == "brainstorm" else "Plan"
+    links = [f"- **{label}:** `{_relative_doc(plan_path)}`", f"- **Branch:** `{branch}`", f"- **Repo:** `{repo}`"]
 
     head = "\n\n".join(
         [
@@ -322,7 +340,6 @@ def render_body(plan_text: str, *, plan_path: str, branch: str, repo: str,
         ]
     )
 
-    source = "design doc" if kind == "brainstorm" else "plan"
     summary_word = "Full design" if kind == "brainstorm" else "Full plan"
     footer = f"\n\n---\n\n_Auto-created from the {source} by tapway-superpowers (plan → issue contract)._"
     budget = MAX_BODY - len(head) - len(footer) - 80
@@ -340,7 +357,8 @@ def render_body(plan_text: str, *, plan_path: str, branch: str, repo: str,
 # git + gh
 # --------------------------------------------------------------------------- #
 def _default_runner(args: list[str], cwd: Path | None = None):
-    return subprocess.run(args, cwd=str(cwd) if cwd else None, capture_output=True, text=True)
+    return subprocess.run(args, cwd=str(cwd) if cwd else None, capture_output=True,
+                          encoding="utf-8", errors="replace")
 
 
 def repo_from_git(directory: Path) -> str | None:
@@ -406,6 +424,29 @@ def issues_on_branch(listed, branch: str) -> list[int]:
     return numbers
 
 
+def _send(run: Runner, args: list[str], body: str, cwd: Path | None):
+    """Run a gh command with the issue body passed as a file."""
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as handle:
+        handle.write(body)
+        body_file = handle.name
+    try:
+        return run([*args, "--body-file", body_file], cwd)
+    finally:
+        try:
+            os.unlink(body_file)
+        except OSError:
+            pass
+
+
+def approval_message(plan: Path | str, result: "IssueResult") -> str:
+    script = Path(__file__).resolve().as_posix()
+    doc = _relative_doc(str(plan))
+    return (
+        f"{result.message}. Show the user the draft (python3 \"{script}\" {doc}) and ask them to "
+        f"approve it. Only after they approve, run: python3 \"{script}\" --post {doc}"
+    )
+
+
 def ensure_issue(
     plan_path: Path | str,
     *,
@@ -414,8 +455,12 @@ def ensure_issue(
     label: str = LABEL,
     runner: Runner | None = None,
     cwd: Path | None = None,
+    post: bool = True,
 ) -> IssueResult:
-    """Create (or adopt) the issue for this plan and record its number."""
+    """Create (or adopt) the issue for this plan and record its number.
+
+    With ``post=False`` nothing is sent to GitHub: the result carries the draft.
+    """
     run = runner or _default_runner
     plan = Path(plan_path)
     kind = doc_kind(plan)
@@ -430,19 +475,27 @@ def ensure_issue(
         )
 
     existing = issue_number(text)
-    if existing is not None:
+    inherited = linked_brainstorm_issue(plan, text) if kind == "plan" else None
+    # A plan that shares its design doc's issue still has to put its tasks there.
+    refresh = post and inherited is not None and existing in (None, inherited)
+    if existing is not None and not refresh:
         source = "design doc" if kind == "brainstorm" else "plan"
         return IssueResult(number=existing, message=f"{source} already records issue #{existing}")
 
-    if kind == "plan":
-        inherited = linked_brainstorm_issue(plan, text)
-        if inherited is not None:
-            record_issue(plan, inherited)
-            return IssueResult(
-                number=inherited,
-                url=f"https://github.com/{repo}/issues/{inherited}" if repo else None,
-                message=f"reused issue #{inherited} from the linked design doc",
-            )
+    if inherited is not None:
+        draft = render_body(text, plan_path=str(plan), branch=branch, repo=repo, kind=kind)
+        if not post:
+            return IssueResult(number=inherited, skipped="needs-approval", draft=draft,
+                               message=f"will update issue #{inherited} from this plan")
+        edited = _send(run, ["gh", "issue", "edit", str(inherited), "--repo", repo], draft, cwd)
+        if edited.returncode != 0:
+            return IssueResult(error=f"gh issue edit failed: {(edited.stderr or '').strip()}")
+        record_issue(plan, inherited)
+        return IssueResult(
+            number=inherited,
+            url=f"https://github.com/{repo}/issues/{inherited}" if repo else None,
+            message=f"updated issue #{inherited}, shared with the linked design doc",
+        )
 
     if not branch or branch in PROTECTED_BRANCHES:
         return IssueResult(skipped="protected-branch",
@@ -467,22 +520,12 @@ def ensure_issue(
                            message=f"reused existing issue #{number} on this branch")
 
     title = render_title(text, branch)
-    body = render_body(text, plan_path=str(plan).replace(os.sep, "/"), branch=branch, repo=repo,
-                       kind=kind)
-    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as handle:
-        handle.write(body)
-        body_file = handle.name
-    try:
-        created = run(
-            ["gh", "issue", "create", "--repo", repo, "--title", title, "--label", label,
-             "--body-file", body_file],
-            cwd,
-        )
-    finally:
-        try:
-            os.unlink(body_file)
-        except OSError:
-            pass
+    body = render_body(text, plan_path=str(plan), branch=branch, repo=repo, kind=kind)
+    if not post:
+        return IssueResult(skipped="needs-approval", draft=f"# {title}\n\n{body}",
+                           message=f"issue not posted yet: {title}")
+    created = _send(run, ["gh", "issue", "create", "--repo", repo, "--title", title, "--label", label],
+                    body, cwd)
 
     url = (created.stdout or "").strip().splitlines()[-1] if created.stdout else ""
     match = re.search(r"/issues/(\d+)", url)
@@ -541,7 +584,7 @@ def on_post_tool_call(
         return None
 
 
-def handle_plan_write(path: Path | str, runner: Runner | None = None) -> IssueResult:
+def handle_plan_write(path: Path | str, runner: Runner | None = None, post: bool = False) -> IssueResult:
     """Entry point for both hook surfaces. Never raises."""
     plan = Path(path)
     if not plan.is_file() or not is_issue_doc(plan):
@@ -554,26 +597,38 @@ def handle_plan_write(path: Path | str, runner: Runner | None = None) -> IssueRe
     except OSError:
         root = directory
     if not codemax_repo(root):
-        return IssueResult(skipped="not-a-codemax-repo")
+        return IssueResult(
+            skipped="not-a-codemax-repo",
+            message="no issue: this repo has no .codemax.yml. Ask the user whether to add one",
+        )
     try:
-        return ensure_issue(
+        result = ensure_issue(
             plan,
             repo=repo_from_git(root) or "",
             branch=branch_from_git(root),
             runner=runner,
+            post=post,
         )
+        if result.skipped == "needs-approval":
+            result.message = approval_message(plan, result)
+        return result
     except Exception as exc:  # noqa: BLE001 - a hook must never break the tool call
         return IssueResult(error=f"{type(exc).__name__}: {exc}")
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) < 2:
-        print("usage: plan_issue.py <plan-or-design-file>", flush=True)
+    args = [a for a in argv[1:] if a != "--post"]
+    if len(args) != 1:
+        print("usage: plan_issue.py [--post] <plan-or-design-file>", flush=True)
         return 2
-    result = handle_plan_write(argv[1])
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    result = handle_plan_write(args[0], post="--post" in argv)
     if result.error:
         print(f"tapway-superpowers: {result.error}", flush=True)
         return 0  # never fail the write that triggered us
+    if result.draft:
+        print(result.draft + "\n", flush=True)
     if result.message:
         print(f"tapway-superpowers: {result.message}", flush=True)
     return 0

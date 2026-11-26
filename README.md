@@ -520,7 +520,7 @@ Automatic checks that fire on Claude Code lifecycle events.
 | `dependency-audit` | PreToolUse (git commit) | Blocks the commit (`exit 2`) when critical/high vulnerabilities are found (osv-scanner / npm audit / pip-audit) |
 | `pre-commit` (backstop) | Git `pre-commit` hook | Platform-agnostic backstop installed by setup-project; catches lint/format/typecheck failures from any agent or human |
 | `post-write-lint` | PostToolUse (Write\|Edit) | Runs the project linter on changed files |
-| `post-plan-issue` | PostToolUse (Write\|Edit) | Creates the `codemax`-labelled GitHub issue the moment `docs/plans/*.md` is written — or an accepted `docs/brainstorming/*.md` (`status: accepted`) — and records `issue: <n>` in its frontmatter |
+| `post-plan-issue` | PostToolUse (Write\|Edit) | Drafts the `codemax` GitHub issue when `docs/plans/*.md` is written, or a design doc is marked `status: accepted`. Nothing is posted until you approve the draft (`plan_issue.py --post <doc>`), which records `issue: <n>` in its frontmatter |
 | `session-start` | SessionStart | Displays project info, git status, and environment summary when Claude Code opens |
 | `post-commit-release-note` | PostToolUse (git commit) | Parses conventional commits and appends formatted entries to `CHANGELOG.unreleased.md` |
 

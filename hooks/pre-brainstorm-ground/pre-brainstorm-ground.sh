@@ -33,7 +33,13 @@ payload="$(cat | normalize_payload)"
 # (this repo is public — external users must not be broken by our gate).
 gate="${TAPWAY_BRAINSTORM_GATE:-}"
 if [ -z "$gate" ]; then
-  if [ "${CODEMAX_WORKFLOW:-0}" = "1" ] || [ -f .codemax.yml ]; then gate=1; else gate=0; fi
+  # Same rule as the issue hook: either switch, or the marker at the repo root.
+  root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  if [ "${CODEMAX_WORKFLOW:-0}" = "1" ] || [ "${CODEMAX_ENABLED:-0}" = "1" ] || [ -f "$root/.codemax.yml" ]; then
+    gate=1
+  else
+    gate=0
+  fi
 fi
 if [ "$gate" != "1" ]; then
   printf '{}\n'

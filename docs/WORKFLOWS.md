@@ -271,7 +271,7 @@ self-contained. After adding or editing a skill, refresh the mirror:
 | Gate | Where | Blocks |
 |---|---|---|
 | Brainstorm grounding | `pre-brainstorm-ground` (Claude/Codex) + Hermes `pre_tool_call` | a write to `docs/brainstorming/*.md` whose option sections carry no `Grounding:` line |
-| Plan → issue | `pre-pr-contract` on `gh pr create`, plus `workflow-gate` CI; `post-plan-issue` creates the issue | a `docs/plans/*.md` without `issue: <number>` frontmatter (accepted `docs/brainstorming/*.md` also create one; proposed drafts do not) |
+| Plan → issue | `pre-pr-contract` on `gh pr create`, plus `workflow-gate` CI; `post-plan-issue` drafts the issue, posted after the user approves | a `docs/plans/*.md` without `issue: <number>` frontmatter (accepted `docs/brainstorming/*.md` also draft one; proposed ones do not) |
 | Payload shapes | `hooks/lib/hook_payload.py` | n/a — normalises Claude (`tool_input`), Hermes (`args`) and Codex (flat) so every gate reads one shape |
 
 The gates default **on under CodeMAX** (`CODEMAX_WORKFLOW=1` or a `.codemax.yml`)

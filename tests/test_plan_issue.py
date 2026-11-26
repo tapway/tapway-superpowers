@@ -132,7 +132,10 @@ class FakeGh:
     def __call__(self, args: list[str], cwd: Path | None = None):
         self.calls.append(list(args))
         joined = " ".join(args)
-        if "issue list" in joined:
+        if "issue edit" in joined:
+            self.body_file = Path(args[args.index("--body-file") + 1]).read_text(encoding="utf-8")
+            out = ""
+        elif "issue list" in joined:
             out = json.dumps(self.issues)
         elif "issue create" in joined:
             if self.fail:
@@ -432,15 +435,15 @@ class HermesPostToolTests(unittest.TestCase):
         os.environ["CODEMAX_WORKFLOW"] = "1"
         self.addCleanup(os.environ.pop, "CODEMAX_WORKFLOW", None)
 
-    def test_plan_write_creates_the_issue_through_the_hook(self):
+    def test_plan_write_through_the_hook_posts_nothing(self):
         gh = FakeGh(create_number=55)
         plan_issue.on_post_tool_call(
             tool_name="write_file",
             args={"file_path": "docs/plans/x.md", "workdir": str(self.repo.root)},
             runner=gh,
         )
-        self.assertTrue([c for c in gh.calls if "issue create" in " ".join(c)])
-        self.assertEqual(plan_issue.issue_number(self.repo.plan.read_text()), 55)
+        self.assertFalse([c for c in gh.calls if "issue create" in " ".join(c)])
+        self.assertIsNone(plan_issue.issue_number(self.repo.plan.read_text()))
 
     def test_non_plan_write_is_ignored(self):
         gh = FakeGh()
@@ -532,7 +535,7 @@ class HookTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(self.log.read_text().strip(), "")
 
-    def test_accepted_brainstorm_creates_one_issue_on_every_surface(self):
+    def test_accepted_brainstorm_asks_for_approval_on_every_surface(self):
         """An accepted design reaches gh through the shell hooks, not only in-process."""
         rel = "docs/brainstorming/design.md"
         doc = self.repo.root / rel
@@ -545,9 +548,9 @@ class HookTests(unittest.TestCase):
                     {"tool_name": "Write", "tool_input": {"file_path": rel}}, hook=hook
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
-                calls = [line for line in self.log.read_text().splitlines() if "issue create" in line]
-                self.assertEqual(len(calls), 1, f"{surface}: {self.log.read_text()}")
-                self.assertEqual(plan_issue.issue_number(doc.read_text()), 77, surface)
+                self.assertNotIn("issue create", self.log.read_text(), surface)
+                self.assertIsNone(plan_issue.issue_number(doc.read_text()), surface)
+                self.assertIn("--post", result.stdout, surface)
 
     def test_windows_backslash_path_is_routed_on_every_surface(self):
         """Windows sends backslash paths; routing AND file lookup must handle them.
@@ -568,8 +571,7 @@ class HookTests(unittest.TestCase):
                     {"tool_name": "Write", "tool_input": {"file_path": windows}}, hook=hook
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
-                calls = [line for line in self.log.read_text().splitlines() if "issue create" in line]
-                self.assertEqual(len(calls), 1, f"{surface}: {self.log.read_text()}")
+                self.assertIn("--post", result.stdout, f"{surface}: {result.stdout}{result.stderr}")
 
     def test_proposed_brainstorm_is_ignored_on_every_surface(self):
         rel = "docs/brainstorming/design.md"
@@ -586,22 +588,22 @@ class HookTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(self.log.read_text().strip(), "", surface)
 
-    def test_plan_write_creates_one_issue_and_records_it(self):
+    def test_plan_write_tells_the_agent_to_get_approval(self):
         result = self._run(
             {"tool_name": "Write", "tool_input": {"file_path": "docs/plans/x.md"}}
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        calls = [line for line in self.log.read_text().splitlines() if "issue create" in line]
-        self.assertEqual(len(calls), 1, self.log.read_text())
-        self.assertIn("--label codemax", calls[0])
-        self.assertEqual(plan_issue.issue_number(self.repo.plan.read_text()), 77)
+        self.assertNotIn("issue create", self.log.read_text())
+        context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("approve", context)
+        self.assertIn("--post", context)
 
-    def test_second_write_is_a_no_op(self):
-        payload = {"tool_name": "Write", "tool_input": {"file_path": "docs/plans/x.md"}}
-        self._run(payload)
-        self._run(payload)
-        calls = [line for line in self.log.read_text().splitlines() if "issue create" in line]
-        self.assertEqual(len(calls), 1)
+    def test_a_repo_without_the_marker_says_so(self):
+        result = self._run(
+            {"tool_name": "Write", "tool_input": {"file_path": "docs/plans/x.md"}},
+            {"CODEMAX_ENABLED": "0"},
+        )
+        self.assertIn(".codemax.yml", result.stdout)
 
     def test_escape_hatch(self):
         result = self._run(
@@ -768,7 +770,8 @@ class BrainstormTests(unittest.TestCase):
         )
         self.assertEqual(result.number, 42)
         self.assertFalse(result.created)
-        self.assertEqual(gh.calls, [])
+        self.assertEqual([c[:4] for c in gh.calls], [["gh", "issue", "edit", "42"]])
+        self.assertIn("Do the thing", gh.body_file)
         self.assertEqual(plan_issue.issue_number(plan_path.read_text()), 42)
 
     def test_hook_ignores_a_proposed_brainstorm(self):
@@ -783,6 +786,71 @@ class BrainstormTests(unittest.TestCase):
         )
         self.assertEqual(gh.calls, [])
         self.assertIsNone(plan_issue.issue_number(self.doc.read_text()))
+
+
+class TeamReportTests(unittest.TestCase):
+    """Defects reported by the team."""
+
+    def body(self, text, path="docs/plans/x.md", kind="plan"):
+        return plan_issue.render_body(text, plan_path=path, branch="feat/x", repo="o/r", kind=kind)
+
+    def section(self, body, heading):
+        return body.split(f"## {heading}", 1)[1].split("\n## ", 1)[0]
+
+    def test_absolute_paths_never_reach_the_issue(self):
+        for path in ("C:/Users/someone/repo/docs/plans/x.md", "/home/someone/repo/docs/plans/x.md"):
+            body = self.body("# T\n", path)
+            self.assertIn("**Plan:** `docs/plans/x.md`", body)
+            self.assertNotIn("someone", body)
+
+    def test_a_design_doc_is_not_labelled_plan(self):
+        body = self.body("# T\n", "docs/brainstorming/d.md", "brainstorm")
+        self.assertIn("**Design:** `docs/brainstorming/d.md`", body)
+
+    def test_nothing_is_invented_when_sections_are_missing(self):
+        body = self.body("# T\n\n**Goal:** g\n")
+        for heading in ("Acceptance criteria", "Test plan"):
+            self.assertIn("Not specified", self.section(body, heading))
+        self.assertNotIn("CI is green", body)
+
+    def test_bold_acceptance_blocks_are_read(self):
+        body = self.body("# T\n\n### Task 1\n\n**Acceptance:**\n- [x] first\n\n"
+                         "### Task 2\n\n**Acceptance criteria**\n- second\n\n**Files:**\n- Modify: `a.py`\n")
+        criteria = self.section(body, "Acceptance criteria")
+        self.assertIn("- [ ] first", criteria)
+        self.assertIn("- [ ] second", criteria)
+        self.assertNotIn("a.py", criteria)
+
+    def test_a_heading_merely_containing_test_is_not_the_test_plan(self):
+        body = self.body("# T\n\n## Latest decisions\n\n- keep it\n")
+        self.assertIn("Not specified", self.section(body, "Test plan"))
+        body = self.body("# T\n\n## Test plan\n\n- run it\n")
+        self.assertIn("run it", self.section(body, "Test plan"))
+
+    def test_the_gate_checks_absolute_paths(self):
+        from hermes.plugin.gates import check_doc
+
+        bad = "# B\n\n## Option A\n\nBecause.\n"
+        for path in ("docs/brainstorming/x.md", "/home/u/r/docs/brainstorming/x.md",
+                     "C:\\r\\docs\\brainstorming\\x.md"):
+            self.assertTrue(check_doc(path, bad), path)
+
+    def test_preview_posts_nothing_and_shows_the_draft(self):
+        repo = PlanFile()
+        self.addCleanup(repo.cleanup)
+        gh = FakeGh()
+        result = plan_issue.ensure_issue(
+            repo.plan, repo="tapway/fake", branch="feat/plan-issue", runner=gh, post=False
+        )
+        self.assertEqual(result.skipped, "needs-approval")
+        self.assertIn("## Summary", result.draft)
+        self.assertNotIn("create", [word for call in gh.calls for word in call])
+        self.assertIsNone(plan_issue.issue_number(repo.plan.read_text()))
+
+    def test_both_gates_find_the_marker_at_the_repo_root(self):
+        text = (ROOT / "hooks" / "pre-brainstorm-ground" / "pre-brainstorm-ground.sh").read_text(encoding="utf-8")
+        self.assertIn("rev-parse --show-toplevel", text)
+        self.assertIn("CODEMAX_ENABLED", text)
 
 
 if __name__ == "__main__":

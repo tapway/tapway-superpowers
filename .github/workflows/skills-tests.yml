@@ -44,6 +44,9 @@ jobs:
       - name: Release drift detector
         run: python tests/test_release_drift.py
 
+      - name: Workflow audit (plan required)
+        run: python tests/test_workflow_audit.py
+
       - name: Descriptive release notes
         run: python tests/test_release_notes.py
 

@@ -6,7 +6,7 @@ import os
 checks = []
 
 d = json.load(open(".claude-plugin/plugin.json"))
-checks.append(("plugin.json skills=31", len(d["skills"]) == 31, len(d["skills"])))
+checks.append(("plugin.json skills=30", len(d["skills"]) == 30, len(d["skills"])))
 checks.append(("plugin.json agents=5", len(d["agents"]) == 5, len(d["agents"])))
 
 readme = open("README.md").read()
@@ -19,7 +19,7 @@ checks.append(("README Documentation index", "docs/ARCHITECTURE.md" in readme, "
 h = open("hermes/README.md").read()
 checks.append(("hermes/README 'All **31**'", "All **31**" in h, "present" if "All **31**" in h else "missing"))
 
-checks.append(("skills/ count=31", len(os.listdir("skills")) == 31, len(os.listdir("skills"))))
+checks.append(("skills/ count=30", len(os.listdir("skills")) == 30, len(os.listdir("skills"))))
 checks.append(("hermes/skills/ count=31", len(os.listdir("hermes/skills")) == 31, len(os.listdir("hermes/skills"))))
 checks.append(("agents/ count=5", len(os.listdir("agents")) == 5, len(os.listdir("agents"))))
 hook_dirs = [x for x in os.listdir("hooks") if os.path.isdir(f"hooks/{x}") and x != "lib"]

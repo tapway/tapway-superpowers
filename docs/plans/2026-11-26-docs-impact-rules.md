@@ -38,6 +38,18 @@ date: 2026-11-26
 **Acceptance:**
 - [x] Authors are told the per-rule line and which changes ask for which document
 
+### Task 1.3: Remove the repo-wiki-writer skill
+
+**Why:** It overlaps with `repo-docs`.
+
+**Files:**
+- Delete: `skills/repo-wiki-writer/`
+- Modify: `pr` and `autoship` skills, `.claude-plugin/plugin.json`, `README.md`, `tests/check_docs_consistency.py`
+
+**Acceptance:**
+- [x] The skill is gone and no skill or doc tells the agent to run it
+- [x] `/pr` and `/autoship` no longer require a GitHub Wiki update
+
 ## Decisions
 
 - **A written reason is accepted:** forced edits produce filler, and reviewers can challenge the reason.

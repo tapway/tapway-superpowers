@@ -143,6 +143,7 @@ Use `gh pr create` with a structured body. Target branch defaults to `staging`:
 
 ## Work Package
 [Link to docs/checklists/[feature]-checklist.md if applicable]
+Plan: docs/plans/[feature-name].md   <- required unless this PR adds or updates the plan itself
 
 ## Test Plan
 - [ ] Unit tests pass (pytest -q / npm test)

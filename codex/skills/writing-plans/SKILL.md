@@ -128,7 +128,7 @@ Commit and push the change so teammates know it's taken.
 **Step 2 — Create your worktree** (run in the project root):
 ```bash
 git fetch origin
-git worktree add -b feat/[feature]-[package] ../[project]-[package] origin/main
+git worktree add -b feat/[feature]-[package] ../[project]-[package] origin/staging   # your TARGET_BRANCH
 cd ../[project]-[package]
 ```
 
@@ -169,6 +169,17 @@ git add docs/plans/[feature-name].md docs/checklists/[feature-name]-checklist.md
 git commit -m "docs: add plan and work package checklist for [feature-name]"
 git push
 ```
+
+Commit them on a feature branch. Which PR carries them depends on the work:
+
+- **One branch:** keep implementing on it. The single PR contains the plan.
+- **Several work packages (one branch and PR each):** first open a PR with only the plan and checklist into the integration branch (`TARGET_BRANCH`, usually `staging`), and merge it before anyone creates a package branch. Each package PR then names the plan on its own line in the description:
+
+  ```
+  Plan: docs/plans/[feature-name].md
+  ```
+
+Every PR needs one of the two: a plan it adds or updates, or that `Plan:` line pointing at a merged plan. The `audit` check enforces it.
 
 ### 7b. The GitHub Issue Is Created Automatically
 

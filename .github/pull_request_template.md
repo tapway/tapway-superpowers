@@ -1,5 +1,10 @@
 ## Summary
 
+## Release note
+
+<!-- One to three plain sentences on what changes for users. It is copied into
+the release notes. Write "None" if users will not notice. -->
+
 ## Docs impact
 
 <!-- For code/config/skill changes, replace this comment with one plain line:

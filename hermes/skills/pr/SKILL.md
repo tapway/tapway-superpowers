@@ -138,6 +138,9 @@ Use `gh pr create` with a structured body. Target branch defaults to `staging`:
 - [Bullet 2]
 - [Bullet 3]
 
+## Release note
+[One to three plain sentences on what changes for users, or "None"]
+
 ## Work Package
 [Link to docs/checklists/[feature]-checklist.md if applicable]
 
@@ -157,6 +160,9 @@ gh pr create \
   --body "$(cat <<'EOF'
 ## Summary
 - ...
+
+## Release note
+[One to three plain sentences on what changes for users, or "None"]
 
 ## Test Plan
 - [ ] ...

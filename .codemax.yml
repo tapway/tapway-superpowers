@@ -1,0 +1,5 @@
+# Marks this repo as CodeMAX-enabled. Only the presence of the file matters to
+# the tapway-superpowers hooks:
+#   - saving docs/plans/*.md (or an accepted design) on a feature branch opens
+#     its GitHub issue labelled `codemax`
+#   - the brainstorm grounding and PR contract gates are on by default

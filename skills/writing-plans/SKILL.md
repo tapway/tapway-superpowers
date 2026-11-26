@@ -181,9 +181,15 @@ Commit them on a feature branch. Which PR carries them depends on the work:
 
 Every PR needs one of the two: a plan it adds or updates, or that `Plan:` line pointing at a merged plan. The `audit` check enforces it.
 
-### 7b. The GitHub Issue Is Created Automatically
+### 7b. Draft the GitHub Issue, Then Post It After Approval
 
-Saving the plan — or an accepted design doc — creates the issue; you do not run anything. Both surfaces hook the write:
+**Nothing is posted until the user approves.** Saving the file only drafts the issue and tells you the command. Then:
+
+1. Run `python3 <plugin>/hermes/plugin/plan_issue.py <doc>` to print the draft (the hook message gives the full path).
+2. Show the draft to the user. If acceptance criteria or the test plan say "Not specified", agree them with the user and add them to the document. Never write your own.
+3. Only after they approve, run it again with `--post`. For a plan that shares a design doc's issue, this updates that issue with the plan's tasks.
+
+Saving the plan — or an accepted design doc — drafts the issue. Both surfaces hook the write:
 
 - **Claude Code / Codex:** the `post-plan-issue` PostToolUse hook fires on every `docs/plans/*.md` write, and on a `docs/brainstorming/*.md` whose frontmatter says `status: accepted`.
 - **Hermes:** the plugin's `post_tool_call` hook does the same in-process.

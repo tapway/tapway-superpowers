@@ -36,6 +36,8 @@ Write out your understanding of what needs to be solved. Include:
 
 ### Step 1.5 — Platform Context (MANDATORY, fail-closed)
 
+The `codemax` command comes from the private `tapway/codemax` repo: clone it and run `uv tool install .` (Python 3.11 or later). If you cannot, say so to the user rather than skipping the check.
+
 Before generating ANY option, retrieve the platform-wide design context. This step is enforced — `codemax platform-context check` will fail the document (and the write hook will block it) if options exist without grounding.
 
 **How:** run the platform context builder for the platform this repo belongs to:
@@ -128,7 +130,7 @@ Start the file with this frontmatter:
 status: proposed
 ---
 ```
-Change it to `status: accepted` only after the user approves the recommendation. In a CodeMAX repo, that edit is what opens the GitHub issue, so make it with the file edit tool (not a shell command), on a feature branch. Commit the file again afterwards, including the `issue:` line the hook adds.
+Change it to `status: accepted` only after the user approves the recommendation. In a CodeMAX repo, that edit is what drafts the GitHub issue (posted only after the user approves it), so make it with the file edit tool (not a shell command), on a feature branch. Commit the file again afterwards, including the `issue:` line the hook adds.
 
 ### 7. Hand off
 

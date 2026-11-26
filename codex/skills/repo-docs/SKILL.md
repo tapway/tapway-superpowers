@@ -33,6 +33,18 @@ Planning artifacts, deleted docs, and unrelated edits are not evidence. Reuse a
 prior result only if the reviewed code and docs diff still matches the task or PR.
 Do not fabricate a no-impact result if the diff has not been reviewed.
 
+CI also asks for a specific document when a change looks like one of these:
+
+| Change | Document | If missing |
+|---|---|---|
+| Schema (migrations, SQL, ORM models). Only repos with storage | `docs/DB_SCHEMA.md` | fails |
+| Deployment (Dockerfile, Compose, `deploy/`, `.env` examples) | `docs/DEPLOYMENT.md` | fails |
+| Architecture (new module, dependencies, services) | `docs/ARCHITECTURE.md` | warns |
+| Workflows (API routes, workers, jobs, adapters) | `docs/WORKFLOWS.md` | warns |
+
+If that document really is still accurate, add one extra line per kind:
+`Docs: no impact (schema) — <specific reason>`.
+
 ## Step 0 — Understand the Repo First
 
 Before writing anything, do a thorough read of the codebase:

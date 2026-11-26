@@ -228,10 +228,6 @@ git add docs/
 git commit -m "docs: update project docs for [feature]"
 ```
 
-**Step 3b — Update the GitHub Wiki**
-
-Run `/repo-wiki-writer` to refresh the Home, How it works, and Technical Details wiki pages against what this feature actually changed. Clone `<repo>.wiki.git` next to the code repo if needed, update only the affected sections, never copy real secret values, then commit and push the wiki repo directly (it's a separate git repo, so this doesn't touch the PR branch). If the wiki has no pages yet, note the one-time manual Home-page-creation step in the PR body instead of blocking.
-
 **Step 4 — E2E Gate (conditional — mandated for frontend and/or backend, skipped for docs-only)**
 
 Run `git diff --name-only main...HEAD` and classify the changed files:
@@ -433,7 +429,6 @@ After PR is open:
 - ❌ Never open a PR with failing unit tests
 - ❌ Never open a PR with a failed deployment or failing integration/E2E tests *(deploy mode)*
 - ❌ Never skip the doc update step — update or generate docs before calling `/pr`
-- ❌ Never skip the wiki update step — update the GitHub wiki before calling `/pr`
 - ❌ Never work from `main` — always from a worktree
 - ❌ Never push manually — always exit through `/pr`
 
